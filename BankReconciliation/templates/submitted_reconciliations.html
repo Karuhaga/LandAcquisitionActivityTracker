@@ -66,131 +66,128 @@
         </div>
     </div>
 
-    {% include 'includes/flash_message_modal.html' %}
-    {% include 'includes/reconciliation_file_details_modal.html' %}
-
 <script>
-function showFlashMessage(message, type) {
-    let title = "Notification"; // Default title
+    function showFlashMessage(message, type) {
+        let title = "Notification"; // Default title
 
-    if (type === "danger") {
-        title = "Error";
-    } else if (type === "success") {
-        title = "Success";
-    } else if (type === "warning") {
-        title = "Warning";
+        if (type === "danger") {
+            title = "Error";
+        } else if (type === "success") {
+            title = "Success";
+        } else if (type === "warning") {
+            title = "Warning";
+        }
+
+        $("#flashMessageTitle").text(title);
+        $("#flashMessageBody").html(message);
+        $("#flashMessageModal").modal("show");
     }
 
-    $("#flashMessageTitle").text(title);
-    $("#flashMessageBody").html(message);
-    $("#flashMessageModal").modal("show");
-}
-
-$(document).ready(function() {
-    $('#uploadedFilesTable').DataTable({
-        paging: true, // Enable pagination
-        searching: true, // Enable search box
-        ordering: true, // Enable column sorting
-        lengthMenu: [5, 10, 25, 50, 100], // Rows per page options
-        pageLength: 10, // Default number of rows per page
-        dom: '<"row"<"col-md-6"l><"col-md-6"f>>' + // Keep "Show entries" & "Search"
-            '<"row"<"col-md-12"B>>' + // Buttons in a separate row
-            '<"row"<"col-md-12"t>>' + // Table
-            '<"row"<"col-md-6"i><"col-md-6"p>>', // Info & Pagination
-        buttons: [{
-                extend: 'copy',
-                text: 'Copy',
-                className: 'btn btn-secondary'
-            },
-            {
-                extend: 'csv',
-                text: 'Export to CSV',
-                className: 'btn btn-secondary'
-            },
-            {
-                extend: 'excel',
-                text: 'Export to Excel',
-                className: 'btn btn-secondary'
-            },
-            {
-                extend: 'pdf',
-                text: 'Export to PDF',
-                className: 'btn btn-secondary'
-            },
-            {
-                extend: 'print',
-                text: 'Print',
-                className: 'btn btn-secondary'
+    $(document).ready(function() {
+        $('#uploadedFilesTable').DataTable({
+            paging: true, // Enable pagination
+            searching: true, // Enable search box
+            ordering: true, // Enable column sorting
+            lengthMenu: [5, 10, 25, 50, 100], // Rows per page options
+            pageLength: 10, // Default number of rows per page
+            dom: '<"row"<"col-md-6"l><"col-md-6"f>>' + // Keep "Show entries" & "Search"
+                '<"row"<"col-md-12"B>>' + // Buttons in a separate row
+                '<"row"<"col-md-12"t>>' + // Table
+                '<"row"<"col-md-6"i><"col-md-6"p>>', // Info & Pagination
+            buttons: [{
+                    extend: 'copy',
+                    text: 'Copy',
+                    className: 'btn btn-secondary'
+                },
+                {
+                    extend: 'csv',
+                    text: 'Export to CSV',
+                    className: 'btn btn-secondary'
+                },
+                {
+                    extend: 'excel',
+                    text: 'Export to Excel',
+                    className: 'btn btn-secondary'
+                },
+                {
+                    extend: 'pdf',
+                    text: 'Export to PDF',
+                    className: 'btn btn-secondary'
+                },
+                {
+                    extend: 'print',
+                    text: 'Print',
+                    className: 'btn btn-secondary'
+                }
+            ],
+            language: {
+                search: "Search:",
+                lengthMenu: "Show _MENU_ entries per page",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
             }
-        ],
-        language: {
-            search: "Search:",
-            lengthMenu: "Show _MENU_ entries per page",
-            info: "Showing _START_ to _END_ of _TOTAL_ entries",
-            paginate: {
-                first: "First",
-                last: "Last",
-                next: "Next",
-                previous: "Previous"
+        });
+
+        // Calling the reconciliation_file_details_modal.html
+        $(document).off("click", ".view-request-btn").on("click", ".view-request-btn", function() {
+            let row = $(this).closest("tr");
+
+            let bankAccount = row.find("td:nth-child(2)").text().trim();
+            let year = row.find("td:nth-child(3)").text().trim();
+            let month = row.find("td:nth-child(4)").text().trim();
+            let lastModified = row.find("td:nth-child(7)").text().trim();
+            let approveAs = row.find("td:nth-child(6)").text().trim();
+            let fileName = $(this).data("filename");
+
+            // Populate the modal fields
+            $("#viewBankAccount").text(bankAccount);
+            $("#viewYear").text(year);
+            $("#viewMonth").text(month);
+            $("#viewLastModified").text(lastModified);
+            $("#viewApproveAs").text(approveAs);
+            $("#viewFileName").text(fileName);
+
+            // Fetch workflow details
+            loadReconciliationWorkflow(bankAccount, year, month, fileName);
+
+            // Show the modal after data is populated
+            $("#viewRequestModal").modal("show");
+        });
+
+        // Handle "Close" button click
+        $("#closeViewRequest").click(function() {
+            $("#viewRequestCard").slideUp();
+        });
+
+        // Handle "Download File" button click
+        $(document).on("click", ".download-btn", function() {
+            let fileName = $(this).data("filename");
+            if (fileName) {
+                window.location.href = `/download/${encodeURIComponent(fileName)}`;
+            } else {
+                alert("File not found.");
             }
-        }
+        });
+
+        // Handle "Select All" checkbox
+        $('#selectAll').on('click', function() {
+            $('.rowCheckbox').prop('checked', $(this).prop('checked'));
+        });
+
+        // Uncheck "Select All" if any row checkbox is unchecked
+        $(document).on('change', '.rowCheckbox', function() {
+            if (!$(this).prop('checked')) {
+                $('#selectAll').prop('checked', false);
+            } else if ($('.rowCheckbox:checked').length === $('.rowCheckbox').length) {
+                $('#selectAll').prop('checked', true);
+            }
+        });
     });
-
-    // Calling the reconciliation_file_details_modal.html
-    $(document).off("click", ".view-request-btn").on("click", ".view-request-btn", function() {
-        let row = $(this).closest("tr");
-
-        let bankAccount = row.find("td:nth-child(2)").text().trim();
-        let year = row.find("td:nth-child(3)").text().trim();
-        let month = row.find("td:nth-child(4)").text().trim();
-        let lastModified = row.find("td:nth-child(7)").text().trim();
-        let approveAs = row.find("td:nth-child(6)").text().trim();
-        let fileName = $(this).data("filename");
-
-        // Populate the modal fields
-        $("#viewBankAccount").text(bankAccount);
-        $("#viewYear").text(year);
-        $("#viewMonth").text(month);
-        $("#viewLastModified").text(lastModified);
-        $("#viewApproveAs").text(approveAs);
-        $("#viewFileName").text(fileName);
-
-        // Fetch workflow details
-        loadReconciliationWorkflow(bankAccount, year, month, fileName);
-
-        // Show the modal after data is populated
-        $("#viewRequestModal").modal("show");
-    });
-
-    // Handle "Close" button click
-    $("#closeViewRequest").click(function() {
-        $("#viewRequestCard").slideUp();
-    });
-
-    // Handle "Download File" button click
-    $(document).on("click", ".download-btn", function() {
-        let fileName = $(this).data("filename");
-        if (fileName) {
-            window.location.href = `/download/${encodeURIComponent(fileName)}`;
-        } else {
-            alert("File not found.");
-        }
-    });
-
-    // Handle "Select All" checkbox
-    $('#selectAll').on('click', function() {
-        $('.rowCheckbox').prop('checked', $(this).prop('checked'));
-    });
-
-    // Uncheck "Select All" if any row checkbox is unchecked
-    $(document).on('change', '.rowCheckbox', function() {
-        if (!$(this).prop('checked')) {
-            $('#selectAll').prop('checked', false);
-        } else if ($('.rowCheckbox:checked').length === $('.rowCheckbox').length) {
-            $('#selectAll').prop('checked', true);
-        }
-    });
-});
 
 </script>
 

@@ -119,12 +119,13 @@
                         <th>Bank Account</th>
                         <th>Year</th>
                         <th>Month</th>
-                        <th>File Name</th>
+                        <th style="max-width: 15%; word-break: break-all; white-space: normal;">File Name</th>
                         <th>Status</th>
                         <th style="display: none;">Batch_Id</th> <!-- Hidden column -->
                         <th style="text-align: right;">View Request</th>
                         <th>Download File</th>
-                        <th style="text-align: right;">Action</th>
+                        <th>Change File</th>
+                        <th style="text-align: right;">Delete Request</th>
                     </tr>
                 </thead>
                 <tbody id="uploadedFilesBody">
@@ -134,9 +135,10 @@
                         <td></td>
                         <td></td>
                         <td></td>
-                        <td></td>
+                        <td style="max-width: 15%; word-break: break-all; white-space: normal;"></td>
                         <td style="text-align: center;">No files uploaded...</td>
                         <td style="display: none;"></td>
+                        <td></td>
                         <td></td>
                         <td></td>
                         <td></td>
@@ -178,11 +180,35 @@
                     $("#confirmationModal").modal("hide");
                     submitFiles();
                 });
+            } else if (actionType === "delete file") {
+                modalTitle = "Confirm File Deletion";
+                modalMessage = "Are you sure you want to delete this file?";
+                $("#confirmAction").off("click").on("click", function () {
+                    $("#confirmationModal").modal("hide");
+                    deleteFile(pendingDelete.filename, pendingDelete.button);
+                });
+            }
+             else if (actionType === "edit uploaded file") {
+                modalTitle = "Confirm File Upload";
+                modalMessage = "Are you sure you want to change the uploaded file?";
+                $("#confirmAction").off("click").on("click", function () {
+                    $("#confirmationModal").modal("hide");
+                    editSubmittedFile();
+                });
             }
 
             $("#confirmationModalLabel").text(modalTitle);
             $("#confirmationMessage").text(modalMessage);
-            $("#confirmationModal").modal("show");
+
+            $("#confirmationModal").modal({
+                backdrop: true,
+                keyboard: false
+            });
+
+            // Wait for Bootstrap to insert backdrop, then adjust z-index
+            setTimeout(function () {
+                $('.modal-backdrop').last().addClass('confirmation-backdrop');
+            }, 10);
         }
 
         function addFileField() {
@@ -395,28 +421,35 @@
                         <td></td>
                         <td></td>
                         <td></td>
+                        <td></td>
                     </tr>
                 `);
             } else {
                 files.forEach((file, index) => {
                     uploadedFilesBody.append(`
                         <tr>
-                            <td><input type="checkbox" class="rowCheckbox"></td> <!-- Row checkbox -->
+                            <td>
+                                <input type="checkbox" class="rowCheckbox">
+                            </td>
                             <td>${index + 1}</td>
                             <td>${file.bank_account}</td>
                             <td>${file.year}</td>
                             <td>${file.month}</td>
-                            <td>${file.file_name}</td>
+                            <td style="max-width: 150px; white-space: normal; overflow-wrap: break-word; font-weight: normal;">${file.file_name}</td>
                             <td>${file.submission_status}</td>
                             <td style="display: none;">${file.batch_id}</td>
+
                             <td>
-                                <button class="btn-outline-custom view-request-btn-submit" style="float: right;" type="button">View</button>
+                                <button type="button" class="btn-outline-custom view-request-btn-submit float-right">View</button>
                             </td>
                             <td>
-                                <button class="btn-outline-custom" style="float: right;" type="button" data-filename="${file.file_name}" onclick="downloadFile(this)">Download File</button>
+                                <button type="button" class="btn-outline-custom float-right" data-filename="${file.file_name}" onclick="downloadFile(this)">Download</button>
                             </td>
                             <td>
-                                <button class="btn-outline-custom" style="float: right;" type="button" onclick="deleteFile('${file.file_name}', this)">Delete File</button>
+                                <button type="button" class="btn-outline-custom float-right edit-file-uploaded-btn" data-bank-account-name="${file.bank_account}" data-year="${file.year}" data-month="${file.month}" data-filename="${file.file_name}">Change</button>
+                            </td>
+                            <td>
+                                <button type="button" class="btn-outline-custom float-right" data-filename="${file.file_name}" onclick="confirmDeleteFile(this)">Delete</button>
                             </td>
                         </tr>
                     `);
@@ -425,6 +458,16 @@
 
             // Now re-initialize the DataTable
             initializeRoleDataTable();
+        }
+
+        let pendingDelete = { filename: null, button: null };
+
+        function confirmDeleteFile(button) {
+            const filename = $(button).data("filename");
+            pendingDelete.filename = filename;
+            pendingDelete.button = button;
+
+            showConfirmation("delete file");
         }
 
         function initializeRoleDataTable() {
@@ -460,7 +503,6 @@
             });
         }
 
-
         // Calling the reconciliation_file_details_modal.html
         $(document).off("click", ".view-request-btn-submit").on("click", ".view-request-btn-submit", function() {
             let row = $(this).closest("tr");
@@ -485,6 +527,26 @@
 
             // Show the modal after data is populated
             $("#viewRequestModal").modal("show");
+        });
+
+        // Show modal and populate fields for editing uploaded file
+        $(document).off("click", ".edit-file-uploaded-btn").on("click", ".edit-file-uploaded-btn", function () {
+            const bankAccountName = $(this).data('bank-account-name');
+            const year = $(this).data('year');
+            const month = $(this).data('month');
+            const fileName = $(this).data('filename');
+
+            // Populate the form fields
+            $("#bank_account_name").val(bankAccountName);
+            $("#year").val(year);
+            $("#month").val(month);
+            $("#existing_file_name").val(fileName); // Just show as reference, not in the file input
+
+            // Reset the file input (optional)
+            $("#file-upload-edit").val("");
+
+            // Show the modal
+            $("#submitUploadedFileEditModal").modal("show");
         });
 
         function deleteFile(filename, button) {
@@ -596,16 +658,58 @@
             });
         }
 
+        function editSubmittedFile() {
+            const fileInput = document.getElementById("file-upload-edit");
+            const file = fileInput.files[0];
+
+            const bankAccount = $("#bank_account_name").val();
+            const year = $("#year").val();
+            const month = $("#month").val();
+
+            if (!file) {
+                showFlashMessage("Please select a file to upload.", "warning");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("bank_account", bankAccount);
+            formData.append("year", year);
+            formData.append("month", month);
+
+            $.ajax({
+                url: "/update-uploaded-file",
+                type: "POST",
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function(response) {
+                    showFlashMessage(response.message, "success");
+                    $("#submitUploadedFileEditModal").modal("hide");
+
+                    // Refresh table
+                    $.getJSON("/get-uploaded-files", function(data) {
+                        if (data.files) {
+                            displayUploadedFiles(data.files);
+                        }
+                    });
+                },
+                error: function(xhr) {
+                    let errorMessage = xhr.responseJSON?.error || "An error occurred while updating the file.";
+                    showFlashMessage(errorMessage, "danger");
+                }
+            });
+        }
+
         $(document).ready(function() {
-            initializeRoleDataTable()
+
+            $.getJSON("/get-uploaded-files", function(response) {
+                if (response.files) {
+                    displayUploadedFiles(response.files);
+                }
+            });
 
             $('.rowCheckbox, #selectAll').prop('checked', false);
-            const numOfUnsubmittedFiles = {{ num_of_unsubmitted_files }};
-            const uploadedFiles = {{ uploaded_files | tojson }};
-
-            if (numOfUnsubmittedFiles != 0) {
-                displayUploadedFiles(uploadedFiles);
-            }
 
             // Handle "Select All" checkbox
             $('#selectAll').on('click', function() {
@@ -622,6 +726,45 @@
             });
         });
 
+        function initializeUploadedFilesPage() {
+            $.getJSON("/get-uploaded-files", function(response) {
+                if (response.files) {
+                    displayUploadedFiles(response.files);
+                } else {
+                    $("#uploadedFilesTable tbody").html(
+                        `<tr><td colspan="9" class="text-center">No files uploaded yet.</td></tr>`
+                    );
+                }
+            });
+
+            $('.rowCheckbox, #selectAll').prop('checked', false);
+
+            $('#selectAll').off('click').on('click', function () {
+                $('.rowCheckbox').prop('checked', $(this).prop('checked'));
+            });
+
+            $(document).off('change', '.rowCheckbox').on('change', '.rowCheckbox', function () {
+                if (!$(this).prop('checked')) {
+                    $('#selectAll').prop('checked', false);
+                } else if ($('.rowCheckbox:checked').length === $('.rowCheckbox').length) {
+                    $('#selectAll').prop('checked', true);
+                }
+            });
+        }
     </script>
+
+    <style>
+        #confirmationModal {
+            z-index: 1060; /* Higher than default Bootstrap modal (1050) */
+        }
+        #roleModal {
+            z-index: 1050;
+        }
+
+        /* Ensure backdrop covers roleModal when confirmationModal is active */
+        .modal-backdrop.confirmation-backdrop {
+            z-index: 1055; /* Between roleModal and confirmationModal */
+        }
+    </style>
 
 {% endblock %}

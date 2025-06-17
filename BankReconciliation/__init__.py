@@ -60,7 +60,8 @@ def inject_menu_items():
     cursor = conn.cursor()
 
     # Get the role IDs assigned to the current user
-    cursor.execute("SELECT role_id FROM user_role WHERE user_id = ?", (current_user.id,))
+    cursor.execute("SELECT role_id FROM user_role WHERE user_id = ? AND start_datetime <= GETDATE() AND "
+                   "expiry_datetime >= GETDATE()", (current_user.id, ))
     user_roles = [row[0] for row in cursor.fetchall()]
 
     if not user_roles:  # If user has no roles, return an empty menu

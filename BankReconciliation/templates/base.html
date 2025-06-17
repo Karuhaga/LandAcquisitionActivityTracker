@@ -58,6 +58,15 @@
                          $(".content").data("current-url", url); // Store the current URL
                      }
 
+                     // Reinitialize logic if it's the Submit Reconciliations page
+                     if (url.includes("submit-reconciliations")) {
+                         setTimeout(() => {
+                             if (typeof initializeUploadedFilesPage === "function") {
+                                 initializeUploadedFilesPage();
+                             }
+                         }, 50);
+                     }
+
                      if (newPageTitle) {
                          $("#dynamic-page-title").html(newPageTitle);
                      }
@@ -341,6 +350,14 @@
                         </a>
                      {% endif %}
 
+                     {% if 'Report - All Submitted Reconciliations' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('report_report_audit_trail_page') %} active {% endif %}"
+                           href="{{ url_for('report_report_audit_trail_page') }}">
+                        <i class="fa-solid fa-shoe-prints"></i>
+                        <span>Audit Trail</span>
+                        </a>
+                     {% endif %}
+
                      {% if 'Report - Fully Approved Reconciliations' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('report_fully_approved_reconciliations_page') %} active {% endif %}"
                            href="{{ url_for('report_fully_approved_reconciliations_page') }}">
@@ -546,6 +563,7 @@
             {% include 'includes/workflow_breakdown_edit_modal.html' %}
             {% include 'includes/menu_item_add_modal.html' %}
             {% include 'includes/menu_item_edit_modal.html' %}
+            {% include 'includes/submit_uploaded_files_edit_modal.html' %}
             {% include 'includes/flash_message_modal.html' %}
             {% include 'includes/approval_action_modal.html' %}
             {% include 'includes/reconciliation_file_details_modal.html' %}

@@ -19,7 +19,7 @@ def load_user(username):
 
 # User model for Flask-Login
 class User(UserMixin):
-    def __init__(self, id, username, fname, mname, sname, password_hash, email_address):
+    def __init__(self, id, username, fname, mname, sname, password_hash, email_address, is_activated):
         self.id = id
         self.username = username
         self.fname = fname
@@ -27,6 +27,7 @@ class User(UserMixin):
         self.sname = sname
         self.password_hash = password_hash
         self.email_address = email_address
+        self.is_activated = is_activated
         self.roles = self.get_roles()
 
     def get_roles(self):
@@ -56,7 +57,8 @@ class User(UserMixin):
             return None  # Return None if the database connection fails
 
         cursor = conn.cursor()
-        cursor.execute("SELECT ID, Username, Fname, Mname, Sname, Password, Email FROM users WHERE Username = ?",
+        cursor.execute("SELECT ID, Username, Fname, Mname, Sname, Password, Email, is_active"
+                       " FROM users WHERE Username = ?",
                        (username,))
         row = cursor.fetchone()
         conn.close()
@@ -638,6 +640,7 @@ class EmailHelper(UserMixin):
                         <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Bank Account</th>
                         <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Year</th>
                         <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Month</th>
+                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Days Overdue</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -650,6 +653,7 @@ class EmailHelper(UserMixin):
                         <td style="border: 1px solid #ddd; padding: 8px;">{detail.bank_account}</td>
                         <td style="border: 1px solid #ddd; padding: 8px;">{detail.year}</td>
                         <td style="border: 1px solid #ddd; padding: 8px;">{detail.month}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.days_overdue}</td>
                     </tr>
             """
 
@@ -704,6 +708,7 @@ class EmailHelper(UserMixin):
                         <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Bank Account</th>
                         <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Year</th>
                         <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Month</th>
+                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Days Overdue</th>
                         <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Responsible Person(s)</th>
                     </tr>
                 </thead>
@@ -717,6 +722,7 @@ class EmailHelper(UserMixin):
                         <td style="border: 1px solid #ddd; padding: 8px;">{detail.bank_account}</td>
                         <td style="border: 1px solid #ddd; padding: 8px;">{detail.year}</td>
                         <td style="border: 1px solid #ddd; padding: 8px;">{detail.month}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.days_overdue}</td>
                         <td style="border: 1px solid #ddd; padding: 8px;">{detail.responsible_users}</td>
                     </tr>
             """
@@ -1137,7 +1143,8 @@ class FileUploadBatch:
 class FileUpload:
     def __init__(self, id=None, ID=None, bank_account=None, year=None, month=None, batch_id=None, file_name=None,
                  date_time=None, approve_as=None, responsible_users=None, next_approver=None, status=None, email=None,
-                 fname=None, submission_status=None, name=None, approver=None, rejected_on=None, comment=None):
+                 fname=None, submission_status=None, name=None, approver=None, rejected_on=None, comment=None,
+                 days_overdue=None):
         self.id = id
         self.ID = ID
         self.bank_account = bank_account
@@ -1157,6 +1164,7 @@ class FileUpload:
         self.approver = approver
         self.rejected_on = rejected_on
         self.comment = comment
+        self.days_overdue = days_overdue
 
     @staticmethod
     def insert_into_file_upload(batch_id, file_name, bank_account, year, month):
@@ -1568,68 +1576,75 @@ class FileUpload:
         try:
             # Fetch submitted reconciliations
             query = """
-                    WITH MonthList AS (
+                        WITH MonthList AS (
+                            SELECT 
+                                ba.id AS bank_account_id,
+                                ba.name AS bank_account,
+                                DATEFROMPARTS(YEAR(ba.creation_date), MONTH(ba.creation_date), 1) AS start_month
+                            FROM 
+                                bank_account ba
+                        ), AllMonths AS (
+                            SELECT 
+                                ml.bank_account_id,
+                                ml.bank_account,
+                                ml.start_month AS recon_month
+                            FROM 
+                                MonthList ml
+                            
+                            UNION ALL
+                            
+                            SELECT 
+                                am.bank_account_id,
+                                am.bank_account,
+                                DATEADD(MONTH, 1, am.recon_month)
+                            FROM 
+                                AllMonths am
+                            WHERE 
+                                am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+                        )
                         SELECT 
-                            ba.id AS bank_account_id,
-                            ba.name AS bank_account,
-                            DATEFROMPARTS(YEAR(ba.creation_date), MONTH(ba.creation_date), 1) AS start_month
-                        FROM 
-                            bank_account ba
-                    ), AllMonths AS (
-                        SELECT 
-                            ml.bank_account_id,
-                            ml.bank_account,
-                            ml.start_month AS recon_month
-                        FROM 
-                            MonthList ml
-                        
-                        UNION ALL
-                        
-                        SELECT 
-                            am.bank_account_id,
-                            am.bank_account,
-                            DATEADD(MONTH, 1, am.recon_month)
+                            c.name AS bank_account,
+                            YEAR(am.recon_month) AS year,
+                            MONTH(am.recon_month) AS month_number,
+                            DATENAME(month, am.recon_month) AS month,
+                            DATEDIFF(
+                                DAY,
+                                DATEADD(MONTH, 1, am.recon_month),  -- First day after the recon month
+                                GETDATE()
+                            ) AS days_overdue,
+                            STRING_AGG(
+                                LTRIM(RTRIM(
+                                    COALESCE(u.Fname, '') + 
+                                    CASE WHEN u.Mname IS NOT NULL AND u.Mname <> '' THEN ' ' + u.Mname ELSE '' END + 
+                                    CASE WHEN u.Sname IS NOT NULL AND u.Sname <> '' THEN ' ' + u.Sname ELSE '' END
+                                )),
+                                ', '
+                            ) AS responsible_users
                         FROM 
                             AllMonths am
+                        LEFT JOIN 
+                            file_upload f ON f.bank_account_id = am.bank_account_id 
+                                           AND f.year = YEAR(am.recon_month)
+                                           AND f.month = MONTH(am.recon_month)
+                                           AND f.removed_by_user_on_upload_page = 0
+                        INNER JOIN 
+                            bank_account c ON am.bank_account_id = c.id
+                        LEFT JOIN 
+                            bank_account_responsible_user bru ON bru.bank_account_id = c.id
+                        LEFT JOIN 
+                            users u ON bru.user_id = u.ID
                         WHERE 
-                            am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
-                    )
-                    SELECT 
-                        c.name AS bank_account,
-                        YEAR(am.recon_month) AS year,
-                        DATENAME(month, am.recon_month) AS month, -- changed here
-                        STRING_AGG(
-                            LTRIM(RTRIM(
-                                COALESCE(u.Fname, '') + 
-                                CASE WHEN u.Mname IS NOT NULL AND u.Mname <> '' THEN ' ' + u.Mname ELSE '' END + 
-                                CASE WHEN u.Sname IS NOT NULL AND u.Sname <> '' THEN ' ' + u.Sname ELSE '' END
-                            )),
-                            ', '
-                        ) AS responsible_users
-                    FROM 
-                        AllMonths am
-                    LEFT JOIN 
-                        file_upload f ON f.bank_account_id = am.bank_account_id 
-                                       AND f.year = YEAR(am.recon_month)
-                                       AND f.month = MONTH(am.recon_month)
-                                       AND f.removed_by_user_on_upload_page = 0
-                    INNER JOIN 
-                        bank_account c ON am.bank_account_id = c.id
-                    LEFT JOIN 
-                        bank_account_responsible_user bru ON bru.bank_account_id = c.id
-                    LEFT JOIN 
-                        users u ON bru.user_id = u.ID
-                    WHERE 
-                        f.id IS NULL -- Means missing reconciliation
-                        AND am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1) --EXCLUDE current month
-                    GROUP BY 
-                        c.name,
-                        YEAR(am.recon_month),
-                        DATENAME(month, am.recon_month) -- also group by the new month name
-                    ORDER BY 
-                        c.name, year, 
-                        MIN(MONTH(am.recon_month)) -- optional: ensure months are sorted properly
-                    OPTION (MAXRECURSION 1000);
+                            f.id IS NULL
+                            AND am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+                        GROUP BY 
+                            c.name,
+                            am.recon_month, -- Needed for DATEDIFF
+                            YEAR(am.recon_month),
+                            MONTH(am.recon_month),
+                            DATENAME(month, am.recon_month)
+                        ORDER BY 
+                            c.name, year, month_number
+                        OPTION (MAXRECURSION 1000);
                         """
             cursor.execute(query, )
             result = cursor.fetchall()
@@ -1640,7 +1655,8 @@ class FileUpload:
                     bank_account=row.bank_account,
                     year=row.year,
                     month=row.month,
-                    responsible_users=row.responsible_users
+                    responsible_users=row.responsible_users,
+                    days_overdue=row.days_overdue
                 )
                 for row in result
             ]
@@ -2321,61 +2337,69 @@ class FileUpload:
         try:
             # Fetch submitted reconciliations
             query = """
-                    DECLARE @UserID INT = ?;
-                    
-                    WITH MonthList AS (
+                        DECLARE @UserID INT = ?;
+                        
+                        WITH MonthList AS (
+                            SELECT 
+                                ba.id AS bank_account_id,
+                                ba.name AS bank_account,
+                                DATEFROMPARTS(YEAR(ba.creation_date), MONTH(ba.creation_date), 1) AS start_month
+                            FROM 
+                                bank_account ba
+                        ), AllMonths AS (
+                            SELECT 
+                                ml.bank_account_id,
+                                ml.bank_account,
+                                ml.start_month AS recon_month
+                            FROM 
+                                MonthList ml
+                        
+                            UNION ALL
+                        
+                            SELECT 
+                                am.bank_account_id,
+                                am.bank_account,
+                                DATEADD(MONTH, 1, am.recon_month)
+                            FROM 
+                                AllMonths am
+                            WHERE 
+                                am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+                        )
                         SELECT 
-                            ba.id AS bank_account_id,
-                            ba.name AS bank_account,
-                            DATEFROMPARTS(YEAR(ba.creation_date), MONTH(ba.creation_date), 1) AS start_month
-                        FROM 
-                            bank_account ba
-                    ), AllMonths AS (
-                        SELECT 
-                            ml.bank_account_id,
-                            ml.bank_account,
-                            ml.start_month AS recon_month
-                        FROM 
-                            MonthList ml
-                        UNION ALL
-                        SELECT 
-                            am.bank_account_id,
-                            am.bank_account,
-                            DATEADD(MONTH, 1, am.recon_month)
+                            c.name AS bank_account,
+                            YEAR(am.recon_month) AS year,
+                            DATENAME(month, am.recon_month) AS month,
+                            DATEDIFF(
+                                DAY,
+                                DATEADD(MONTH, 1, am.recon_month),  -- First day after recon month
+                                GETDATE()
+                            ) AS days_overdue
                         FROM 
                             AllMonths am
+                        LEFT JOIN 
+                            file_upload f ON f.bank_account_id = am.bank_account_id 
+                                           AND f.year = YEAR(am.recon_month)
+                                           AND f.month = MONTH(am.recon_month)
+                                           AND f.removed_by_user_on_upload_page = 0
+                        INNER JOIN 
+                            bank_account c ON am.bank_account_id = c.id
+                        LEFT JOIN 
+                            bank_account_responsible_user bru ON bru.bank_account_id = c.id
+                        LEFT JOIN 
+                            users u ON bru.user_id = u.ID
                         WHERE 
-                            am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
-                    )
-                    SELECT 
-                        c.name AS bank_account,
-                        YEAR(am.recon_month) AS year,
-                        DATENAME(month, am.recon_month) AS month
-                    FROM 
-                        AllMonths am
-                    LEFT JOIN 
-                        file_upload f ON f.bank_account_id = am.bank_account_id 
-                                       AND f.year = YEAR(am.recon_month)
-                                       AND f.month = MONTH(am.recon_month)
-                                       AND f.removed_by_user_on_upload_page = 0
-                    INNER JOIN 
-                        bank_account c ON am.bank_account_id = c.id
-                    LEFT JOIN 
-                        bank_account_responsible_user bru ON bru.bank_account_id = c.id
-                    LEFT JOIN 
-                        users u ON bru.user_id = u.ID
-                    WHERE 
-                        f.id IS NULL -- Missing reconciliation
-                        AND am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1) -- Exclude current month
-                        AND u.ID = @UserID -- <<< ADD YOUR USER ID FILTER HERE
-                    GROUP BY 
-                        c.name,
-                        YEAR(am.recon_month),
-                        DATENAME(month, am.recon_month)
-                    ORDER BY 
-                        c.name, year, 
-                        MIN(MONTH(am.recon_month))
-                    OPTION (MAXRECURSION 1000);
+                            f.id IS NULL -- Missing reconciliation
+                            AND am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+                            AND u.ID = @UserID
+                        GROUP BY 
+                            c.name,
+                            am.recon_month,
+                            YEAR(am.recon_month),
+                            DATENAME(month, am.recon_month)
+                        ORDER BY 
+                            c.name, year, 
+                            MIN(MONTH(am.recon_month))
+                        OPTION (MAXRECURSION 1000);
                   """
             cursor.execute(query, (user_id,))
             result = cursor.fetchall()
@@ -2385,7 +2409,8 @@ class FileUpload:
                 FileUpload(
                     bank_account=row.bank_account,
                     year=row.year,
-                    month=row.month
+                    month=row.month,
+                    days_overdue=row.days_overdue
                 )
                 for row in result
             ]
@@ -2408,90 +2433,96 @@ class FileUpload:
         try:
             # Fetch submitted reconciliations
             query = """
-                    DECLARE @logged_in_user_id INT = ?;
-                    DECLARE @is_global_responsibility BIT = 0;
-                    
-                    WITH MonthList AS (
-                        SELECT 
-                            ba.id AS bank_account_id,
-                            ba.name AS bank_account,
-                            DATEFROMPARTS(YEAR(ba.creation_date), MONTH(ba.creation_date), 1) AS start_month
-                        FROM 
-                            bank_account ba
-                    ), AllMonths AS (
-                        SELECT 
-                            ml.bank_account_id,
-                            ml.bank_account,
-                            ml.start_month AS recon_month
-                        FROM 
-                            MonthList ml
+                        DECLARE @logged_in_user_id INT = ?;
+                        DECLARE @is_global_responsibility BIT = 0;
                         
-                        UNION ALL
-                        
+                        WITH MonthList AS (
+                            SELECT 
+                                ba.id AS bank_account_id,
+                                ba.name AS bank_account,
+                                DATEFROMPARTS(YEAR(ba.creation_date), MONTH(ba.creation_date), 1) AS start_month
+                            FROM 
+                                bank_account ba
+                        ), AllMonths AS (
+                            SELECT 
+                                ml.bank_account_id,
+                                ml.bank_account,
+                                ml.start_month AS recon_month
+                            FROM 
+                                MonthList ml
+                            
+                            UNION ALL
+                            
+                            SELECT 
+                                am.bank_account_id,
+                                am.bank_account,
+                                DATEADD(MONTH, 1, am.recon_month)
+                            FROM 
+                                AllMonths am
+                            WHERE 
+                                am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+                        )
                         SELECT 
-                            am.bank_account_id,
-                            am.bank_account,
-                            DATEADD(MONTH, 1, am.recon_month)
+                            c.name AS bank_account,
+                            YEAR(am.recon_month) AS year,
+                            DATENAME(month, am.recon_month) AS month,
+                            DATEDIFF(
+                                DAY,
+                                DATEADD(MONTH, 1, am.recon_month), -- Day after the end of the month
+                                GETDATE()
+                            ) AS days_overdue,
+                            STRING_AGG(
+                                LTRIM(RTRIM(
+                                    COALESCE(u.Fname, '') + 
+                                    CASE WHEN u.Mname IS NOT NULL AND u.Mname <> '' THEN ' ' + u.Mname ELSE '' END + 
+                                    CASE WHEN u.Sname IS NOT NULL AND u.Sname <> '' THEN ' ' + u.Sname ELSE '' END
+                                )),
+                                ', '
+                            ) AS responsible_users
                         FROM 
                             AllMonths am
+                        LEFT JOIN 
+                            file_upload f ON f.bank_account_id = am.bank_account_id 
+                                           AND f.year = YEAR(am.recon_month)
+                                           AND f.month = MONTH(am.recon_month)
+                                           AND f.removed_by_user_on_upload_page = 0
+                        INNER JOIN 
+                            bank_account c ON am.bank_account_id = c.id
+                        LEFT JOIN 
+                            bank_account_responsible_user bru ON bru.bank_account_id = c.id
+                        LEFT JOIN 
+                            users u ON bru.user_id = u.ID
                         WHERE 
-                            am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
-                    )
-                    SELECT 
-                        c.name AS bank_account,
-                        YEAR(am.recon_month) AS year,
-                        DATENAME(month, am.recon_month) AS month,
-                        STRING_AGG(
-                            LTRIM(RTRIM(
-                                COALESCE(u.Fname, '') + 
-                                CASE WHEN u.Mname IS NOT NULL AND u.Mname <> '' THEN ' ' + u.Mname ELSE '' END + 
-                                CASE WHEN u.Sname IS NOT NULL AND u.Sname <> '' THEN ' ' + u.Sname ELSE '' END
-                            )),
-                            ', '
-                        ) AS responsible_users
-                    FROM 
-                        AllMonths am
-                    LEFT JOIN 
-                        file_upload f ON f.bank_account_id = am.bank_account_id 
-                                       AND f.year = YEAR(am.recon_month)
-                                       AND f.month = MONTH(am.recon_month)
-                                       AND f.removed_by_user_on_upload_page = 0
-                    INNER JOIN 
-                        bank_account c ON am.bank_account_id = c.id
-                    LEFT JOIN 
-                        bank_account_responsible_user bru ON bru.bank_account_id = c.id
-                    LEFT JOIN 
-                        users u ON bru.user_id = u.ID
-                    WHERE 
-                        f.id IS NULL
-                        AND am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1) 
-                        AND (
-                            (@is_global_responsibility = 0 AND bru.user_id IN (
-                                SELECT DISTINCT a.ID 
-                                FROM users a
-                                JOIN organisation_unit b ON a.organisation_unit_id = b.id
-                                WHERE b.parent_org_unit_id IN (
-                                    SELECT d.organisation_unit_id FROM users d WHERE d.ID = @logged_in_user_id
-                                )
-                            ))
-                            OR
-                            (@is_global_responsibility = 1 AND bru.user_id IN (
-                                SELECT DISTINCT a.ID 
-                                FROM users a
-                                JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
-                                WHERE b.parent_org_unit_tier_id IN (
-                                    SELECT d.organisation_unit_tier_id FROM users d WHERE d.ID = @logged_in_user_id
-                                )
-                            ))
-                        )
-                    GROUP BY 
-                        c.name,
-                        YEAR(am.recon_month),
-                        DATENAME(month, am.recon_month) 
-                    ORDER BY 
-                        c.name, year, 
-                        MIN(MONTH(am.recon_month))
-                    OPTION (MAXRECURSION 1000);
+                            f.id IS NULL
+                            AND am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+                            AND (
+                                (@is_global_responsibility = 0 AND bru.user_id IN (
+                                    SELECT DISTINCT a.ID 
+                                    FROM users a
+                                    JOIN organisation_unit b ON a.organisation_unit_id = b.id
+                                    WHERE b.parent_org_unit_id IN (
+                                        SELECT d.organisation_unit_id FROM users d WHERE d.ID = @logged_in_user_id
+                                    )
+                                ))
+                                OR
+                                (@is_global_responsibility = 1 AND bru.user_id IN (
+                                    SELECT DISTINCT a.ID 
+                                    FROM users a
+                                    JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
+                                    WHERE b.parent_org_unit_tier_id IN (
+                                        SELECT d.organisation_unit_tier_id FROM users d WHERE d.ID = @logged_in_user_id
+                                    )
+                                ))
+                            )
+                        GROUP BY 
+                            c.name,
+                            am.recon_month,
+                            YEAR(am.recon_month),
+                            DATENAME(month, am.recon_month) 
+                        ORDER BY 
+                            c.name, year, 
+                            MIN(MONTH(am.recon_month))
+                        OPTION (MAXRECURSION 1000);
                   """
             cursor.execute(query, (user_id,))
             result = cursor.fetchall()
@@ -2502,7 +2533,8 @@ class FileUpload:
                     bank_account=row.bank_account,
                     year=row.year,
                     month=row.month,
-                    responsible_users=row.responsible_users
+                    responsible_users=row.responsible_users,
+                    days_overdue=row.days_overdue
                 )
                 for row in result
             ]
@@ -2597,6 +2629,47 @@ class FileUpload:
         finally:
             cursor.close()
             conn.close()
+
+    @staticmethod
+    def get_id_of_file_upload_2(bank_account, year, month):
+        # Convert month name to its corresponding number
+        month_map = {
+            "January": 1, "February": 2, "March": 3, "April": 4,
+            "May": 5, "June": 6, "July": 7, "August": 8,
+            "September": 9, "October": 10, "November": 11, "December": 12
+        }
+        # If month is a string, convert to integer
+        if isinstance(month, str):
+            month = month_map.get(month)
+            if month is None:
+                raise ValueError(f"Invalid month name: {month}")
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT fu.id, fu.file_name
+            FROM file_upload fu
+            LEFT OUTER JOIN bank_account ba ON fu.bank_account_id = ba.id
+            WHERE ba.name = ? AND fu.year = ? AND fu.month = ? AND fu.submission_status = 0 
+            AND fu.removed_by_user_on_upload_page = 0
+        """, (bank_account, year, month))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return type('Obj', (object,), {"id": row[0], "file_name": row[1]})
+        return None
+
+    @staticmethod
+    def update_file_name(file_id, new_filename):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE file_upload SET file_name = ? WHERE id = ?
+        """, (new_filename, file_id))
+        conn.commit()
+        conn.close()
 
 
 class FileDelete:
@@ -3859,13 +3932,16 @@ class ReconciliationApprovals:
 
 
 class Audit:
-    def __init__(self, user_id, action, details, date_time, ip_address):
+    def __init__(self, id=None, user_id=None, name=None, action=None, details=None, date_time=None, ip_address=None,
+                 username=None):
         self.id = id
         self.user_id = user_id
+        self.name = name
         self.action = action
         self.details = details
         self.date_time = date_time
         self.ip_address = ip_address
+        self.username = username
 
     @staticmethod
     def log_audit_trail(user_id, action, details="", ip_address=None):
@@ -3890,6 +3966,40 @@ class Audit:
             return action
         except Exception as e:
             print(f"Error while updating audit trail: {e}")
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_all_audit_trail_records():
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            # Fetch submitted reconciliations
+            query = """
+                        SELECT at.id, at.user_id, u.Username AS username, 
+                        LTRIM(RTRIM(COALESCE(u.Fname + ' ' + u.Mname + ' ' + u.Sname, ''))) AS name, 
+                        at.action, at.details, at.timestamp as date_time, at.ip_address 
+                        FROM audit_trail at
+                        LEFT OUTER JOIN users u ON at.user_id = u.ID
+                    """
+            cursor.execute(query, )
+            result = cursor.fetchall()
+
+            # Convert query result into list of Reconciliation objects
+            audit_trail_records = [
+                Audit(id=row.id, user_id=row.user_id, username=row.username, name=row.name, action=row.action,
+                      details=row.details, date_time=row.date_time, ip_address=row.ip_address)
+                for row in result
+            ]
+            return audit_trail_records
+        except Exception as e:
+            print("Database error:", e)
+            return []
         finally:
             cursor.close()
             conn.close()

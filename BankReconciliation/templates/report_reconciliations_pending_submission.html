@@ -24,6 +24,7 @@
                         <th>Bank Account</th>
                         <th>Year</th>
                         <th>Month</th>
+                        <th>Days Overdue</th>
                         <th>Responsible Person(s)</th>
                     </tr>
                 </thead>
@@ -34,6 +35,7 @@
                         <td>{{ reconciliation.bank_account }}</td>
                         <td>{{ reconciliation.year }}</td>
                         <td>{{ reconciliation.month }}</td>
+                        <td>{{ reconciliation.days_overdue }}</td>
                         <td>{{ reconciliation.responsible_users }}</td>
                     </tr>
                     {% else %}
@@ -42,6 +44,7 @@
                         <td></td>
                         <td></td>
                         <td style="text-align: center;">No submitted reconciliations found.</td>
+                        <td></td>
                         <td></td>
                     </tr>
                     {% endfor %}

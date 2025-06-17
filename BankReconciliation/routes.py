@@ -44,7 +44,18 @@ def login_page():
             )
             flash('Username and/or Password is incorrect. Please try again!', category='danger')
 
-        # Case 3: Successful login
+        # Case 3: User found but account is inactive
+        elif attempted_user.is_activated == 0:
+            Audit.log_audit_trail(
+                user_id=attempted_user.id,
+                action="User Login Denied",
+                details=f"Login denied: inactive account for username '{form.username.data}'",
+                ip_address=request.remote_addr
+            )
+            flash('Your account is disabled. Please contact the System Administrator for assistance.',
+                  category='danger')
+
+        # Case 4: Successful login
         else:
             session.permanent = True
             login_user(attempted_user)
@@ -174,6 +185,15 @@ def upload_files():
             file.save(file_path)
 
             new_file_id = FileUpload.insert_into_file_upload(new_batch_id, new_filename, bank_account, year, month)
+            user_id = current_user.id
+            username = current_user.username
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert in table: file_upload",
+                details=f"Reconciliation File Upload, Batch ID: '{username}', Bank Account: '{bank_account}',"
+                        f" Year: '{year}', Month: '{month}', File Name: '{new_filename}'",
+                ip_address=request.remote_addr
+            )
             if new_file_id is None:
                 return jsonify({"error": "Database error while adding uploaded file"}), 500
 
@@ -192,6 +212,56 @@ def upload_files():
     return jsonify(response_data), 200
 
 
+@app.route('/update-uploaded-file', methods=['POST'])
+@login_required
+def update_uploaded_file():
+    file = request.files.get("file")
+    bank_account = request.form.get("bank_account")
+    year = request.form.get("year")
+    month = request.form.get("month")
+
+    if not file or file.filename.strip() == "":
+        return jsonify({"error": "No file selected."}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({"error": "File type not allowed."}), 400
+
+    # Find the existing file entry
+    existing = FileUpload.get_id_of_file_upload_2(bank_account, year, month)
+    if not existing:
+        return jsonify({"error": "Original file not found."}), 404
+
+    try:
+        # Optionally delete the old file (if stored on disk)
+        old_filepath = os.path.join(app.config['UPLOAD_FOLDER'], existing.file_name)
+        if os.path.exists(old_filepath):
+            os.remove(old_filepath)
+
+        # Save new file
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        filename = secure_filename(file.filename)
+        new_filename = f"{timestamp}_{current_user.id}_{filename}"
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], new_filename)
+        file.save(file_path)
+
+        # Update DB
+        FileUpload.update_file_name(existing.id, new_filename)
+        # update audit trail
+        user_id = current_user.id
+        Audit.log_audit_trail(
+            user_id=user_id,
+            action="Update table: file_upload",
+            details=f"Reconciliation File Change, Previous File Name: '{existing.file_name}', "
+                    f"New File Name: '{new_filename}'",
+            ip_address=request.remote_addr
+        )
+        return jsonify({"message": "File updated successfully."}), 200
+
+    except Exception as e:
+        print(f"Error updating uploaded file: {e}")
+        return jsonify({"error": "An internal server error occurred."}), 500
+
+
 @app.route('/delete-file', methods=['POST'])
 @login_required
 def delete_file():
@@ -204,6 +274,14 @@ def delete_file():
     # Update the file_upload table, set removed_by_user_on_upload_page column to 1 for corresponding file name of
     # file removed by user
     new_uploaded_file_name = FileDelete.remove_file_by_user_on_upload_page(filename)
+    # update audit trail
+    user_id = current_user.id
+    Audit.log_audit_trail(
+        user_id=user_id,
+        action="Update table: file_upload",
+        details=f"Reconciliation File Deletion, File Name: '{filename}'",
+        ip_address=request.remote_addr
+    )
     if new_uploaded_file_name is None:
         return jsonify({"error": "Database error while updating status of file removed by User"}), 500
 
@@ -253,6 +331,15 @@ def submit_files():
 
             # Update file status
             updated_file = FileUpload.update_file_submission_status(bank_account_id, year, month, file_name)
+            # Update Audit Trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: file_upload",
+                details=f"Reconciliation File Submission, Bank Account Id: '{bank_account_id}', Year: '{year}', "
+                        f"Month: '{month}', File Name: '{file_name}'",
+                ip_address=request.remote_addr
+            )
             if updated_file is None:
                 return jsonify({"error": "Database error while updating status of file", "type": "danger"}), 500
 
@@ -412,7 +499,15 @@ def approve_reconciliations_update():
             # Update file status
             updated_reconciliation_record = FileUpload.update_file_approval_status(bank_account_id, year, month,
                                                                                    file_name, action)
-
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: file_upload",
+                details=f"Update submission_status of Reconciliation Request, Bank Account Id: '{bank_account_id}', "
+                        f"Year '{year}', Month '{month}', File Name '{file_name}', Action '{action}'",
+                ip_address=request.remote_addr
+            )
             if updated_reconciliation_record is None:
                 return jsonify({"error": "Database error while updating status of file_upload table"}), 500
 
@@ -438,6 +533,14 @@ def approve_reconciliations_update():
 
             if decision == 0:
                 file_upload_id = FileUpload.update_file_approval_status_following_a_rejected_approval(id_of_file_upload)
+                # update audit trail
+                user_id = current_user.id
+                Audit.log_audit_trail(
+                    user_id=user_id,
+                    action="Update table: file_upload",
+                    details=f"Reconciliation Request Rejection, file_upload_id: '{id_of_file_upload}'",
+                    ip_address=request.remote_addr
+                )
                 if file_upload_id is None:
                     return jsonify({"error": "Database error while updating status of file in file_upload table "
                                              "following a rejected request"}), 500
@@ -585,6 +688,14 @@ def report_all_submitted_reconciliations_page():
     return render_template('report_all_submitted_reconciliations.html', reconciliations=reconciliations)
 
 
+@app.route('/report-audit-trail', methods=['GET', 'POST'])
+@login_required
+@role_required(7,8,9,10)
+def report_report_audit_trail_page():
+    audit_trail_records = Audit.get_all_audit_trail_records()
+    return render_template('report_audit_trail.html', audit_trail_records=audit_trail_records)
+
+
 @app.route('/report-reconciliations-pending-approval', methods=['GET', 'POST'])
 @login_required
 @role_required(7,8,9,10)
@@ -667,6 +778,16 @@ def admin_register_new_user():
             org_unit_id=org_unit_id
         )
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: users",
+                details=f"Add User, username: '{username}', email: '{email}', fname: '{fname}', mname: '{mname}', "
+                        f"sname: '{sname}', password: '{password}', org_unit_tier_id: '{org_unit_tier_id}',"
+                        f" org_unit_id: '{org_unit_id}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "User added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert user.", "type": "danger"}), 500
@@ -709,6 +830,14 @@ def admin_user_password_update():
             password=password
         )
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: users",
+                details=f"Update User Password, username: '{username}': password: '{password}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "User Password updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update user password.", "type": "danger"}), 500
@@ -752,6 +881,16 @@ def admin_update_user():
             is_active=is_active
         )
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: users",
+                details=f"Update User, username: '{username}', email: '{email}', fname: '{fname}', mname: '{mname}', "
+                        f"sname: '{sname}', org_unit_tier_id: '{org_unit_tier_id}', org_unit_id: '{org_unit_id}', "
+                        f"is_active: '{is_active}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "User updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update user.", "type": "danger"}), 500
@@ -812,6 +951,14 @@ def admin_register_new_role():
         # Insert user into DB (pseudo-function: implement in your model)
         result = Role.insert_new_role(role_name=rolename)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: role",
+                details=f"Add Role, role_name: '{role_name}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Role added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert role.", "type": "danger"}), 500
@@ -857,6 +1004,14 @@ def admin_update_role():
         # Insert user into DB (pseudo-function: implement in your model)
         result = Role.update_role(role_id, role_name)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: role",
+                details=f"Update Role, role_id: '{role_id}': role_name: '{role_name}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Role updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update user.", "type": "danger"}), 500
@@ -919,6 +1074,15 @@ def admin_register_new_user_role():
             end_date=end_date
         )
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: user_role",
+                details=f"Add User-Role, user_id: '{user_id}': role_id: '{role_id}': start_date: '{start_date}': "
+                        f"end_date: '{end_date}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "User role added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert user role.", "type": "danger"}), 500
@@ -960,6 +1124,15 @@ def admin_update_user_role():
         # Insert user into DB (pseudo-function: implement in your model)
         result = UserRole.update_user_role(user_role_id, start_date, expiry_date)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: user_role",
+                details=f"Update User-Role, user_role_id: '{user_role_id}': start_date: '{start_date}': "
+                        f"expiry_date: '{expiry_date}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "User-Role updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update User-Role.", "type": "danger"}), 500
@@ -1000,8 +1173,15 @@ def admin_register_new_bank():
 
         # Insert user into DB (pseudo-function: implement in your model)
         result = BankAccount.insert_new_bank(bank_name=bankname)
-
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: bank",
+                details=f"Add Bank, bank_name: '{bankname}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Bank added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert bank.", "type": "danger"}), 500
@@ -1047,6 +1227,14 @@ def admin_update_bank():
         # Insert user into DB (pseudo-function: implement in your model)
         result = BankAccount.update_bank(bank_id, bank_name)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: bank",
+                details=f"Update Bank, bank_id: '{bank_id}': bank_name: '{bank_name}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Bank updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update bank.", "type": "danger"}), 500
@@ -1094,8 +1282,16 @@ def admin_register_new_bank_account():
 
         # Insert user into DB (pseudo-function: implement in your model)
         result = BankAccount.insert_new_bank_account(bankAccountName, bank_id, currency_id, org_unit_id)
-
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: bank_account",
+                details=f"Add Bank Account, bankAccountName: '{bankAccountName}': bank_id: '{bank_id}'"
+                        f": currency_id: '{currency_id}': org_unit_id: '{org_unit_id}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Bank Account added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert bank account.", "type": "danger"}), 500
@@ -1138,6 +1334,15 @@ def admin_update_bank_account():
         # Insert user into DB (pseudo-function: implement in your model)
         result = BankAccount.update_bank_account(bank_acc_id, bank_id, currency_id, org_unit_id, creation_date)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: bank_account",
+                details=f"Update Bank Account, bank_acc_id: '{bank_acc_id}': bank_id: '{bank_id}'"
+                        f": currency_id: '{currency_id}': org_unit_id: '{org_unit_id}': creation_date: '{creation_date}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Bank account updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update bank account.", "type": "danger"}), 500
@@ -1180,6 +1385,14 @@ def admin_register_new_currency():
         # Insert user into DB (pseudo-function: implement in your model)
         result = Currency.insert_new_currency(currency_name=currencyname, currency_code=currencycode)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: currency",
+                details=f"Add Currency, currency_name: '{currencyname}': currency_code: '{currencycode}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Currency added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert currency.", "type": "danger"}), 500
@@ -1228,6 +1441,15 @@ def admin_update_currency():
         # Insert user into DB (pseudo-function: implement in your model)
         result = Currency.update_currency(currency_id, currency_name, currency_code)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: currency",
+                details=f"Update Currency, currency_id: '{currency_id}': currency_name: '{currency_name}': "
+                        f"currency_code: '{currency_code}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Currency updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update currency.", "type": "danger"}), 500
@@ -1276,6 +1498,14 @@ def admin_register_new_bank_account_responsibility():
             user_id=user_id
         )
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert in table: bank_account_responsible_user",
+                details=f"Add Bank Account Responsible User, bank_acc_id: '{bank_acc_id}': user_id: '{user_id}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Bank Account responsibility added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert Bank Account responsibility.", "type": "danger"}), 500
@@ -1325,8 +1555,18 @@ def admin_update_bank_account_responsibility():
             return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
 
         # Insert user into DB (pseudo-function: implement in your model)
-        result = BankAccountResponsibleUser.update_bank_account_responsibility(responsibility_id, bank_acc_id, user_id, is_active)
+        result = BankAccountResponsibleUser.update_bank_account_responsibility(responsibility_id, bank_acc_id, user_id,
+                                                                               is_active)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: bank_account_responsible_user",
+                details=f"Update Bank Account Responsible User, responsibility_id: '{responsibility_id}': "
+                        f"bank_acc_id: '{bank_acc_id}': user_id: '{user_id}': is_active: '{is_active}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Bank Account Responsibility updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update Bank Account Responsibility.", "type": "danger"}), 500
@@ -1369,6 +1609,15 @@ def admin_register_org_unit_tier():
         # Insert user into DB (pseudo-function: implement in your model)
         result = OrganisationUnitTier.insert_new_org_unit_tier(unit_tier_name=unit_tier_name, parent_unit_tier=parent_unit_tier)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: organisation_unit_tier",
+                details=f"Add Organisation Unit Tier, unit_tier_name: '{unit_tier_name}': "
+                        f"parent_unit_tier: '{parent_unit_tier}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Organisation Unit Tier added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert Organisation Unit Tier.", "type": "danger"}), 500
@@ -1398,6 +1647,16 @@ def admin_update_org_unit_tier():
         # Insert user into DB (pseudo-function: implement in your model)
         result = OrganisationUnitTier.update_org_unit_tier(org_unit_tier_id, org_unit_tier_name, parent_org_unit_tier_id)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: organisation_unit_tier",
+                details=f"Update Organisation Unit Tier, org_unit_tier_id: '{org_unit_tier_id}': "
+                        f"org_unit_tier_name: '{org_unit_tier_name}': "
+                        f"parent_org_unit_tier_id: '{parent_org_unit_tier_id}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Organisation Unit Tier updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update Organisation Unit Tier.", "type": "danger"}), 500
@@ -1442,8 +1701,6 @@ def admin_register_org_unit():
         parent_unit = data.get("parent_unit", "").strip()
         unit_tier = data.get("unit_tier", "").strip()
 
-        print(unit_tier)
-
         # Validate required fields
         if unit_name is None or parent_unit is None or unit_tier is None:
             return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
@@ -1451,6 +1708,15 @@ def admin_register_org_unit():
         # Insert user into DB (pseudo-function: implement in your model)
         result = OrganisationUnit.insert_new_org_unit(unit_name=unit_name, parent_unit=parent_unit, unit_tier=unit_tier)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: organisation_unit",
+                details=f"Add Organisation Unit, unit_name: '{unit_name}': parent_unit: '{parent_unit}': "
+                        f"unit_tier: '{unit_tier}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Organisation Unit added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert Organisation Unit.", "type": "danger"}), 500
@@ -1481,6 +1747,16 @@ def admin_update_org_unit():
         # Insert user into DB (pseudo-function: implement in your model)
         result = OrganisationUnit.update_org_unit(org_unit_id, org_unit_name, parent_unit_id, org_unit_tier_id)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: organisation_unit",
+                details=f"Update Organisation Unit, org_unit_id: '{org_unit_id}': "
+                        f"org_unit_name: '{org_unit_name}': parent_unit_id: '{parent_unit_id}': "
+                        f"org_unit_tier_id: '{org_unit_tier_id}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Organisation Unit updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update Organisation Unit.", "type": "danger"}), 500
@@ -1529,6 +1805,14 @@ def admin_register_new_workflow():
         # Insert user into DB (pseudo-function: implement in your model)
         result = Workflow.insert_new_workflow(workflow_name=workflowName)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: workflow",
+                details=f"Add Workflow, workflow_name: '{workflow_name}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Workflow added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert workflow.", "type": "danger"}), 500
@@ -1556,6 +1840,14 @@ def admin_update_workflows():
         # Insert user into DB (pseudo-function: implement in your model)
         result = Workflow.update_workflow(workflow_id, workflow_name)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: workflow",
+                details=f"Update Workflow, workflow_id: '{workflow_id}', workflow_name: '{workflow_name}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Workflow updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update workflow.", "type": "danger"}), 500
@@ -1602,6 +1894,15 @@ def admin_register_new_role_workflow_breakdown():
         # Insert user into DB (pseudo-function: implement in your model)
         result = Workflow.insert_new_role_workflow_breakdown(role_id, workflow_breakdown_id)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: role_workflow_breakdown",
+                details=f"Add Role Workflow Breakdown, role_id: '{role_id}': "
+                        f"workflow_breakdown_id: '{workflow_breakdown_id}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Breakdown added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert breakdown.", "type": "danger"}), 500
@@ -1630,6 +1931,15 @@ def admin_update_role_workflow_breakdown_role():
         # Insert user into DB (pseudo-function: implement in your model)
         result = Workflow.update_role_workflow_breakdown(role_workflow_breakdown_id, role_id, workflow_breakdown_id)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: role_workflow_breakdown",
+                details=f"Update Role Workflow Breakdown, role_workflow_breakdown_id: '{role_workflow_breakdown_id}': "
+                        f"role_id: '{role_id}': workflow_breakdown_id: '{workflow_breakdown_id}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Role updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update user.", "type": "danger"}), 500
@@ -1679,6 +1989,17 @@ def admin_register_new_workflow_breakdown():
         # Insert user into DB (pseudo-function: implement in your model)
         result = WorkflowBreakdown.insert_new_workflow_breakdown(workflowBreakdownName, workflow_id, level_id, item_menu_id, is_responsibility_global, is_workflow_level)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: workflow_breakdown",
+                details=f"Add Workflow-Breakdown, workflowBreakdownName: '{workflowBreakdownName}', "
+                        f"workflow_id: '{workflow_id}', level_id: '{level_id}', item_menu_id: '{item_menu_id}', "
+                        f"is_responsibility_global: '{is_responsibility_global}', "
+                        f"is_workflow_level: '{is_workflow_level}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Workflow breakdown added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert workflow breakdown.", "type": "danger"}), 500
@@ -1711,6 +2032,18 @@ def admin_update_workflow_breakdown():
         # Insert user into DB (pseudo-function: implement in your model)
         result = WorkflowBreakdown.update_workflow_breakdown(workflowBreakdownIdEdit, workflowBreakdownNameEdit, workflowEdit, levelEdit, item_menu_id_edit, is_responsibility_global_edit, is_workflow_level_edit)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: workflow_breakdown",
+                details=f"Update Workflow-Breakdown, workflowBreakdownIdEdit: '{workflowBreakdownIdEdit}', "
+                        f"workflowBreakdownNameEdit: '{workflowBreakdownNameEdit}', workflowEdit: '{workflowEdit}', "
+                        f"levelEdit: '{levelEdit}', item_menu_id_edit: '{item_menu_id_edit}', "
+                        f"is_responsibility_global_edit: '{is_responsibility_global_edit}', "
+                        f"is_workflow_level_edit: '{is_workflow_level_edit}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Workflow Breakdown updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update workflow breakdown.", "type": "danger"}), 500
@@ -1752,6 +2085,14 @@ def admin_register_new_menu_item():
         result = MenuItem.insert_new_menu_item(menuItemName=menuItemName)
 
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: menu_item",
+                details=f"Add Menu Item, menuItemName: '{menuItemName}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Menu Item added successfully."}), 200
         else:
             return jsonify({"error": "Failed to insert menu item.", "type": "danger"}), 500
@@ -1780,6 +2121,14 @@ def admin_update_menu_item():
         # Insert user into DB (pseudo-function: implement in your model)
         result = MenuItem.update_menu_item(edit_menu_item_id, menu_item_name)
         if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: menu_item",
+                details=f"Update Menu Item, edit_menu_item_id: '{edit_menu_item_id}': menu_item_name: '{menu_item_name}'",
+                ip_address=request.remote_addr
+            )
             return jsonify({"message": "Menu Item updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update Menu Item.", "type": "danger"}), 500
@@ -1791,7 +2140,19 @@ def admin_update_menu_item():
 
 @app.route('/logout')
 def logout_page():
+    # Cache user info BEFORE logout
+    user_id = current_user.id
+    username = current_user.username
+
     logout_user()
     session.clear()  # Clear session to prevent stored data
+
+    Audit.log_audit_trail(
+        user_id=user_id,
+        action="User Logout",
+        details=f"Logout successful for username '{username}'",
+        ip_address=request.remote_addr
+    )
+
     flash("You are logged out!", category='info')
     return redirect(url_for("login_page"))
