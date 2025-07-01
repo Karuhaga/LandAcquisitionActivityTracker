@@ -649,6 +649,18 @@
                             }
                         });
                     });
+
+                    $("#flashMessageModal").on("hidden.bs.modal", function() {
+                    // Save expanded panels
+                    let expandedPanels = [];
+                    $(".panel-collapse.in, .panel-collapse.show").each(function() {
+                        expandedPanels.push(this.id);
+                    });
+                    localStorage.setItem("expandedPanels", JSON.stringify(expandedPanels));
+                    files = [];
+                    // $(".content").load(location.href + " .content > *"); // Reload only the content div
+                    location.reload();
+                });
                 },
                 error: function (xhr) {
                     let errorMessage = xhr.responseJSON.error || "An unexpected error occurred.";
@@ -711,9 +723,17 @@
 
             $('.rowCheckbox, #selectAll').prop('checked', false);
 
+            // Restore sidebar expanded state
+            const savedPanels = JSON.parse(localStorage.getItem("expandedPanels") || "[]");
+            savedPanels.forEach(function(id) {
+                const panel = $("#" + id);
+                panel.addClass("in show"); // For Bootstrap 3 or 4
+                panel.prev(".panel-heading").find(".menu-collapse-heading").attr("aria-expanded", "true");
+            });
+
             // Handle "Select All" checkbox
-            $('#selectAll').on('click', function() {
-                $('.rowCheckbox').prop('checked', $(this).prop('checked'));
+            $(document).on('click', '#selectAll', function() {
+                $('.rowCheckbox').prop('checked', this.checked);
             });
 
             // Uncheck "Select All" if any row checkbox is unchecked

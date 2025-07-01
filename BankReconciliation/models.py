@@ -420,7 +420,7 @@ class EmailHelper(UserMixin):
 
     @staticmethod
     def send_submitted_reconciliations_email(current_fname, next_approver_email, next_approver_fname, files):
-        subject = "Bank Reconwiliations Submitted for Approval"
+        subject = "Bank Reconciliations Submitted for Approval"
 
         # Email body with Poppins font and inline styles
         body = f"""
@@ -1286,18 +1286,33 @@ class FileUpload:
         try:
             # Raw MSSQL Query to fetch all files that are not marked as removed
             query = """
-                        SELECT b.name as bank_account_id, year, 
-                        (select DateName(month, DateAdd(month, month, 0) - 1)) as month, file_name, batch_id,
+                        SELECT 
+                            b.name AS bank_account_id, 
+                            a.[year], 
+                            DATENAME(month, DATEADD(month, a.[month], 0) - 1) AS [month], 
+                            a.file_name, 
+                            a.batch_id,
                             CASE 
-                                WHEN c.submission_status = 0 THEN 'Pending Submission' 
-                                ELSE 'Rejected' 
+                                WHEN ra.decision = 3 THEN 'Rejected'
+                                ELSE 'Pending Submission'
                             END AS submission_status 
                         FROM file_upload a 
                         LEFT OUTER JOIN bank_account b ON a.bank_account_id = b.id
                         LEFT OUTER JOIN file_upload_batch c ON c.id = a.batch_id
-                        LEFT OUTER JOIN users d on d.id = c.user_id
-                        WHERE c.user_id = ? AND a.submission_status = 0 AND removed_by_user_on_upload_page = 0
-                        ORDER BY b.name
+                        LEFT OUTER JOIN users d ON d.id = c.user_id
+                        LEFT OUTER JOIN (
+                            SELECT ra1.file_upload_id, ra1.decision
+                            FROM reconciliation_approvals ra1
+                            WHERE ra1.date_time = (
+                                SELECT MAX(ra2.date_time)
+                                FROM reconciliation_approvals ra2
+                                WHERE ra2.file_upload_id = ra1.file_upload_id
+                            )
+                        ) ra ON ra.file_upload_id = a.id
+                        WHERE c.user_id = ? 
+                          AND a.submission_status = 0 
+                          AND a.removed_by_user_on_upload_page = 0
+                        ORDER BY b.name;
                     """
             # Execute the query with user_id as parameter
             cursor.execute(query, (user_id,))
@@ -1636,6 +1651,7 @@ class FileUpload:
                         WHERE 
                             f.id IS NULL
                             AND am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+                            AND bru.is_active = 1
                         GROUP BY 
                             c.name,
                             am.recon_month, -- Needed for DATEDIFF
@@ -1740,99 +1756,126 @@ class FileUpload:
         try:
             # Fetch submitted reconciliations
             query = """
-               DECLARE @logged_in_user_id INT = ?; -- Set logged-in user's ID
-
-                ;WITH GlobalFiles AS (
-                    -- Get files where responsibility is global
-                    SELECT 
-                        ba.name AS bank_account, 
-                        f.year, 
-                        DATENAME(month, DATEADD(month, f.month, 0) - 1) AS month,
-                        f.file_name, 
-                        FORMAT(f.creation_datetime, 'yyyy-MM-dd HH:mm:ss') AS date_time, 
-                        (SELECT TOP 1 r.name 
-                         FROM role r 
-                         LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
-                         LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
-                         LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
-                         WHERE wb.is_workflow_level = 1 
-                         AND wb.level - 1 = f.submission_status
-                         AND ur.user_id = @logged_in_user_id) AS approve_as,
-                        ROW_NUMBER() OVER (PARTITION BY f.id ORDER BY f.creation_datetime DESC) AS row_num
-                    FROM file_upload f
-                    JOIN reconciliation_approvals ra ON f.id = ra.file_upload_id
-                    JOIN file_upload_batch fub ON f.batch_id = fub.id
-                    JOIN users u ON fub.user_id = u.ID
-                    JOIN bank_account ba ON f.bank_account_id = ba.id
-                    JOIN bank b ON ba.bank_id = b.id
-                    JOIN user_role ur ON u.ID = ur.user_id
-                    JOIN role r ON ur.role_id = r.id
-                    WHERE ra.approver_id IN
-                    (SELECT DISTINCT(a.ID) 
-                     FROM users a
-                     JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
-                     WHERE b.parent_org_unit_tier_id IN 
-                     (SELECT d.organisation_unit_tier_id FROM users d WHERE d.ID = @logged_in_user_id))
-                    AND f.submission_status != 0 AND f.submission_status IN 
-                     (SELECT DISTINCT(a.level) - 1 
-                      FROM workflow_breakdown a
-                      JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
-                      JOIN role c ON b.role_id = c.id
-                      JOIN user_role d ON c.id = d.role_id
-                      JOIN users e ON d.user_id = e.ID
-                      WHERE a.is_responsibility_global = 1
-                      AND e.ID = @logged_in_user_id)
-                ),
-                OrgBasedFiles AS (
-                    -- Get files where responsibility is restricted to specific organizational units
-                    SELECT 
-                        ba.name AS bank_account, 
-                        f.year, 
-                        DATENAME(month, DATEADD(month, f.month, 0) - 1) AS month,
-                        f.file_name, 
-                        FORMAT(f.creation_datetime, 'yyyy-MM-dd HH:mm:ss') AS date_time,
-                        (SELECT TOP 1 r.name 
-                         FROM role r 
-                         LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
-                         LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
-                         LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
-                         WHERE wb.is_workflow_level = 1 
-                         AND wb.level - 1 = f.submission_status
-                         AND ur.user_id = @logged_in_user_id) AS approve_as,
-                        ROW_NUMBER() OVER (PARTITION BY f.id ORDER BY f.creation_datetime DESC) AS row_num
-                        FROM file_upload f
-                        JOIN reconciliation_approvals ra ON f.id = ra.file_upload_id
-                        JOIN file_upload_batch fub ON f.batch_id = fub.id
-                        JOIN users u ON fub.user_id = u.ID
-                        JOIN bank_account ba ON f.bank_account_id = ba.id
-                        JOIN bank b ON ba.bank_id = b.id
-                        JOIN user_role ur ON u.ID = ur.user_id
-                        JOIN role r ON ur.role_id = r.id
-                        WHERE ra.approver_id IN
-                        (SELECT DISTINCT(a.ID) 
-                         FROM users a
-                         JOIN organisation_unit b ON a.organisation_unit_id = b.id
-                         WHERE b.parent_org_unit_id IN 
-                         (SELECT d.organisation_unit_id FROM users d WHERE d.ID = @logged_in_user_id))
-                        AND f.submission_status != 0 AND f.submission_status IN 
-                         (SELECT DISTINCT(a.level) - 1 
-                          FROM workflow_breakdown a
-                          JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
-                          JOIN role c ON b.role_id = c.id
-                          JOIN user_role d ON c.id = d.role_id
-                          JOIN users e ON d.user_id = e.ID
-                          WHERE a.is_responsibility_global = 0
-                          AND e.ID = @logged_in_user_id)
-                    )
-                    
-                    -- Combine results and order by bank_name, year, month
-                    SELECT bank_account, year, month, file_name, date_time, approve_as
-                    FROM (
-                        SELECT * FROM GlobalFiles WHERE row_num = 1
-                        UNION
-                        SELECT * FROM OrgBasedFiles WHERE row_num = 1
-                    ) AS UniqueResults
-                    ORDER BY bank_account, year, month ASC;
+                        DECLARE @logged_in_user_id INT = ?; -- Set logged-in user's ID
+                        
+                        ;WITH GlobalFiles AS (
+                            -- Get files where responsibility is global
+                            SELECT 
+                                ba.name AS bank_account, 
+                                f.year, 
+                                DATENAME(month, DATEADD(month, f.month, 0) - 1) AS month,
+                                f.file_name, 
+                                FORMAT(f.creation_datetime, 'yyyy-MM-dd HH:mm:ss') AS date_time, 
+                                (
+                                    SELECT TOP 1 r.name 
+                                    FROM role r 
+                                    LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
+                                    LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
+                                    LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                    WHERE 
+                                        wb.is_workflow_level = 1 
+                                        AND wb.level - 1 = f.submission_status
+                                        AND ur.user_id = @logged_in_user_id
+                                ) AS approve_as,
+                                ROW_NUMBER() OVER (PARTITION BY f.id ORDER BY f.creation_datetime DESC) AS row_num
+                            FROM file_upload f
+                            JOIN reconciliation_approvals ra ON f.id = ra.file_upload_id
+                            JOIN file_upload_batch fub ON f.batch_id = fub.id
+                            JOIN users u ON fub.user_id = u.ID
+                            JOIN bank_account ba ON f.bank_account_id = ba.id
+                            JOIN bank b ON ba.bank_id = b.id
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE 
+                                ur.start_datetime <= GETDATE() 
+                                AND ur.expiry_datetime >= GETDATE()
+                                AND ra.approver_id IN (
+                                    SELECT DISTINCT a.ID
+                                    FROM users a
+                                    JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
+                                    WHERE b.parent_org_unit_tier_id IN (
+                                        SELECT d.organisation_unit_tier_id 
+                                        FROM users d 
+                                        WHERE d.ID = @logged_in_user_id
+                                    )
+                                )
+                                AND f.submission_status != 0 
+                                AND f.submission_status IN (
+                                    SELECT DISTINCT a.level - 1
+                                    FROM workflow_breakdown a
+                                    JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                    JOIN role c ON b.role_id = c.id
+                                    JOIN user_role d ON c.id = d.role_id
+                                    JOIN users e ON d.user_id = e.ID
+                                    WHERE 
+                                        a.is_responsibility_global = 1
+                                        AND e.ID = @logged_in_user_id
+                                )
+                        ),
+                        OrgBasedFiles AS (
+                            -- Get files where responsibility is restricted to specific organizational units
+                            SELECT 
+                                ba.name AS bank_account, 
+                                f.year, 
+                                DATENAME(month, DATEADD(month, f.month, 0) - 1) AS month,
+                                f.file_name, 
+                                FORMAT(f.creation_datetime, 'yyyy-MM-dd HH:mm:ss') AS date_time,
+                                (
+                                    SELECT TOP 1 r.name 
+                                    FROM role r 
+                                    LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
+                                    LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
+                                    LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                    WHERE 
+                                        wb.is_workflow_level = 1 
+                                        AND wb.level - 1 = f.submission_status
+                                        AND ur.user_id = @logged_in_user_id
+                                ) AS approve_as,
+                                ROW_NUMBER() OVER (PARTITION BY f.id ORDER BY f.creation_datetime DESC) AS row_num
+                            FROM file_upload f
+                            JOIN reconciliation_approvals ra ON f.id = ra.file_upload_id
+                            JOIN file_upload_batch fub ON f.batch_id = fub.id
+                            JOIN users u ON fub.user_id = u.ID
+                            JOIN bank_account ba ON f.bank_account_id = ba.id
+                            JOIN bank b ON ba.bank_id = b.id
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE 
+                                ur.start_datetime <= GETDATE() 
+                                AND ur.expiry_datetime >= GETDATE()
+                                AND ra.approver_id IN (
+                                    SELECT DISTINCT a.ID
+                                    FROM users a
+                                    JOIN organisation_unit b ON a.organisation_unit_id = b.id
+                                    WHERE b.parent_org_unit_id IN (
+                                        SELECT d.organisation_unit_id 
+                                        FROM users d 
+                                        WHERE d.ID = @logged_in_user_id
+                                    )
+                                )
+                                AND f.submission_status != 0 
+                                AND f.submission_status IN (
+                                    SELECT DISTINCT a.level - 1
+                                    FROM workflow_breakdown a
+                                    JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                    JOIN role c ON b.role_id = c.id
+                                    JOIN user_role d ON c.id = d.role_id
+                                    JOIN users e ON d.user_id = e.ID
+                                    WHERE 
+                                        a.is_responsibility_global = 0
+                                        AND e.ID = @logged_in_user_id
+                                )
+                        )
+                        
+                        -- Combine results and order by bank_name, year, month
+                        SELECT 
+                            bank_account, year, month, file_name, date_time, approve_as
+                        FROM (
+                            SELECT * FROM GlobalFiles WHERE row_num = 1
+                            UNION
+                            SELECT * FROM OrgBasedFiles WHERE row_num = 1
+                        ) AS UniqueResults
+                        ORDER BY bank_account, year, month ASC;
             """
             cursor.execute(query, (user_id,))
             result = cursor.fetchall()
@@ -1933,6 +1976,30 @@ class FileUpload:
             cursor.execute(query, [user_id])
             pending_approvals_count = cursor.fetchone()[0]
             return pending_approvals_count if pending_approvals_count is not None else 0
+        except Exception as e:
+            print("Database error:", e)
+            return 0
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_reconciliations_pending_submission_by_user(user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return 0  # Return 0 if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT COUNT(*) AS TotalReconciliationsPendingSubmission FROM file_upload fu
+                        LEFT OUTER JOIN file_upload_batch fub ON fu.batch_id = fub.id
+                        WHERE fu.submission_status = 0 AND fub.user_id = ?
+            """
+            cursor.execute(query, [user_id])
+            pending_submissions_count = cursor.fetchone()[0]
+            return pending_submissions_count if pending_submissions_count is not None else 0
         except Exception as e:
             print("Database error:", e)
             return 0
@@ -2158,6 +2225,8 @@ class FileUpload:
                     WHERE wb.is_workflow_level = 1
                     AND wb.level = ?
                     AND wb.is_responsibility_global = 1
+                    AND ur.start_datetime <= GETDATE() 
+                    AND ur.expiry_datetime >= GETDATE()
                     AND u.ID IN (
                         SELECT DISTINCT a.ID
                         FROM users a
@@ -2175,6 +2244,8 @@ class FileUpload:
                     WHERE wb.is_workflow_level = 1
                     AND wb.level = ?
                     AND wb.is_responsibility_global = 0
+                    AND ur.start_datetime <= GETDATE() 
+                    AND ur.expiry_datetime >= GETDATE()
                     AND u.ID IN (
                         SELECT DISTINCT a.ID
                         FROM users a
@@ -2222,13 +2293,16 @@ class FileUpload:
                                 DATEFROMPARTS(YEAR(ba.creation_date), MONTH(ba.creation_date), 1) AS start_month
                             FROM 
                                 bank_account ba
-                        ), AllMonths AS (
+                        ), 
+                        AllMonths AS (
                             SELECT 
                                 ml.bank_account_id,
                                 ml.start_month AS recon_month
                             FROM 
                                 MonthList ml
+                        
                             UNION ALL
+                        
                             SELECT 
                                 am.bank_account_id,
                                 DATEADD(MONTH, 1, am.recon_month)
@@ -2237,25 +2311,36 @@ class FileUpload:
                             WHERE 
                                 am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
                         )
+                        
                         SELECT DISTINCT
                             u.ID
                         FROM 
                             AllMonths am
                         LEFT JOIN 
-                            file_upload f ON f.bank_account_id = am.bank_account_id 
-                                           AND f.year = YEAR(am.recon_month)
-                                           AND f.month = MONTH(am.recon_month)
-                                           AND f.removed_by_user_on_upload_page = 0
+                            file_upload f 
+                            ON f.bank_account_id = am.bank_account_id 
+                            AND f.year = YEAR(am.recon_month)
+                            AND f.month = MONTH(am.recon_month)
+                            AND f.removed_by_user_on_upload_page = 0
                         INNER JOIN 
-                            bank_account c ON am.bank_account_id = c.id
+                            bank_account c 
+                            ON am.bank_account_id = c.id
                         LEFT JOIN 
-                            bank_account_responsible_user bru ON bru.bank_account_id = c.id
+                            bank_account_responsible_user bru 
+                            ON bru.bank_account_id = c.id
                         LEFT JOIN 
-                            users u ON bru.user_id = u.ID
+                            users u 
+                            ON bru.user_id = u.ID
+                        LEFT JOIN 
+                            user_role ur 
+                            ON u.ID = ur.user_id
                         WHERE 
-                            f.id IS NULL -- Means missing reconciliation
+                            f.id IS NULL  -- Missing reconciliation
                             AND am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
                             AND u.ID IS NOT NULL
+                            AND ur.start_datetime <= GETDATE()
+                            AND ur.expiry_datetime >= GETDATE()
+                            AND bru.is_active = 1
                         OPTION (MAXRECURSION 1000);
                   """
             cursor.execute(query, )
@@ -2586,6 +2671,7 @@ class FileUpload:
                         WHERE wb.is_workflow_level = 1
                         AND wb.level = @work_breakdown_level
                         AND wb.is_responsibility_global = 1
+                        AND ur.start_datetime <= GETDATE() AND ur.expiry_datetime >= GETDATE()
                         AND u.ID IN (
                             SELECT DISTINCT a.ID
                             FROM users a
@@ -2603,6 +2689,7 @@ class FileUpload:
                         WHERE wb.is_workflow_level = 1
                         AND wb.level = @work_breakdown_level
                         AND wb.is_responsibility_global = 0
+                        AND ur.start_datetime <= GETDATE() AND ur.expiry_datetime >= GETDATE()
                         AND u.ID IN (
                             SELECT DISTINCT a.ID
                             FROM users a
@@ -2732,9 +2819,14 @@ class BankAccount:
 
         try:
             # Fetch submitted reconciliations
-            query = """SELECT ba.id, ba.name, ba.bank_id, ba.currency_id, ba.strategic_business_unit_id FROM 
-            bank_account ba LEFT OUTER JOIN bank_account_responsible_user baru ON ba.id = baru.bank_account_id LEFT 
-            OUTER JOIN users u ON baru.user_id = u.ID WHERE u.ID = ? ORDER BY ba.name"""
+            query = """
+                        SELECT ba.id, ba.name, ba.bank_id, ba.currency_id, ba.strategic_business_unit_id 
+                        FROM bank_account ba 
+                        LEFT OUTER JOIN bank_account_responsible_user baru ON ba.id = baru.bank_account_id 
+                        LEFT OUTER JOIN users u ON baru.user_id = u.ID 
+                        WHERE baru.is_active = 1 AND u.ID = ?
+                        ORDER BY ba.name
+                    """
             cursor.execute(query, (user_id,))
             result = cursor.fetchall()
 
@@ -4267,7 +4359,7 @@ class BankAccountResponsibleUser:
 
         try:
             query = """
-                SELECT ba.id, ba.id AS bank_account_id, 
+                SELECT baru.id, ba.id AS bank_account_id, 
                 u.ID AS user_id, baru.is_active
                 FROM bank_account_responsible_user baru
                 LEFT OUTER JOIN bank_account ba ON baru.bank_account_id = ba.id
@@ -4299,9 +4391,9 @@ class BankAccountResponsibleUser:
 
         try:
             query = """
-                UPDATE bank_account_responsible_user SET bank_account_id = ?, user_id = ?, is_active = ? WHERE id = ?
+                UPDATE bank_account_responsible_user SET is_active = ? WHERE id = ?
             """
-            cursor.execute(query, (bank_acc_id, user_id, is_active, responsibility_id, ))
+            cursor.execute(query, (is_active, responsibility_id, ))
             conn.commit()
             return True
         except Exception as e:
