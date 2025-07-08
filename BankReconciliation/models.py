@@ -1624,7 +1624,7 @@ class FileUpload:
                             DATENAME(month, am.recon_month) AS month,
                             DATEDIFF(
                                 DAY,
-                                DATEADD(MONTH, 1, am.recon_month),  -- First day after the recon month
+                                DATEADD(DAY, 5, DATEADD(MONTH, 1, am.recon_month)),  -- 5 day after the recon month
                                 GETDATE()
                             ) AS days_overdue,
                             STRING_AGG(
@@ -2456,7 +2456,7 @@ class FileUpload:
                             DATENAME(month, am.recon_month) AS month,
                             DATEDIFF(
                                 DAY,
-                                DATEADD(MONTH, 1, am.recon_month),  -- First day after recon month
+                                DATEADD(DAY, 5, DATEADD(MONTH, 1, am.recon_month)),  -- 5th day after recon month
                                 GETDATE()
                             ) AS days_overdue
                         FROM 
@@ -2553,7 +2553,7 @@ class FileUpload:
                             DATENAME(month, am.recon_month) AS month,
                             DATEDIFF(
                                 DAY,
-                                DATEADD(MONTH, 1, am.recon_month), -- Day after the end of the month
+                                DATEADD(DAY, 5, DATEADD(MONTH, 1, am.recon_month)), -- 5th after the end of the month
                                 GETDATE()
                             ) AS days_overdue,
                             STRING_AGG(

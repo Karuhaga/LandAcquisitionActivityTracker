@@ -426,7 +426,7 @@ def send_email_reminders():
             if approver_fname_email:
                 # Optionally get their pending reconciliations
                 pending_reconciliation_submission_details_for_approver = FileUpload.pending_reconciliation_submission_details_for_approver(
-                    initiator_id)
+                    approver_id)
                 EmailHelper.email_reminder_to_approver_reconciliations_pending_submission(approver_fname_email["fname"],
                                                                               approver_fname_email["email"],
                                                                               pending_reconciliation_submission_details_for_approver)
