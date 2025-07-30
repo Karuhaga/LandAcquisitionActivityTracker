@@ -30,8 +30,13 @@
       <script src="/static/bs/js/vfs_fonts.js"></script>
       <script src="/static/bs/js/buttons.html5.min.js"></script>
       <script src="/static/bs/js/buttons.print.min.js"></script>
+	  <script src="/static/bs/js/logoBase64.js"></script>
       <!-- Add Chart.js library -->
       <script src="/static/bs/js/chart.min.js"></script>
+	  <!-- Date picker -->
+      <link rel="stylesheet" href="/static/bs/css/flatpickr.min.css">
+      <link rel="stylesheet" href="/static/bs/css/dark.min.css">
+      <script src="/static/bs/js/flatpickr.min.js"></script>
 
       <script>
          //dynamically loading content in the content div
@@ -260,8 +265,8 @@
             {% endblock %}
          </div>
          {% endif %}
-         {% set pages_with_no_sidebar = ['/', '/login', '/home']%}
-         {% if request.path not in pages_with_no_sidebar %}
+         {% set pages_with_no_sidebar = ['login_page', 'home_page'] %}
+         {% if request.endpoint not in pages_with_no_sidebar %}
          <!-- sidebar start -->
          <input type="checkbox" id="sidebarExpandCollapse">
          <div class="sidebar scrollable full-height-minus-header">
@@ -291,8 +296,9 @@
                         class="menu-collapse-heading d-flex align-items-center">
                      <i class="fa-sharp fa-solid fa-list-check"></i>
                      <span>Actions</span>
-                        {% if pending_approvals_count > 0 %}
-                           <span class="badge badge-danger rounded-pill ml-1">{{ pending_approvals_count }}</span>
+                        {% set total_pending = pending_approvals_count + pending_submissions_count %}
+                        {% if total_pending > 0 %}
+                        <span class="badge badge-danger rounded-pill ml-1">{{ total_pending }}</span>
                         {% endif %}
                      <i class="fa fa-caret-down caret-icon"></i>
                      </a>
@@ -303,6 +309,9 @@
                            href="{{ url_for('submit_reconciliations_page') }}">
                            <i class="fa-solid fa-paper-plane"></i>
                            <span>Submit Reconciliations</span>
+                              {% if pending_submissions_count > 0 %}
+                                 <span class="badge badge-danger rounded-pill ml-1">{{ pending_submissions_count }}</span>
+                              {% endif %}
                         </a>
                      {% endif %}
 
@@ -350,7 +359,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - All Submitted Reconciliations' in menu_items %}
+                     {% if 'Report - Audit Trail' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('report_report_audit_trail_page') %} active {% endif %}"
                            href="{{ url_for('report_report_audit_trail_page') }}">
                         <i class="fa-solid fa-shoe-prints"></i>
@@ -402,7 +411,7 @@
                   </div>
                   <div id="collapse4" class="panel-collapse collapse" data-parent="#accordion">
 
-                     {% if 'Report - Fully Approved Reconciliations' in menu_items %}
+                     {% if 'Admin - Bank Account Responsible User' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_bank_account_responsible_user') %} active {% endif %}"
                            href="{{ url_for('admin_bank_account_responsible_user') }}">
                         <i class="fas fa-user-shield"></i>
@@ -410,7 +419,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Fully Approved Reconciliations' in menu_items %}
+                     {% if 'Admin - Bank Accounts' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_bank_accounts') %} active {% endif %}"
                            href="{{ url_for('admin_bank_accounts') }}">
                         <i class="fas fa-credit-card"></i>
@@ -418,7 +427,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Fully Approved Reconciliations' in menu_items %}
+                     {% if 'Admin - Banks' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_banks') %} active {% endif %}"
                            href="{{ url_for('admin_banks') }}">
                         <i class="fas fa-university"></i>
@@ -426,7 +435,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Fully Approved Reconciliations' in menu_items %}
+                     {% if 'Admin - Currencies' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_currencies') %} active {% endif %}"
                            href="{{ url_for('admin_currencies') }}">
                         <i class="fas fa-credit-card"></i>
@@ -434,7 +443,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Fully Approved Reconciliations' in menu_items %}
+                     {% if 'Admin - Menu Items' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_menu_items') %} active {% endif %}"
                            href="{{ url_for('admin_menu_items') }}">
                         <i class="fas fa-credit-card"></i>
@@ -442,7 +451,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Fully Approved Reconciliations' in menu_items %}
+                     {% if 'Admin - Organisation Unit' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_organisation_unit') %} active {% endif %}"
                            href="{{ url_for('admin_organisation_unit') }}">
                         <i class="fas fa-sitemap"></i>
@@ -450,7 +459,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Fully Approved Reconciliations' in menu_items %}
+                     {% if 'Admin - Organisation Unit Tier' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_organisation_unit_tier') %} active {% endif %}"
                            href="{{ url_for('admin_organisation_unit_tier') }}">
                         <i class="fas fa-layer-group"></i>
@@ -458,7 +467,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Reconciliations Pending Approval' in menu_items %}
+                     {% if 'Admin - Role Workflow Breakdown' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_role_workflow_breakdown') %} active {% endif %}"
                            href="{{ url_for('admin_role_workflow_breakdown') }}">
                         <i class="fas fa-people-arrows"></i>
@@ -466,7 +475,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Reconciliations Pending Approval' in menu_items %}
+                     {% if 'Admin - Roles' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_roles') %} active {% endif %}"
                            href="{{ url_for('admin_roles') }}">
                         <i class="fas fa-users-cog"></i>
@@ -474,7 +483,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - All Submitted Reconciliations' in menu_items %}
+                     {% if 'Admin - User Roles' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_user_roles_page') %} active {% endif %}"
                            href="{{ url_for('admin_user_roles_page') }}">
                         <i class="fas fa-user-tag"></i>
@@ -482,7 +491,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Reconciliations Pending Submission' in menu_items %}
+                     {% if 'Admin - Users' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_users_page') %} active {% endif %}"
                            href="{{ url_for('admin_users_page') }}">
                         <i class="fas fa-users"></i>
@@ -490,7 +499,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Reconciliations Pending Submission' in menu_items %}
+                     {% if 'Admin - Workflow Breakdown' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_workflow_breakdown') %} active {% endif %}"
                            href="{{ url_for('admin_workflow_breakdown') }}">
                         <i class="fas fa-cubes"></i>
@@ -498,7 +507,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Reconciliations Pending Submission' in menu_items %}
+                     {% if 'Admin - Workflows' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('admin_workflows_page') %} active {% endif %}"
                            href="{{ url_for('admin_workflows_page') }}">
                         <i class="fas fa-redo-alt"></i>
@@ -570,9 +579,44 @@
          </div>
       </main>
    </body>
+   <!-- Loading Overlay -->
+   <div id="loadingOverlay" style="
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 9999;
+      text-align: center;">
+        <!-- Centered wrapper -->
+     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+         <div class="spinner-border text-light" role="status"></div>
+         <div style="color: white; margin-top: 1rem; font-size: 1.25rem; text-align: center;">
+            Please wait...
+         </div>
+     </div>
+   </div>
 </html>
 
 <script>
+   // Show loading overlay for normal forms
+   document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(function (form) {
+      form.addEventListener('submit', function () {
+        document.getElementById('loadingOverlay').style.display = 'block';
+      });
+    });
+   });
+
+   // Show loading overlay for AJAX requests (if using jQuery)
+   if (window.jQuery) {
+    $(document).ajaxStart(function () {
+      $('#loadingOverlay').show();
+    }).ajaxStop(function () {
+      $('#loadingOverlay').hide();
+    });
+   }
+
    function showFlashMessage(message, type) {
        let title = "Notification"; // Default title
 
@@ -607,5 +651,4 @@
            });
        }
    });
-
 </script>

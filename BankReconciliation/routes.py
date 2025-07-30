@@ -124,7 +124,7 @@ def dashboard_page():
 
 @app.route('/submit-reconciliations', methods=['GET', 'POST'])
 @login_required
-@role_required(1)
+@role_required(1, 25)
 # hint: "@role_required" refers to id of workflow_breakdown database table
 def submit_reconciliations_page():
     # Fetch bank accounts from the database
@@ -142,6 +142,18 @@ def submit_reconciliations_page():
     return render_template('submit_reconciliations.html',
                            num_of_unsubmitted_files=num_of_unsubmitted_files,
                            uploaded_files=uploaded_files, bank_accounts=bank_accounts)
+
+
+@app.route('/activity-request', methods=['GET', 'POST'])
+@login_required
+@role_required(1, 25)
+# hint: "@role_required" refers to id of workflow_breakdown database table
+def activity_request_page():
+
+    user_details = UserSummary.get_all_users_details()
+    team_member_details = TeamMember.get_team_member_roles_details()
+
+    return render_template('activity_request.html', user_details=user_details, team_member_details=team_member_details)
 
 
 @app.route('/upload', methods=['POST'])
@@ -309,7 +321,7 @@ def get_uploaded_files():
 
 @app.route('/submit_files', methods=['POST'])
 @login_required
-@role_required(1)
+@role_required(1, 25)
 def submit_files():
     """
     Processes the submission of files by updating their submission_status.
@@ -426,7 +438,7 @@ def send_email_reminders():
             if approver_fname_email:
                 # Optionally get their pending reconciliations
                 pending_reconciliation_submission_details_for_approver = FileUpload.pending_reconciliation_submission_details_for_approver(
-                    initiator_id)
+                    approver_id)
                 EmailHelper.email_reminder_to_approver_reconciliations_pending_submission(approver_fname_email["fname"],
                                                                               approver_fname_email["email"],
                                                                               pending_reconciliation_submission_details_for_approver)
@@ -446,7 +458,7 @@ def send_email_reminders():
 
 @app.route('/submitted-reconciliations', methods=['GET', 'POST'])
 @login_required
-@role_required(2)
+@role_required(2, 26)
 def submitted_reconciliations_page():
     reconciliations = FileUpload.get_submitted_reconciliations(current_user.id)
     return render_template('submitted_reconciliations.html', reconciliations=reconciliations)
@@ -454,7 +466,7 @@ def submitted_reconciliations_page():
 
 @app.route('/approve-reconciliations', methods=['GET', 'POST'])
 @login_required
-@role_required(3, 4, 5, 6)
+@role_required(3, 5, 27, 47)
 def approve_reconciliations_page():
     reconciliations = FileUpload.get_reconciliations_pending_approval(current_user.id)
     return render_template(
@@ -463,7 +475,7 @@ def approve_reconciliations_page():
 
 @app.route('/approved-reconciliations', methods=['GET', 'POST'])
 @login_required
-@role_required(3, 4, 5, 6)
+@role_required(4, 6, 28, 48)
 def approved_reconciliations_page():
     reconciliations = FileUpload.get_approved_reconciliations(current_user.id)
     return render_template('approved_reconciliations.html', reconciliations=reconciliations)
@@ -471,7 +483,7 @@ def approved_reconciliations_page():
 
 @app.route('/approve-reconciliations-update', methods=['POST'])
 @login_required
-@role_required(3, 4, 5, 6)
+@role_required(3, 4, 5, 6, 47)
 def approve_reconciliations_update():
 
     try:
@@ -674,7 +686,7 @@ def download_file(filename):
 
 @app.route('/report-reconciliations-pending-submission', methods=['GET', 'POST'])
 @login_required
-@role_required(7,8,9,10)
+@role_required(7, 11, 15, 29, 52)
 def report_reconciliations_pending_submission_page():
     reconciliations = FileUpload.get_reconciliations_pending_submission()
     return render_template('report_reconciliations_pending_submission.html', reconciliations=reconciliations)
@@ -682,7 +694,7 @@ def report_reconciliations_pending_submission_page():
 
 @app.route('/report-all-submitted-reconciliations', methods=['GET', 'POST'])
 @login_required
-@role_required(7,8,9,10)
+@role_required(8, 12, 16, 31, 49)
 def report_all_submitted_reconciliations_page():
     reconciliations = FileUpload.get_all_submitted_reconciliations()
     return render_template('report_all_submitted_reconciliations.html', reconciliations=reconciliations)
@@ -690,7 +702,7 @@ def report_all_submitted_reconciliations_page():
 
 @app.route('/report-audit-trail', methods=['GET', 'POST'])
 @login_required
-@role_required(7,8,9,10)
+@role_required(24)
 def report_report_audit_trail_page():
     audit_trail_records = Audit.get_all_audit_trail_records()
     return render_template('report_audit_trail.html', audit_trail_records=audit_trail_records)
@@ -698,7 +710,7 @@ def report_report_audit_trail_page():
 
 @app.route('/report-reconciliations-pending-approval', methods=['GET', 'POST'])
 @login_required
-@role_required(7,8,9,10)
+@role_required(9, 13, 17, 32, 51)
 def report_reconciliations_pending_approval_page():
     reconciliations = FileUpload.get_reconciliations_pending_approval_report()
     return render_template('report_reconciliations_pending_approval.html', reconciliations=reconciliations)
@@ -706,7 +718,7 @@ def report_reconciliations_pending_approval_page():
 
 @app.route('/report-fully-approved-reconciliations', methods=['GET', 'POST'])
 @login_required
-@role_required(7,8,9,10)
+@role_required(10, 14, 18, 33, 50)
 def report_fully_approved_reconciliations_page():
     reconciliations = FileUpload.get_fully_approved_reconciliations_report()
     return render_template('report_fully_approved_reconciliations.html', reconciliations=reconciliations)
@@ -714,7 +726,7 @@ def report_fully_approved_reconciliations_page():
 
 @app.route('/report-rejected-reconciliations', methods=['GET', 'POST'])
 @login_required
-@role_required(19, 20, 21)
+@role_required(19, 20, 21, 34, 53)
 def report_rejected_reconciliations_page():
     reconciliations = FileUpload.get_rejected_reconciliations_report()
     return render_template('report_rejected_reconciliations.html', reconciliations=reconciliations)
@@ -722,7 +734,7 @@ def report_rejected_reconciliations_page():
 
 @app.route('/admin-users', methods=['GET', 'POST'])
 @login_required
-@role_required(7,8,9,10)
+@role_required(44)
 def admin_users_page():
     user_details = UserSummary.get_all_users_details()
     org_unit_tier = UserSummary.get_organisation_unit_tier()
@@ -849,7 +861,7 @@ def admin_user_password_update():
 
 @app.route('/admin-update-user', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(44)
 def admin_update_user():
     data = request.get_json()
 
@@ -921,7 +933,7 @@ def get_user_account_details():
 
 @app.route('/admin-roles', methods=['GET', 'POST'])
 @login_required
-@role_required(7,8,9,10)
+@role_required(42)
 def admin_roles():
     role_details = Role.get_all_role_details()
     return render_template('roles.html', role_details=role_details)
@@ -936,7 +948,7 @@ def check_role_name_exists(rolename):
 
 @app.route('/admin-register-new-role', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(42)
 def admin_register_new_role():
     data = request.get_json()
 
@@ -988,7 +1000,7 @@ def get_role_details():
 
 @app.route('/admin-update-role', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(42)
 def admin_update_role():
     data = request.get_json()
 
@@ -1023,7 +1035,7 @@ def admin_update_role():
 
 @app.route('/admin-user-roles', methods=['GET', 'POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(43)
 def admin_user_roles_page():
     user_role_details = UserRole.get_all_user_roles_details()
 
@@ -1052,7 +1064,7 @@ def check_user_role_exists(user_id, role_id):
 
 @app.route('/admin-register-new-user-role', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(43)
 def admin_register_new_user_role():
     data = request.get_json()
 
@@ -1107,7 +1119,7 @@ def get_user_role_id():
 
 @app.route('/admin-update-user-role', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(43)
 def admin_update_user_role():
     data = request.get_json()
 
@@ -1144,7 +1156,7 @@ def admin_update_user_role():
 
 @app.route('/admin-banks', methods=['GET', 'POST'])
 @login_required
-@role_required(7,8,9,10)
+@role_required(36)
 def admin_banks():
     bank_details = BankAccount.get_all_bank_details()
     return render_template('banks.html', bank_details=bank_details)
@@ -1246,7 +1258,7 @@ def admin_update_bank():
 
 @app.route('/admin-bank-accounts', methods=['GET', 'POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(35)
 def admin_bank_accounts():
     bank_account_details = BankAccount.get_all_bank_account_details()
     banks = BankAccount.get_all_bank_details()
@@ -1354,7 +1366,7 @@ def admin_update_bank_account():
 
 @app.route('/admin-currencies', methods=['GET', 'POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(37)
 def admin_currencies():
     currency_details = Currency.get_all_currency_details()
     return render_template('currencies.html', currency_details=currency_details)
@@ -1461,7 +1473,7 @@ def admin_update_currency():
 
 @app.route('/admin-bank-account-responsible-user', methods=['GET', 'POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(35)
 def admin_bank_account_responsible_user():
     bank_account_responsible_user_details = BankAccountResponsibleUser.get_all_bank_responsible_person_details()
     bank_accounts = BankAccount.get_all_bank_account_details()
@@ -1480,7 +1492,7 @@ def check_bank_account_responsibility_role_exists(bankAccId, userId):
 
 @app.route('/admin-register-new-bank-account-responsibility', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(35)
 def admin_register_new_bank_account_responsibility():
     data = request.get_json()
 
@@ -1539,7 +1551,7 @@ def get_bank_account_responsibility_details():
 
 @app.route('/admin-update-bank-account-responsibility', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(35)
 def admin_update_bank_account_responsibility():
     data = request.get_json()
 
@@ -1572,13 +1584,13 @@ def admin_update_bank_account_responsibility():
             return jsonify({"error": "Failed to update Bank Account Responsibility.", "type": "danger"}), 500
 
     except Exception as e:
-        print("Error inserting new user:", e)
+        print("Error updating bank account responsible person:", e)
         return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
 
 
 @app.route('/admin-organisation-unit-tier', methods=['GET', 'POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(40)
 def admin_organisation_unit_tier():
     unit_tier_details = OrganisationUnitTier.get_all_org_unit_tier_details()
     return render_template('organisation_unit_tier.html', unit_tier_details=unit_tier_details)
@@ -1593,7 +1605,7 @@ def check_unit_tier_name_exists(unit_tier_name):
 
 @app.route('/admin-register-org-unit-tier', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(40)
 def admin_register_org_unit_tier():
     data = request.get_json()
 
@@ -1629,7 +1641,7 @@ def admin_register_org_unit_tier():
 
 @app.route('/admin-update-org-unit-tier', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(40)
 def admin_update_org_unit_tier():
 
     data = request.get_json()
@@ -1675,7 +1687,7 @@ def check_org_unit_tier_exists(org_unit_tier_name, parent_org_unit_tier_id):
 
 @app.route('/admin-organisation-unit', methods=['GET', 'POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(39)
 def admin_organisation_unit():
     unit_details = OrganisationUnit.get_all_org_unit_details()
     unit_tier_details = OrganisationUnitTier.get_all_org_unit_tier_details()
@@ -1691,7 +1703,7 @@ def check_unit_name_exists(unit_name):
 
 @app.route('/admin-register-org-unit', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(39)
 def admin_register_org_unit():
     data = request.get_json()
 
@@ -1728,7 +1740,7 @@ def admin_register_org_unit():
 
 @app.route('/admin-update-org-unit', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(39)
 def admin_update_org_unit():
 
     data = request.get_json()
@@ -1775,7 +1787,7 @@ def check_unit_exists(org_unit_name, parent_unit_id, org_unit_tier_id):
 
 @app.route('/admin-workflows', methods=['GET', 'POST'])
 @login_required
-@role_required(7,8,9,10)
+@role_required(46)
 def admin_workflows_page():
     workflow_details = Workflow.get_all_workflow_details()
     return render_template('workflows.html', workflow_details=workflow_details)
@@ -1859,7 +1871,7 @@ def admin_update_workflows():
 
 @app.route('/admin-role-workflow-breakdown', methods=['GET', 'POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(41)
 def admin_role_workflow_breakdown():
     role_workflow_breakdown_details = Workflow.get_all_role_workflow_breakdown_details()
     role_details = Role.get_all_role_details()
@@ -1878,7 +1890,7 @@ def check_role_workflow_breakdown_exists(role_id, workflow_breakdown_id):
 
 @app.route('/admin-register-new-role-workflow-breakdown', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(41)
 def admin_register_new_role_workflow_breakdown():
     data = request.get_json()
 
@@ -1914,7 +1926,7 @@ def admin_register_new_role_workflow_breakdown():
 
 @app.route('/admin-update-role-workflow-breakdown-role', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(41)
 def admin_update_role_workflow_breakdown_role():
     data = request.get_json()
 
@@ -1951,7 +1963,7 @@ def admin_update_role_workflow_breakdown_role():
 
 @app.route('/admin-workflow-breakdown', methods=['GET', 'POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(45)
 def admin_workflow_breakdown():
     workflow_breakdown_details = WorkflowBreakdown.get_every_workflow_breakdown_details()
     workflow_details = Workflow.get_all_workflow_details()
@@ -1968,7 +1980,7 @@ def check_workflow_breakdown_exists(workflowBreakdownName, workflow_id, level_id
 
 @app.route('/admin-register-new-workflow-breakdown', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(45)
 def admin_register_new_workflow_breakdown():
     data = request.get_json()
 
@@ -2011,7 +2023,7 @@ def admin_register_new_workflow_breakdown():
 
 @app.route('/admin-update-workflow-breakdown', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(45)
 def admin_update_workflow_breakdown():
     data = request.get_json()
 
@@ -2055,7 +2067,7 @@ def admin_update_workflow_breakdown():
 
 @app.route('/admin-menu-items', methods=['GET', 'POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(38)
 def admin_menu_items():
     menu_item_details = MenuItem.get_all_menu_item_details()
     return render_template('menu_items.html', menu_item_details=menu_item_details)

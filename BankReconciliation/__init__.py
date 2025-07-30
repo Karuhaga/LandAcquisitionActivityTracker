@@ -86,11 +86,22 @@ def inject_menu_items():
 @app.context_processor
 def inject_pending_approvals_count():
     if current_user.is_authenticated:
-        from BankReconciliation.models import FileUpload  # Moved inside the function
+        from BankReconciliation.models import FileUpload  # Import here to avoid circular imports
         count = FileUpload.get_reconciliations_pending_approval_count(current_user.id)
     else:
         count = 0
-    return dict(pending_approvals_count=count)
+    return {'pending_approvals_count': count}
+
+
+# Count of pending submissions displayed on menu badge
+@app.context_processor
+def inject_pending_submissions_count():
+    if current_user.is_authenticated:
+        from BankReconciliation.models import FileUpload  # Moved inside the function
+        count = FileUpload.get_reconciliations_pending_submission_by_user(current_user.id)
+    else:
+        count = 0
+    return dict(pending_submissions_count=count)
 
 
 # Set session timeout duration

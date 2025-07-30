@@ -34,15 +34,15 @@ class User(UserMixin):
         """Fetch user roles from the database."""
         conn = get_db_connection()
         if conn is None:
-            return []  # Return an empty list if the database connection fails
+            return []
 
         cursor = conn.cursor()
-
         try:
             cursor.execute(
                 "SELECT r.name FROM role r INNER JOIN user_role ur ON r.id = ur.role_id WHERE ur.user_id = ?",
-                (self.id,))
-            return [row[0] for row in cursor.fetchall()]  # Return a list of role names
+                (self.id,)
+            )
+            return [row[0] for row in cursor.fetchall()]
         except Exception as e:
             print("Database error:", e)
             return []
@@ -54,12 +54,13 @@ class User(UserMixin):
     def get_by_username(username):
         conn = get_db_connection()
         if conn is None:
-            return None  # Return None if the database connection fails
+            return None
 
         cursor = conn.cursor()
-        cursor.execute("SELECT ID, Username, Fname, Mname, Sname, Password, Email, is_active"
-                       " FROM users WHERE Username = ?",
-                       (username,))
+        cursor.execute(
+            "SELECT ID, Username, Fname, Mname, Sname, Password, Email, is_active FROM users WHERE Username = ?",
+            (username,)
+        )
         row = cursor.fetchone()
         conn.close()
 
@@ -69,20 +70,19 @@ class User(UserMixin):
 
     @staticmethod
     def load_user(self, username):
-        """Load user from database by user_id."""
         conn = get_db_connection()
         if conn is None:
-            return None  # Return None if the database connection fails
+            return None
 
         cursor = conn.cursor()
-
         try:
-            cursor.execute("SELECT ID, Username, Fname, Mname, Sname, Password, Email FROM users WHERE Username = ?",
-                           (username,))
+            cursor.execute(
+                "SELECT ID, Username, Fname, Mname, Sname, Password, Email FROM users WHERE Username = ?",
+                (username,)
+            )
             row = cursor.fetchone()
             if row:
-                return User(row.id, row.username, row.fname, row.mname, row.sname, row.password,
-                            row.email)  # Create a User object
+                return User(row.id, row.username, row.fname, row.mname, row.sname, row.password, row.email)
             return None
         except Exception as e:
             print("Database error:", e)
@@ -92,17 +92,44 @@ class User(UserMixin):
             conn.close()
 
     def get_id(self):
-        return self.username  # Ensure Flask-Login gets username instead of an integer ID
+        return self.username
+
+    @staticmethod
+    def create_user_from_ldap(username, fname, sname, email):
+        conn = get_db_connection()
+        if conn is None:
+            print("Could not connect to DB for LDAP user creation")
+            return None
+
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO users (Username, Fname, Mname, Sname, Password, Email, organisation_unit_id, organisation_unit_tier_id, is_active)
+                VALUES (?, ?, '', ?, '', ?, 0, 0, 1)
+            """, (username, fname, sname, email))
+            conn.commit()
+            print(f"User {username} created successfully from LDAP")
+        except Exception as e:
+            print(f"Error inserting LDAP user {username}: {e}")
+        finally:
+            cursor.close()
+            conn.close()
 
     @staticmethod
     def hash_password(password):
-        return bcrypt.generate_password_hash(password).decode('utf-8')  # Hash password
-
+        return bcrypt.generate_password_hash(password).decode('utf-8')
+        
     def check_password(self, password):
-        return bcrypt.check_password_hash(self.password_hash, password)  # Verify password
+        if not self.password_hash:
+            # No local password hash set
+            return False
+        try:
+            return bcrypt.check_password_hash(self.password_hash, password)
+        except ValueError as e:
+            current_app.logger.warning(f"Invalid password hash for user '{self.username}': {e}")
+            return False
 
     def has_permission(self, work_flow_breakdown_name):
-        # Check if the user has permission for a specific workflow breakdown
         return any(
             work_flow_breakdown_name in [wfb.name for r in self.roles for wfb in r.workflows]
         )
@@ -420,7 +447,7 @@ class EmailHelper(UserMixin):
 
     @staticmethod
     def send_submitted_reconciliations_email(current_fname, next_approver_email, next_approver_fname, files):
-        subject = "Bank Reconwiliations Submitted for Approval"
+        subject = "Bank Reconciliations Submitted for Approval"
 
         # Email body with Poppins font and inline styles
         body = f"""
@@ -463,7 +490,7 @@ class EmailHelper(UserMixin):
             </table>
 
             <p style="margin-top: 25px; margin-bottom: 25px;">
-                🔗 <a href="http://127.0.0.1:5000/approve-reconciliations" 
+                🔗 <a href="https://brt.uetcl.com/approve-reconciliations" 
                 style="color: #4270a8; text-decoration: none; font-weight: 600;">Click here to review and approve</a>
             </p>
 
@@ -471,8 +498,7 @@ class EmailHelper(UserMixin):
 
             <p style="font-size: 14px;">
                 <strong>Best Regards,</strong><br>
-                Bank Reconciliation Tracker<br>
-                📧 support@yourcompany.com | ☎️ +256 [Your Contact Number]
+                Bank Reconciliation Tracker<br>              
             </p>
         </body>
         </html>
@@ -529,7 +555,7 @@ class EmailHelper(UserMixin):
             </table>
 
             <p style="margin-top: 25px; margin-bottom: 25px;">
-                🔗 <a href="http://127.0.0.1:5000/approve-reconciliations" 
+                🔗 <a href="https://brt.uetcl.com/approve-reconciliations" 
                 style="color: #4270a8; text-decoration: none; font-weight: 600;">Click here to review and approve</a>
             </p>
 
@@ -537,8 +563,7 @@ class EmailHelper(UserMixin):
 
             <p style="font-size: 14px;">
                 <strong>Best Regards,</strong><br>
-                Bank Reconciliation Tracker<br>
-                📧 support@yourcompany.com | ☎️ +256 [Your Contact Number]
+                Bank Reconciliation Tracker<br>                
             </p>
         </body>
         </html>
@@ -596,14 +621,13 @@ class EmailHelper(UserMixin):
             </table>
 
             <p style="margin-top: 25px; margin-bottom: 25px;">
-                🔗 <a href="http://127.0.0.1:5000/submitted-reconciliations" 
+                🔗 <a href="https://brt.uetcl.com/submitted-reconciliations" 
                 style="color: #4270a8; text-decoration: none; font-weight: 600;">Click here to view the approved reconciliations</a>
             </p>
 
             <p style="font-size: 14px;">
                 <strong>Best Regards,</strong><br>
-                Bank Reconciliation Tracker<br>
-                📧 support@yourcompany.com | ☎️ +256 [Your Contact Number]
+                Bank Reconciliation Tracker<br>                
             </p>
         </body>
         </html>
@@ -616,31 +640,26 @@ class EmailHelper(UserMixin):
             print(f"Email of approval sent to {initiator_approver_email}")
         except Exception as e:
             print(f"Error sending email: {e}")
-
+            
     @staticmethod
     def email_reminder_to_initiator_reconciliations_pending_submission(current_fname, initiator_approver_email, details):
         subject = "Bank Reconciliations Pending Submission"
 
-        # Email body with Poppins font and inline styles
+        # Start building HTML body with inline styles only
         body = f"""
         <html>
-        <head>
-            <link href="https:get_reconciliations_pending_submission/fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-        </head>
-        <body style="font-family: 'Poppins', sans-serif; margin: 20px; color: #333;">
-            <p style="font-size: 14px;">Dear {current_fname},</p>
-            <p style="font-size: 14px;">The following reconciliations are pending your submission.</p>
+        <body style="margin: 0; padding: 20px; font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+            <p>Dear {current_fname},</p>
+            <p>The following reconciliations are pending your submission:</p>
 
-            <p style="font-size: 14px; font-weight: bold; margin-top: 25px;">Reconciliations Pending Submission:</p>
-
-            <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%; font-size: 14px;">
+            <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 14px;">
                 <thead>
                     <tr style="background-color: #f2f2f2;">
-                        <th style="border: 1px solid #ddd; text-align: center; padding: 8px;">#</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Bank Account</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Year</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Month</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Days Overdue</th>
+                        <th style="border: 1px solid #ddd; text-align: center;">#</th>
+                        <th style="border: 1px solid #ddd; text-align: left;">Bank Account</th>
+                        <th style="border: 1px solid #ddd; text-align: left;">Year</th>
+                        <th style="border: 1px solid #ddd; text-align: left;">Month</th>
+                        <th style="border: 1px solid #ddd; text-align: left;">Days Overdue</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -648,30 +667,29 @@ class EmailHelper(UserMixin):
 
         for index, detail in enumerate(details, start=1):
             body += f"""
-                    <tr>
-                        <td style="border: 1px solid #ddd; text-align: center; padding: 8px;">{index}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.bank_account}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.year}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.month}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.days_overdue}</td>
-                    </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; text-align: center;">{index}</td>
+                    <td style="border: 1px solid #ddd;">{detail.bank_account}</td>
+                    <td style="border: 1px solid #ddd;">{detail.year}</td>
+                    <td style="border: 1px solid #ddd;">{detail.month}</td>
+                    <td style="border: 1px solid #ddd;">{detail.days_overdue}</td>
+                </tr>
             """
 
         body += """
                 </tbody>
             </table>
 
-            <p style="margin-top: 25px; margin-bottom: 25px;">
-                🔗 <a href="http://127.0.0.1:5000/submit-reconciliations" 
-                style="color: #4270a8; text-decoration: none; font-weight: 600;">Click here to submit</a>
+            <p style="margin-top: 20px;">
+                🔗 <a href="https://brt.uetcl.com/submit-reconciliations" 
+                style="color: #1a73e8; text-decoration: none;">Click here to submit</a>
             </p>
 
-            <p style="font-size: 14px;">Your timely action is appreciated.</p>
+            <p>Your timely action is appreciated.</p>
 
-            <p style="font-size: 14px;">
+            <p>
                 <strong>Best Regards,</strong><br>
                 Bank Reconciliation Tracker<br>
-                📧 support@yourcompany.com | ☎️ +256 [Your Contact Number]
             </p>
         </body>
         </html>
@@ -679,9 +697,9 @@ class EmailHelper(UserMixin):
 
         try:
             msg = Message(subject, recipients=[initiator_approver_email])
-            msg.html = body  # Set HTML content
+            msg.html = body
             mail.send(msg)
-            print(f"Email reminder about Pending Reconciliation(s) Submission sent to Initiator, {initiator_approver_email}")
+            print(f"Email reminder sent to Initiator: {initiator_approver_email}")
         except Exception as e:
             print(f"Error sending email: {e}")
 
@@ -689,59 +707,61 @@ class EmailHelper(UserMixin):
     def email_reminder_to_approver_reconciliations_pending_submission(approver_fname, approver_email, details):
         subject = "Bank Reconciliations Pending Submission"
 
-        # Email body with Poppins font and inline styles
+        # Email body start
         body = f"""
         <html>
-        <head>
-            <link href="https:get_reconciliations_pending_submission/fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-        </head>
-        <body style="font-family: 'Poppins', sans-serif; margin: 20px; color: #333;">
-            <p style="font-size: 14px;">Dear {approver_fname},</p>
-            <p style="font-size: 14px;">The following reconciliations are pending submission.</p>
+        <body style="margin: 0; padding: 20px; font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+            <p>Dear {approver_fname},</p>
+            <p>The following reconciliations are pending submission:</p>
 
-            <p style="font-size: 14px; font-weight: bold; margin-top: 25px;">Reconciliations Pending Submission:</p>
+            <p style="font-weight: bold; margin-top: 25px;">Reconciliations Pending Submission:</p>
 
-            <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%; font-size: 14px;">
+            <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 14px;">
                 <thead>
                     <tr style="background-color: #f2f2f2;">
-                        <th style="border: 1px solid #ddd; text-align: center; padding: 8px;">#</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Bank Account</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Year</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Month</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Days Overdue</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Responsible Person(s)</th>
+                        <th style="border: 1px solid #ddd; text-align: center;">#</th>
+                        <th style="border: 1px solid #ddd;">Bank Account</th>
+                        <th style="border: 1px solid #ddd;">Year</th>
+                        <th style="border: 1px solid #ddd;">Month</th>
+                        <th style="border: 1px solid #ddd;">Days Overdue</th>
+                        <th style="border: 1px solid #ddd;">Responsible Person(s)</th>
                     </tr>
                 </thead>
                 <tbody>
         """
 
+        rows = []
         for index, detail in enumerate(details, start=1):
-            body += f"""
-                    <tr>
-                        <td style="border: 1px solid #ddd; text-align: center; padding: 8px;">{index}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.bank_account}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.year}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.month}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.days_overdue}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.responsible_users}</td>
-                    </tr>
-            """
+            rows.append(
+                f"<tr>"
+                f"<td style='border: 1px solid #ddd; text-align: center;'>{index}</td>"
+                f"<td style='border: 1px solid #ddd;'>{detail.bank_account}</td>"
+                f"<td style='border: 1px solid #ddd;'>{detail.year}</td>"
+                f"<td style='border: 1px solid #ddd;'>{detail.month}</td>"
+                f"<td style='border: 1px solid #ddd;'>{detail.days_overdue}</td>"
+                f"<td style='border: 1px solid #ddd;'>{detail.responsible_users}</td>"
+                f"</tr>"
+            )
 
+        body += "\n".join(rows)
+
+        # Email body end
         body += """
                 </tbody>
             </table>
 
-            <p style="margin-top: 25px; margin-bottom: 25px;">
-                🔗 <a href="http://127.0.0.1:5000/report-reconciliations-pending-submission" 
-                style="color: #4270a8; text-decoration: none; font-weight: 600;">Click here to view report on reconciliations pending submission</a>
+            <p style="margin-top: 25px;">
+                🔗 <a href="https://brt.uetcl.com/report-reconciliations-pending-submission"
+                     style="color: #4270a8; text-decoration: none; font-weight: 600;">
+                    Click here to view report on reconciliations pending submission
+                </a>
             </p>
 
-            <p style="font-size: 14px;">Your timely action is appreciated.</p>
+            <p>Your timely action is appreciated.</p>
 
-            <p style="font-size: 14px;">
+            <p>
                 <strong>Best Regards,</strong><br>
                 Bank Reconciliation Tracker<br>
-                📧 support@yourcompany.com | ☎️ +256 [Your Contact Number]
             </p>
         </body>
         </html>
@@ -749,9 +769,9 @@ class EmailHelper(UserMixin):
 
         try:
             msg = Message(subject, recipients=[approver_email])
-            msg.html = body  # Set HTML content
+            msg.html = body
             mail.send(msg)
-            print(f"Email reminder about Pending Reconciliation(s) Submission sent to Supervisor, {approver_email}")
+            print(f"Email reminder sent to Approver: {approver_email}")
         except Exception as e:
             print(f"Error sending email: {e}")
 
@@ -798,7 +818,7 @@ class EmailHelper(UserMixin):
             </table>
 
             <p style="margin-top: 25px; margin-bottom: 25px;">
-                🔗 <a href="http://127.0.0.1:5000/approve-reconciliations" 
+                🔗 <a href="https://brt.uetcl.com/approve-reconciliations" 
                 style="color: #4270a8; text-decoration: none; font-weight: 600;">Click here to review and approve reconciliation(s)</a>
             </p>
 
@@ -806,8 +826,7 @@ class EmailHelper(UserMixin):
 
             <p style="font-size: 14px;">
                 <strong>Best Regards,</strong><br>
-                Bank Reconciliation Tracker<br>
-                📧 support@yourcompany.com | ☎️ +256 [Your Contact Number]
+                Bank Reconciliation Tracker<br>                
             </p>
         </body>
         </html>
@@ -1286,18 +1305,33 @@ class FileUpload:
         try:
             # Raw MSSQL Query to fetch all files that are not marked as removed
             query = """
-                        SELECT b.name as bank_account_id, year, 
-                        (select DateName(month, DateAdd(month, month, 0) - 1)) as month, file_name, batch_id,
+                        SELECT 
+                            b.name AS bank_account_id, 
+                            a.[year], 
+                            DATENAME(month, DATEADD(month, a.[month], 0) - 1) AS [month], 
+                            a.file_name, 
+                            a.batch_id,
                             CASE 
-                                WHEN c.submission_status = 0 THEN 'Pending Submission' 
-                                ELSE 'Rejected' 
+                                WHEN ra.decision = 3 THEN 'Rejected'
+                                ELSE 'Pending Submission'
                             END AS submission_status 
                         FROM file_upload a 
                         LEFT OUTER JOIN bank_account b ON a.bank_account_id = b.id
                         LEFT OUTER JOIN file_upload_batch c ON c.id = a.batch_id
-                        LEFT OUTER JOIN users d on d.id = c.user_id
-                        WHERE c.user_id = ? AND a.submission_status = 0 AND removed_by_user_on_upload_page = 0
-                        ORDER BY b.name
+                        LEFT OUTER JOIN users d ON d.id = c.user_id
+                        LEFT OUTER JOIN (
+                            SELECT ra1.file_upload_id, ra1.decision
+                            FROM reconciliation_approvals ra1
+                            WHERE ra1.date_time = (
+                                SELECT MAX(ra2.date_time)
+                                FROM reconciliation_approvals ra2
+                                WHERE ra2.file_upload_id = ra1.file_upload_id
+                            )
+                        ) ra ON ra.file_upload_id = a.id
+                        WHERE c.user_id = ? 
+                          AND a.submission_status = 0 
+                          AND a.removed_by_user_on_upload_page = 0
+                        ORDER BY b.name;
                     """
             # Execute the query with user_id as parameter
             cursor.execute(query, (user_id,))
@@ -1609,7 +1643,7 @@ class FileUpload:
                             DATENAME(month, am.recon_month) AS month,
                             DATEDIFF(
                                 DAY,
-                                DATEADD(MONTH, 1, am.recon_month),  -- First day after the recon month
+                                DATEADD(DAY, 4, DATEADD(MONTH, 1, am.recon_month)),  -- 5 day after the recon month
                                 GETDATE()
                             ) AS days_overdue,
                             STRING_AGG(
@@ -1636,6 +1670,7 @@ class FileUpload:
                         WHERE 
                             f.id IS NULL
                             AND am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+                            AND bru.is_active = 1
                         GROUP BY 
                             c.name,
                             am.recon_month, -- Needed for DATEDIFF
@@ -1740,99 +1775,126 @@ class FileUpload:
         try:
             # Fetch submitted reconciliations
             query = """
-               DECLARE @logged_in_user_id INT = ?; -- Set logged-in user's ID
-
-                ;WITH GlobalFiles AS (
-                    -- Get files where responsibility is global
-                    SELECT 
-                        ba.name AS bank_account, 
-                        f.year, 
-                        DATENAME(month, DATEADD(month, f.month, 0) - 1) AS month,
-                        f.file_name, 
-                        FORMAT(f.creation_datetime, 'yyyy-MM-dd HH:mm:ss') AS date_time, 
-                        (SELECT TOP 1 r.name 
-                         FROM role r 
-                         LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
-                         LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
-                         LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
-                         WHERE wb.is_workflow_level = 1 
-                         AND wb.level - 1 = f.submission_status
-                         AND ur.user_id = @logged_in_user_id) AS approve_as,
-                        ROW_NUMBER() OVER (PARTITION BY f.id ORDER BY f.creation_datetime DESC) AS row_num
-                    FROM file_upload f
-                    JOIN reconciliation_approvals ra ON f.id = ra.file_upload_id
-                    JOIN file_upload_batch fub ON f.batch_id = fub.id
-                    JOIN users u ON fub.user_id = u.ID
-                    JOIN bank_account ba ON f.bank_account_id = ba.id
-                    JOIN bank b ON ba.bank_id = b.id
-                    JOIN user_role ur ON u.ID = ur.user_id
-                    JOIN role r ON ur.role_id = r.id
-                    WHERE ra.approver_id IN
-                    (SELECT DISTINCT(a.ID) 
-                     FROM users a
-                     JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
-                     WHERE b.parent_org_unit_tier_id IN 
-                     (SELECT d.organisation_unit_tier_id FROM users d WHERE d.ID = @logged_in_user_id))
-                    AND f.submission_status != 0 AND f.submission_status IN 
-                     (SELECT DISTINCT(a.level) - 1 
-                      FROM workflow_breakdown a
-                      JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
-                      JOIN role c ON b.role_id = c.id
-                      JOIN user_role d ON c.id = d.role_id
-                      JOIN users e ON d.user_id = e.ID
-                      WHERE a.is_responsibility_global = 1
-                      AND e.ID = @logged_in_user_id)
-                ),
-                OrgBasedFiles AS (
-                    -- Get files where responsibility is restricted to specific organizational units
-                    SELECT 
-                        ba.name AS bank_account, 
-                        f.year, 
-                        DATENAME(month, DATEADD(month, f.month, 0) - 1) AS month,
-                        f.file_name, 
-                        FORMAT(f.creation_datetime, 'yyyy-MM-dd HH:mm:ss') AS date_time,
-                        (SELECT TOP 1 r.name 
-                         FROM role r 
-                         LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
-                         LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
-                         LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
-                         WHERE wb.is_workflow_level = 1 
-                         AND wb.level - 1 = f.submission_status
-                         AND ur.user_id = @logged_in_user_id) AS approve_as,
-                        ROW_NUMBER() OVER (PARTITION BY f.id ORDER BY f.creation_datetime DESC) AS row_num
-                        FROM file_upload f
-                        JOIN reconciliation_approvals ra ON f.id = ra.file_upload_id
-                        JOIN file_upload_batch fub ON f.batch_id = fub.id
-                        JOIN users u ON fub.user_id = u.ID
-                        JOIN bank_account ba ON f.bank_account_id = ba.id
-                        JOIN bank b ON ba.bank_id = b.id
-                        JOIN user_role ur ON u.ID = ur.user_id
-                        JOIN role r ON ur.role_id = r.id
-                        WHERE ra.approver_id IN
-                        (SELECT DISTINCT(a.ID) 
-                         FROM users a
-                         JOIN organisation_unit b ON a.organisation_unit_id = b.id
-                         WHERE b.parent_org_unit_id IN 
-                         (SELECT d.organisation_unit_id FROM users d WHERE d.ID = @logged_in_user_id))
-                        AND f.submission_status != 0 AND f.submission_status IN 
-                         (SELECT DISTINCT(a.level) - 1 
-                          FROM workflow_breakdown a
-                          JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
-                          JOIN role c ON b.role_id = c.id
-                          JOIN user_role d ON c.id = d.role_id
-                          JOIN users e ON d.user_id = e.ID
-                          WHERE a.is_responsibility_global = 0
-                          AND e.ID = @logged_in_user_id)
-                    )
-                    
-                    -- Combine results and order by bank_name, year, month
-                    SELECT bank_account, year, month, file_name, date_time, approve_as
-                    FROM (
-                        SELECT * FROM GlobalFiles WHERE row_num = 1
-                        UNION
-                        SELECT * FROM OrgBasedFiles WHERE row_num = 1
-                    ) AS UniqueResults
-                    ORDER BY bank_account, year, month ASC;
+                        DECLARE @logged_in_user_id INT = ?; -- Set logged-in user's ID
+                        
+                        ;WITH GlobalFiles AS (
+                            -- Get files where responsibility is global
+                            SELECT 
+                                ba.name AS bank_account, 
+                                f.year, 
+                                DATENAME(month, DATEADD(month, f.month, 0) - 1) AS month,
+                                f.file_name, 
+                                FORMAT(f.creation_datetime, 'yyyy-MM-dd HH:mm:ss') AS date_time, 
+                                (
+                                    SELECT TOP 1 r.name 
+                                    FROM role r 
+                                    LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
+                                    LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
+                                    LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                    WHERE 
+                                        wb.is_workflow_level = 1 
+                                        AND wb.level - 1 = f.submission_status
+                                        AND ur.user_id = @logged_in_user_id
+                                ) AS approve_as,
+                                ROW_NUMBER() OVER (PARTITION BY f.id ORDER BY f.creation_datetime DESC) AS row_num
+                            FROM file_upload f
+                            JOIN reconciliation_approvals ra ON f.id = ra.file_upload_id
+                            JOIN file_upload_batch fub ON f.batch_id = fub.id
+                            JOIN users u ON fub.user_id = u.ID
+                            JOIN bank_account ba ON f.bank_account_id = ba.id
+                            JOIN bank b ON ba.bank_id = b.id
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE 
+                                ur.start_datetime <= GETDATE() 
+                                AND ur.expiry_datetime >= GETDATE()
+                                AND ra.approver_id IN (
+                                    SELECT DISTINCT a.ID
+                                    FROM users a
+                                    JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
+                                    WHERE b.parent_org_unit_tier_id IN (
+                                        SELECT d.organisation_unit_tier_id 
+                                        FROM users d 
+                                        WHERE d.ID = @logged_in_user_id
+                                    )
+                                )
+                                AND f.submission_status != 0 
+                                AND f.submission_status IN (
+                                    SELECT DISTINCT a.level - 1
+                                    FROM workflow_breakdown a
+                                    JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                    JOIN role c ON b.role_id = c.id
+                                    JOIN user_role d ON c.id = d.role_id
+                                    JOIN users e ON d.user_id = e.ID
+                                    WHERE 
+                                        a.is_responsibility_global = 1
+                                        AND e.ID = @logged_in_user_id
+                                )
+                        ),
+                        OrgBasedFiles AS (
+                            -- Get files where responsibility is restricted to specific organizational units
+                            SELECT 
+                                ba.name AS bank_account, 
+                                f.year, 
+                                DATENAME(month, DATEADD(month, f.month, 0) - 1) AS month,
+                                f.file_name, 
+                                FORMAT(f.creation_datetime, 'yyyy-MM-dd HH:mm:ss') AS date_time,
+                                (
+                                    SELECT TOP 1 r.name 
+                                    FROM role r 
+                                    LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
+                                    LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
+                                    LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                    WHERE 
+                                        wb.is_workflow_level = 1 
+                                        AND wb.level - 1 = f.submission_status
+                                        AND ur.user_id = @logged_in_user_id
+                                ) AS approve_as,
+                                ROW_NUMBER() OVER (PARTITION BY f.id ORDER BY f.creation_datetime DESC) AS row_num
+                            FROM file_upload f
+                            JOIN reconciliation_approvals ra ON f.id = ra.file_upload_id
+                            JOIN file_upload_batch fub ON f.batch_id = fub.id
+                            JOIN users u ON fub.user_id = u.ID
+                            JOIN bank_account ba ON f.bank_account_id = ba.id
+                            JOIN bank b ON ba.bank_id = b.id
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE 
+                                ur.start_datetime <= GETDATE() 
+                                AND ur.expiry_datetime >= GETDATE()
+                                AND ra.approver_id IN (
+                                    SELECT DISTINCT a.ID
+                                    FROM users a
+                                    JOIN organisation_unit b ON a.organisation_unit_id = b.id
+                                    WHERE b.parent_org_unit_id IN (
+                                        SELECT d.organisation_unit_id 
+                                        FROM users d 
+                                        WHERE d.ID = @logged_in_user_id
+                                    )
+                                )
+                                AND f.submission_status != 0 
+                                AND f.submission_status IN (
+                                    SELECT DISTINCT a.level - 1
+                                    FROM workflow_breakdown a
+                                    JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                    JOIN role c ON b.role_id = c.id
+                                    JOIN user_role d ON c.id = d.role_id
+                                    JOIN users e ON d.user_id = e.ID
+                                    WHERE 
+                                        a.is_responsibility_global = 0
+                                        AND e.ID = @logged_in_user_id
+                                )
+                        )
+                        
+                        -- Combine results and order by bank_name, year, month
+                        SELECT 
+                            bank_account, year, month, file_name, date_time, approve_as
+                        FROM (
+                            SELECT * FROM GlobalFiles WHERE row_num = 1
+                            UNION
+                            SELECT * FROM OrgBasedFiles WHERE row_num = 1
+                        ) AS UniqueResults
+                        ORDER BY bank_account, year, month ASC;
             """
             cursor.execute(query, (user_id,))
             result = cursor.fetchall()
@@ -1933,6 +1995,30 @@ class FileUpload:
             cursor.execute(query, [user_id])
             pending_approvals_count = cursor.fetchone()[0]
             return pending_approvals_count if pending_approvals_count is not None else 0
+        except Exception as e:
+            print("Database error:", e)
+            return 0
+        finally:
+            cursor.close()
+            conn.close()
+            
+    @staticmethod
+    def get_reconciliations_pending_submission_by_user(user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return 0  # Return 0 if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT COUNT(*) AS TotalReconciliationsPendingSubmission FROM file_upload fu
+                        LEFT OUTER JOIN file_upload_batch fub ON fu.batch_id = fub.id
+                        WHERE fu.submission_status = 0 AND fub.user_id = ?
+            """
+            cursor.execute(query, [user_id])
+            pending_submissions_count = cursor.fetchone()[0]
+            return pending_submissions_count if pending_submissions_count is not None else 0
         except Exception as e:
             print("Database error:", e)
             return 0
@@ -2158,6 +2244,8 @@ class FileUpload:
                     WHERE wb.is_workflow_level = 1
                     AND wb.level = ?
                     AND wb.is_responsibility_global = 1
+                    AND ur.start_datetime <= GETDATE() 
+                    AND ur.expiry_datetime >= GETDATE()
                     AND u.ID IN (
                         SELECT DISTINCT a.ID
                         FROM users a
@@ -2175,6 +2263,8 @@ class FileUpload:
                     WHERE wb.is_workflow_level = 1
                     AND wb.level = ?
                     AND wb.is_responsibility_global = 0
+                    AND ur.start_datetime <= GETDATE() 
+                    AND ur.expiry_datetime >= GETDATE()
                     AND u.ID IN (
                         SELECT DISTINCT a.ID
                         FROM users a
@@ -2222,13 +2312,16 @@ class FileUpload:
                                 DATEFROMPARTS(YEAR(ba.creation_date), MONTH(ba.creation_date), 1) AS start_month
                             FROM 
                                 bank_account ba
-                        ), AllMonths AS (
+                        ), 
+                        AllMonths AS (
                             SELECT 
                                 ml.bank_account_id,
                                 ml.start_month AS recon_month
                             FROM 
                                 MonthList ml
+                        
                             UNION ALL
+                        
                             SELECT 
                                 am.bank_account_id,
                                 DATEADD(MONTH, 1, am.recon_month)
@@ -2237,25 +2330,36 @@ class FileUpload:
                             WHERE 
                                 am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
                         )
+                        
                         SELECT DISTINCT
                             u.ID
                         FROM 
                             AllMonths am
                         LEFT JOIN 
-                            file_upload f ON f.bank_account_id = am.bank_account_id 
-                                           AND f.year = YEAR(am.recon_month)
-                                           AND f.month = MONTH(am.recon_month)
-                                           AND f.removed_by_user_on_upload_page = 0
+                            file_upload f 
+                            ON f.bank_account_id = am.bank_account_id 
+                            AND f.year = YEAR(am.recon_month)
+                            AND f.month = MONTH(am.recon_month)
+                            AND f.removed_by_user_on_upload_page = 0
                         INNER JOIN 
-                            bank_account c ON am.bank_account_id = c.id
+                            bank_account c 
+                            ON am.bank_account_id = c.id
                         LEFT JOIN 
-                            bank_account_responsible_user bru ON bru.bank_account_id = c.id
+                            bank_account_responsible_user bru 
+                            ON bru.bank_account_id = c.id
                         LEFT JOIN 
-                            users u ON bru.user_id = u.ID
+                            users u 
+                            ON bru.user_id = u.ID
+                        LEFT JOIN 
+                            user_role ur 
+                            ON u.ID = ur.user_id
                         WHERE 
-                            f.id IS NULL -- Means missing reconciliation
+                            f.id IS NULL  -- Missing reconciliation
                             AND am.recon_month < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
                             AND u.ID IS NOT NULL
+                            AND ur.start_datetime <= GETDATE()
+                            AND ur.expiry_datetime >= GETDATE()
+                            AND bru.is_active = 1
                         OPTION (MAXRECURSION 1000);
                   """
             cursor.execute(query, )
@@ -2371,7 +2475,7 @@ class FileUpload:
                             DATENAME(month, am.recon_month) AS month,
                             DATEDIFF(
                                 DAY,
-                                DATEADD(MONTH, 1, am.recon_month),  -- First day after recon month
+                                DATEADD(DAY, 4, DATEADD(MONTH, 1, am.recon_month)),  -- 5th day after recon month
                                 GETDATE()
                             ) AS days_overdue
                         FROM 
@@ -2468,7 +2572,7 @@ class FileUpload:
                             DATENAME(month, am.recon_month) AS month,
                             DATEDIFF(
                                 DAY,
-                                DATEADD(MONTH, 1, am.recon_month), -- Day after the end of the month
+                                DATEADD(DAY, 4, DATEADD(MONTH, 1, am.recon_month)), -- 5th after the end of the month
                                 GETDATE()
                             ) AS days_overdue,
                             STRING_AGG(
@@ -2586,6 +2690,7 @@ class FileUpload:
                         WHERE wb.is_workflow_level = 1
                         AND wb.level = @work_breakdown_level
                         AND wb.is_responsibility_global = 1
+                        AND ur.start_datetime <= GETDATE() AND ur.expiry_datetime >= GETDATE()
                         AND u.ID IN (
                             SELECT DISTINCT a.ID
                             FROM users a
@@ -2603,6 +2708,7 @@ class FileUpload:
                         WHERE wb.is_workflow_level = 1
                         AND wb.level = @work_breakdown_level
                         AND wb.is_responsibility_global = 0
+                        AND ur.start_datetime <= GETDATE() AND ur.expiry_datetime >= GETDATE()
                         AND u.ID IN (
                             SELECT DISTINCT a.ID
                             FROM users a
@@ -2732,9 +2838,14 @@ class BankAccount:
 
         try:
             # Fetch submitted reconciliations
-            query = """SELECT ba.id, ba.name, ba.bank_id, ba.currency_id, ba.strategic_business_unit_id FROM 
-            bank_account ba LEFT OUTER JOIN bank_account_responsible_user baru ON ba.id = baru.bank_account_id LEFT 
-            OUTER JOIN users u ON baru.user_id = u.ID WHERE u.ID = ? ORDER BY ba.name"""
+            query = """
+                        SELECT ba.id, ba.name, ba.bank_id, ba.currency_id, ba.strategic_business_unit_id 
+                        FROM bank_account ba 
+                        LEFT OUTER JOIN bank_account_responsible_user baru ON ba.id = baru.bank_account_id 
+                        LEFT OUTER JOIN users u ON baru.user_id = u.ID 
+                        WHERE baru.is_active = 1 AND u.ID = ?
+                        ORDER BY ba.name
+                    """
             cursor.execute(query, (user_id,))
             result = cursor.fetchall()
 
@@ -3986,6 +4097,7 @@ class Audit:
                         at.action, at.details, at.timestamp as date_time, at.ip_address 
                         FROM audit_trail at
                         LEFT OUTER JOIN users u ON at.user_id = u.ID
+                        ORDER BY at.timestamp DESC;
                     """
             cursor.execute(query, )
             result = cursor.fetchall()
@@ -4267,7 +4379,7 @@ class BankAccountResponsibleUser:
 
         try:
             query = """
-                SELECT ba.id, ba.id AS bank_account_id, 
+                SELECT baru.id, ba.id AS bank_account_id, 
                 u.ID AS user_id, baru.is_active
                 FROM bank_account_responsible_user baru
                 LEFT OUTER JOIN bank_account ba ON baru.bank_account_id = ba.id
@@ -4299,9 +4411,9 @@ class BankAccountResponsibleUser:
 
         try:
             query = """
-                UPDATE bank_account_responsible_user SET bank_account_id = ?, user_id = ?, is_active = ? WHERE id = ?
+                UPDATE bank_account_responsible_user SET is_active = ? WHERE id = ?
             """
-            cursor.execute(query, (bank_acc_id, user_id, is_active, responsibility_id, ))
+            cursor.execute(query, (is_active, responsibility_id, ))
             conn.commit()
             return True
         except Exception as e:
