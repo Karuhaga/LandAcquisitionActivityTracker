@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Dashboard
+{% endblock %}
+
+{% block page_title %}
+    <div data-page-title>Dashboard</div>
+{% endblock %}
+
+{% block content %}
+    <!-- Dashboard Stats -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card text-white" style="background-color: #74787d">
+                <div class="card-body">
+                    <h5 class="card-title">Pending Approval</h5>
+                    <h3>{{ reconciliations_pending_approval_submitted_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card text-white" style="background: #4270a8">
+                <div class="card-body">
+                    <h5 class="card-title">Approved Reconciliations</h5>
+                    <h3>{{ approved_reconciliations_count }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pie Chart Section for Pending vs Approved Reconciliations -->
+    <div class="row mt-4">
+        <div class="col-md-6 offset-md-3 text-center">
+            <h5 class="text-center">Approved- vs Pending Approval- Reconciliations</h5>
+            <div style="max-width: 250px; margin: auto; margin-bottom: 30px;">
+                <canvas id="reconciliationStats" style="max-width: 100%; height: auto;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Pending vs Approved Pie Chart
+        var ctx2 = document.getElementById('reconciliationStats').getContext('2d');
+        var reconciliationStats = JSON.parse('{{ reconciliation_stats_json|safe }}');
+        new Chart(ctx2, {
+            type: 'pie',
+            data: {
+                labels: ['Approved', 'Pending'],
+                datasets: [{
+                    data: [reconciliationStats.approved, reconciliationStats.pending],
+                    backgroundColor: ['#4270a8', '#74787d']
+                }]
+            },
+            options: {
+                responsive: true
+            }
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Workflow Breakdown
+{% endblock %}
+
+{% block page_title %}
+    <div data-page-title>Workflow Breakdown</div>
+{% endblock %}
+
+
+{% block content %}
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Workflow Breakdown</span>
+            <button style="font-size: 18px;" class="btn-outline-custom" type="button" onclick="addWorkflowBreakdown()">Add Breakdown</button>
+        </div>
+
+        <div class="card-body">
+            <table id="uploadedFilesTable" class="table table-striped table-bordered table-hover paginated">
+                <thead>
+                    <tr>
+                        <th style="width: 5%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false">#</th> <!-- Row number column -->
+                        <th style="">Name</th>
+                        <th style="">Workflow</th>
+                        <th style="">Level</th>
+                        <th style="">Is Responsibility Global</th>
+                        <th style="">Is Workflow Level</th>
+                        <th style="">Item Menu Id</th>
+                        <th style="width: 10%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false" data-orderable="false" data-ordering="false">Edit Workflow</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for workflow_breakdown_detail in workflow_breakdown_details %}
+                    <tr>
+                        <td style="width: 5%; white-space: nowrap; text-align: left;">{{ loop.index }}</td> <!-- Display row number -->
+                        <td style="">{{ workflow_breakdown_detail.name }}</td>
+                        <td style="">{{ workflow_breakdown_detail.workflow_name }}</td>
+                        <td style="">{{ workflow_breakdown_detail.level }}</td>
+                        <td style="">{{ workflow_breakdown_detail.is_responsibility_global }}</td>
+                        <td style="">{{ workflow_breakdown_detail.is_workflow_level }}</td>
+                        <td style="">{{ workflow_breakdown_detail.menu_item_id }}</td>
+                        <td style="width: 10%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false">
+                            <button class="btn-outline-custom edit-workflow-breakdown-btn" style="float: right;" type="button" data-workflow-breakdown-id="{{ workflow_breakdown_detail.id }}" data-workflow-breakdown-name="{{ workflow_breakdown_detail.name }}" data-workflow-id="{{ workflow_breakdown_detail.workflow_id }}" data-level-id="{{ workflow_breakdown_detail.level }}"  data-menu-item-id="{{ workflow_breakdown_detail.menu_item_id }}" data-is-responsibility-global="{{ 1 if workflow_breakdown_detail.is_responsibility_global == 'Yes' else 0 }}" data-is-workflow-level="{{ 1 if workflow_breakdown_detail.is_workflow_level == 'Yes' else 0 }}">Edit</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td></td>
+                        <td style="text-align: center; max-width: 150px; word-break: break-all; white-space: normal;">No workflow(s) found.</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+    function showFlashMessage(message, type) {
+        let title = "Notification"; // Default title
+
+        if (type === "danger") {
+            title = "Error";
+        } else if (type === "success") {
+            title = "Success";
+        } else if (type === "warning") {
+            title = "Warning";
+        }
+
+        $("#flashMessageTitle").text(title);
+        $("#flashMessageBody").html(message);
+        $("#flashMessageModal").modal("show");
+    }
+
+    function addWorkflowBreakdown() {
+        // Open the modal
+        $("#workflowBreakdownAddModal").modal("show");
+    }
+
+    function showConfirmation(actionType) {
+        let modalTitle = "";
+        let modalMessage = "";
+
+        if (actionType === "add workflow breakdown") {
+            modalTitle = "Confirm Addition of Workflow Breakdown";
+            modalMessage = "Are you sure you want to add this workflow breakdown?";
+            $("#confirmAction").off("click").on("click", function () {
+                $("#confirmationModal").modal("hide");
+                registerWorkflowBreakdown();
+            });
+        }
+
+        if (actionType === "edit workflow breakdown") {
+            modalTitle = "Confirm Update of Workflow Breakdown";
+            modalMessage = "Are you sure you want to update this workflow breakdown?";
+            $("#confirmAction").off("click").on("click", function () {
+                $("#confirmationModal").modal("hide");
+                updateWorkflowBreakdown();
+            });
+        }
+
+        $("#confirmationModalLabel").text(modalTitle);
+        $("#confirmationMessage").text(modalMessage);
+
+        $("#confirmationModal").modal({
+            backdrop: true,
+            keyboard: false
+        });
+
+        // Wait for Bootstrap to insert backdrop, then adjust z-index
+        setTimeout(function () {
+            $('.modal-backdrop').last().addClass('confirmation-backdrop');
+        }, 10);
+    }
+
+    function registerWorkflowBreakdown() {
+        const form = document.getElementById("addWorkflowBreakdownForm");
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const formData = {
+            workflowBreakdownName: $("#workflowBreakdownName").val().trim(),
+            workflow_id: $("#workflow").val().trim(),
+            level_id: $("#level").val().trim(),
+            item_menu_id: $("#item_menu_id").val().trim(),
+            is_responsibility_global: $('input[name="is_responsibility_global"]:checked').val(),
+            is_workflow_level: $('input[name="is_workflow_level"]:checked').val(),
+        };
+
+        // Step 1: Check if workflow breakdown already exists
+        $.ajax({
+            url: `/check-workflow-breakdown/${encodeURIComponent(formData.workflowBreakdownName)}/${encodeURIComponent(formData.workflow_id)}/${encodeURIComponent(formData.level_id)}/${encodeURIComponent(formData.item_menu_id)}/${encodeURIComponent(formData.is_responsibility_global)}/${encodeURIComponent(formData.is_workflow_level)}`,
+            type: "GET",
+            success: function (response) {
+                if (response.exists) {
+                    showFlashMessage(`Workflow breakdown '${formData.workflowBreakdownName}' already exists.`, "warning");
+                    return;
+                }
+
+                // Step 2: Submit new role
+                $.ajax({
+                    url: "/admin-register-new-workflow-breakdown",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(formData),
+                    success: function (response) {
+                        $("#workflowBreakdownAddModal").modal("hide");
+                        showFlashMessage(response.message, "success");
+                        $("#flashMessageModal").on("hidden.bs.modal", function () {
+                            $(".content").load(location.href + " .content > *", function() {
+                                initializeRoleDataTable();
+                            });
+                        });
+                    },
+                    error: function (xhr) {
+                        let errorMessage = xhr.responseJSON?.error || "An unexpected error occurred.";
+                        let messageType = xhr.responseJSON?.type || "danger";
+                        showFlashMessage(errorMessage, messageType);
+                    }
+                });
+            },
+            error: function () {
+                showFlashMessage("Failed to validate workflow breakdown. Please try again.", "danger");
+            }
+        });
+    }
+
+    function updateWorkflowBreakdown() {
+        const form = document.getElementById("workflowBreakdownEditModal");
+
+        const workflowBreakdownIdEdit = $("#workflowBreakdownIdEdit").val();
+        const formData = {
+            workflowBreakdownIdEdit: workflowBreakdownIdEdit,
+            workflowBreakdownNameEdit: $("#workflowBreakdownNameEdit").val(),
+            workflowEdit: $("#workflowEdit").val(),
+            levelEdit: $("#levelEdit").val(),
+            item_menu_id_edit: $("#item_menu_id_edit").val(),
+            is_responsibility_global_edit: $('input[name="is_responsibility_global_edit"]:checked').val(),
+            is_workflow_level_edit: $('input[name="is_workflow_level_edit"]:checked').val(),
+        };
+
+        // Step 1: Check if organisation unit tier name already exists
+        $.ajax({
+            url: `/check-workflow-breakdown/${encodeURIComponent(formData.workflowBreakdownNameEdit)}/${encodeURIComponent(formData.workflowEdit)}/${encodeURIComponent(formData.levelEdit)}/${encodeURIComponent(formData.item_menu_id_edit)}/${encodeURIComponent(formData.is_responsibility_global_edit)}/${encodeURIComponent(formData.is_workflow_level_edit)}`,
+            type: "GET",
+            success: function (response) {
+                if (response.exists) {
+                    showFlashMessage(`Workflow breakdown '${formData.workflowBreakdownNameEdit}' already exists.`, "warning");
+                    return;
+                }
+
+                // Step 2: Update workflow
+                $.ajax({
+                    url: "/admin-update-workflow-breakdown",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(formData),
+                    success: function (response) {
+                        $("#workflowBreakdownEditModal").modal("hide");
+                        showFlashMessage(response.message, "success");
+                        $("#flashMessageModal").on("hidden.bs.modal", function () {
+                            $(".content").load(location.href + " .content > *", function() {
+                                initializeRoleDataTable();
+                            });
+                        });
+                    },
+                    error: function (xhr) {
+                        let errorMessage = xhr.responseJSON?.error || "An error occurred while updating the role.";
+                        let messageType = xhr.responseJSON?.type || "danger";
+                        showFlashMessage(errorMessage, messageType);
+                    }
+                });
+            },
+            error: function () {
+                showFlashMessage("Failed to validate name of Organisation Unit Name. Please try again.", "danger");
+            }
+        });
+    }
+
+    // Calling the role_edit_modal.html
+    $(document).off("click", ".edit-workflow-breakdown-btn").on("click", ".edit-workflow-breakdown-btn", function () {
+
+        const workflowBreakdownId = $(this).data('workflow-breakdown-id');
+        const workflowBreakdownName = $(this).data('workflow-breakdown-name');
+        const workflow_id = $(this).data('workflow-id');
+        const level_id = $(this).data('level-id');
+        const menu_item_id = $(this).data('menu-item-id');
+        const is_responsibility_global = $(this).data('is-responsibility-global');
+        const is_workflow_level = $(this).data('is-workflow-level');
+
+        // Set form values
+        $("#workflowBreakdownIdEdit").val(workflowBreakdownId);
+        $("#workflowBreakdownNameEdit").val(workflowBreakdownName);
+        $("#workflowEdit").val(workflow_id);
+        $("#levelEdit").val(level_id);
+        $("#item_menu_id_edit").val(menu_item_id);
+
+        // Set radio buttons
+        if (Number(is_responsibility_global) === 1) {
+            $('#is_responsibility_global_yes_edit').prop('checked', true);
+        } else {
+            $('#is_responsibility_global_no_edit').prop('checked', true);
+        }
+        if (Number(is_workflow_level) === 1) {
+            $('#is_workflow_level_yes_edit').prop('checked', true);
+        } else {
+            $('#is_workflow_level_no_edit').prop('checked', true);
+        }
+
+        // Show the modal
+        $("#workflowBreakdownEditModal").modal("show");
+    });
+
+    $(document).on('hidden.bs.modal', function () {
+        if ($('.modal.show').length > 0) {
+            // Keep 'modal-open' if any modal is still open
+            $('body').addClass('modal-open');
+        }
+    });
+
+    function initializeRoleDataTable() {
+        $('#uploadedFilesTable').DataTable({
+            paging: true,
+            searching: true,
+            ordering: true,
+            lengthMenu: [5, 10, 25, 50, 100],
+            pageLength: 10,
+            destroy: true, // <-- Important to allow reinitialization
+            dom: '<"row"<"col-md-6"l><"col-md-6"f>>' +
+                 '<"row"<"col-md-12"B>>' +
+                 '<"row"<"col-md-12"t>>' +
+                 '<"row"<"col-md-6"i><"col-md-6"p>>',
+            buttons: [
+                { extend: 'copy', text: 'Copy', className: 'btn btn-secondary' },
+                { extend: 'csv', text: 'Export to CSV', className: 'btn btn-secondary' },
+                { extend: 'excel', text: 'Export to Excel', className: 'btn btn-secondary' },
+                { extend: 'pdf', text: 'Export to PDF', className: 'btn btn-secondary' },
+                { extend: 'print', text: 'Print', className: 'btn btn-secondary' }
+            ],
+            language: {
+                search: "Search:",
+                lengthMenu: "Show _MENU_ entries per page",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
+            }
+        });
+    }
+
+   $(document).ready(function() {
+        initializeRoleDataTable()
+
+        // Handle "Close" button click
+        $("#closeViewRequest").click(function() {
+            $("#viewRequestCard").slideUp();
+        });
+    });
+
+</script>
+
+<style>
+    #confirmationModal {
+        z-index: 1060; /* Higher than default Bootstrap modal (1050) */
+    }
+    #roleModal {
+        z-index: 1050;
+    }
+
+    /* Ensure backdrop covers roleModal when confirmationModal is active */
+    .modal-backdrop.confirmation-backdrop {
+        z-index: 1055; /* Between roleModal and confirmationModal */
+    }
+</style>
+
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Home
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="/static/css/home_page_styles.css">
+
+<div class="container home-container">
+    <h4 class="h4 font-weight-normal">Projects</h4>
+
+    <div class="project-section">
+        <input type="text" id="searchInput" class="form-control search-input" placeholder="Search for Project(s)...">
+
+        <div class="card-deck flex-wrap">
+            {% for project_details in all_projects_details %}
+            <div class="card project-card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="title link h5 mb-0">{{ project_details.project_name }} ({{ project_details.project_code }})</div>
+                        <button class="btn btn-outline-custom selected-project-btn" type="button" project-id="{{ project_details.id }}"  project-name="{{ project_details.project_name }}" project-code="{{ project_details.project_code }}">
+                            <i class="fa-solid fa-angles-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('searchInput').addEventListener('input', function () {
+        const filter = this.value.toLowerCase();
+        const cards = document.querySelectorAll('.project-card');
+
+        cards.forEach(card => {
+            const text = card.querySelector('.title').innerText.toLowerCase();
+            const isVisible = text.includes(filter);
+            card.classList.toggle('d-none', !isVisible);
+        });
+    });
+
+    // Redirect to dashboard of selected project
+    $(document).off("click", ".selected-project-btn").on("click", ".selected-project-btn", function () {
+        const projectId = $(this).attr("project-id");
+        const projectName = $(this).attr("project-name");
+        const projectCode = $(this).attr("project-code");
+
+        const queryParams = new URLSearchParams({
+            project_id: projectId,
+            project_name: projectName,
+            project_code: projectCode
+        });
+
+        window.location.href = "/dashboard?" + queryParams.toString();
+    });
+</script>
+
+{% endblock %}
+

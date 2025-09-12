@@ -1,0 +1,31 @@
+.content{
+    margin-left: 0;
+}
+
+/* Small devices (=576px) */
+@media (min-width: 576px) {
+    .container {
+        max-width: 80%;
+    }
+}
+
+/* Medium devices (=768px) */
+@media (min-width: 768px) {
+    .container {
+        max-width: 70%;
+    }
+}
+
+/* Large devices (=992px) */
+@media (min-width: 992px) {
+    .container {
+        max-width: 50%;
+    }
+}
+
+/* Extra large devices (=1200px) */
+@media (min-width: 1200px) {
+    .container {
+        max-width: 40%;
+    }
+}

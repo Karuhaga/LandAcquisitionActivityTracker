@@ -1,0 +1,123 @@
+<!-- Approval Action Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="approvalActionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="approvalActionModalLabel">Add User</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+
+            <form id="approvalForm" class="p-4 rounded shadow-sm bg-white">
+                <div class="mb-3 row align-items-center">
+                    <label for="username" class="col-md-4 col-form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <input type="text" name="username" id="username" maxlength="25" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="email" class="col-md-4 col-form-label fw-semibold">Email <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <input type="email" name="email" id="email" maxlength="50" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="fname" class="col-md-4 col-form-label fw-semibold">First Name <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <input type="text" name="fname" id="fname" maxlength="25" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="mname" class="col-md-4 col-form-label fw-semibold">Middle Name</label>
+                    <div class="col-md-8">
+                        <input type="text" name="mname" id="mname" maxlength="25" class="form-control">
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="sname" class="col-md-4 col-form-label fw-semibold">Surname <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <input type="text" name="sname" id="sname" maxlength="25" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="password" class="col-md-4 col-form-label fw-semibold">Password <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <input type="password" name="password" id="password" maxlength="25" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="confirm_password" class="col-md-4 col-form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <input type="password" name="confirm_password" id="confirm_password" maxlength="25" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="organisationUnitTier" class="col-md-4 col-form-label fw-semibold">Organisation Unit Tier <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <select class="form-control w-100" id="organisationUnitTier" required>
+                            <option value="">-- Select --</option>
+                            {% for unit_tier in org_unit_tier %}
+                                <option value="{{ unit_tier.id }}">{{ unit_tier.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="organisationUnit" class="col-md-4 col-form-label fw-semibold">Organisation Unit <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <select class="form-control w-100" id="organisationUnit" required>
+                            <option value="">-- Select --</option>
+                            {% for unit in org_unit %}
+                                <option value="{{ unit.id }}">{{ unit.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </form>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-outline-custom2" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-outline-custom" id="confirmSubmissionAction">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Dynamically update Organisation Unit dropdown list
+    $(document).on("change", "#organisationUnitTier", function () {
+        const selectedTierId = $(this).val();
+
+        if (selectedTierId) {
+            $.ajax({
+                url: `/get-organisation-units/${selectedTierId}`,
+                type: "GET",
+                success: function (data) {
+                    const $orgUnitSelect = $("#organisationUnit");
+                    $orgUnitSelect.empty().append('<option value="">-- Select --</option>');
+
+                    $.each(data, function (index, item) {
+                        $orgUnitSelect.append(`<option value="${item.id}">${item.name}</option>`);
+                    });
+                },
+                error: function () {
+                    showFlashMessage("Failed to load organisation units.", "danger");
+                }
+            });
+        }
+    });
+</script>
+
+
+

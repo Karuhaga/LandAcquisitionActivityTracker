@@ -1,0 +1,155 @@
+/* === Content Layout === */
+.content {
+    width: 100%;
+    padding: 1rem 0;
+    margin: 0 auto;
+    transition: 0.5s;
+}
+
+/* === Main Container: Always centered with horizontal padding === */
+.home-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+/* === Responsive Layout Adjustments === */
+
+/* Small devices (≥576px) */
+@media (min-width: 576px) {
+    .home-container {
+        max-width: 500px; /* Custom override */
+    }
+    .project-card {
+        flex: 1 1 100%; /* One per row */
+    }
+}
+
+/* Medium devices (≥768px) */
+@media (min-width: 768px) {
+    .home-container {
+        max-width: 680px;
+    }
+    .card {
+        padding: 0.5rem;
+    }
+    .project-card {
+        max-width: 345px;
+        min-width: 345px;
+    }
+    .card-body {
+        min-height: 105px !important;
+    }
+}
+
+/* Large devices (≥992px) */
+@media (min-width: 992px) {
+    .home-container {
+        max-width: 900px;
+    }
+    .card {
+        padding: 1.5rem;
+    }
+    .project-card {
+        flex: 1 1 calc(50% - 1rem); /* Two per row */
+    }
+}
+
+/* Extra large devices (≥1200px) */
+@media (min-width: 1200px) {
+    .home-container {
+        max-width: 1080px;
+    }
+    .project-card {
+        max-width: 360px;
+        min-width: 360px;
+    }
+}
+
+/* === Card Deck Grid === */
+.card-deck {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+/* === Card Styling === */
+.card {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    height: 100%;
+}
+
+.card-hidden {
+    display: none !important;
+}
+
+/* === Individual Project Card === */
+.project-card {
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+}
+
+.project-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    background-color: #fdfdfd;
+    opacity: 1;
+}
+
+/* === Hover Effects: Child Elements === */
+.project-card:hover button {
+    background-color: #3bc0ed;
+    color: #fff;
+    border: 3px solid #3bc0ed;
+    border-radius: 5px;
+    transform: scale(1.05);
+}
+
+.project-card:hover img {
+    transform: scale(1.05);
+}
+
+/* === Title Styling === */
+.project-card .title {
+    transition: transform 0.3s ease;
+}
+
+.project-card:hover .title {
+    transform: scale(1.05);
+    transition: transform 0.3s ease, text-decoration 0.3s;
+}
+
+/* === Card Body Layout === */
+.card-body {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* === Button Styling === */
+.project-card button {
+    white-space: nowrap;
+}
+
+/* === Shared section for search input and card-deck === */
+.project-section {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+.search-input {
+    width: 100%;
+    max-width: 500px; /* or match to .project-card max-width */
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    box-sizing: border-box;
+    margin: 0 auto;
+}

@@ -1,0 +1,6 @@
+Failure to add or update items under the admin panel
+=> The solution is in aligning the @role_required() in the routes.py with (id column of the workflow_breakdown table)
+
+•	Establish a dedicated mobile IT support and helpdesk team to provide timely technical assistance.
+•	Implement a structured and recurring IT training calendar tailored for Land Acquisition teams.
+•	Deploy offline-capable tools—both hardware and software—to ensure continued operations in areas with limited connectivity.

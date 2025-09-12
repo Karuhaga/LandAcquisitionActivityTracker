@@ -1,0 +1,66 @@
+<!-- Approval Action Modal -->
+<div class="modal fade" id="bankAccountResponsibilityEditModal" tabindex="-1" aria-labelledby="approvalActionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="approvalActionModalLabel">Edit Bank Account</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+
+            <form id="editBankAccountResponsibilityForm" class="p-4 rounded shadow-sm bg-white">
+                <input type="hidden" id="editBankAccountResponsibilityId">
+
+                <div class="mb-3 row align-items-center">
+                    <label for="bankAccountResponsibleBank2" class="col-md-4 col-form-label fw-semibold">Bank Account <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <select class="form-control w-100" id="bankAccountResponsibleBank2" required disabled>
+                            <option value="">-- Select --</option>
+                            {% for bank_account in bank_accounts %}
+                                <option value="{{ bank_account.id }}">{{ bank_account.account }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="bankAccountResponsibleUser2" class="col-md-4 col-form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <select class="form-control w-100" id="bankAccountResponsibleUser2" required disabled>
+                            <option value="">-- Select --</option>
+                            {% for username in usernames %}
+                                <option value="{{ username.id }}">{{ username.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-4 row">
+                    <label class="col-md-4 col-form-label fw-semibold">Is Bank Account Responsibility Active? <span class="text-danger">*</span></label>
+                    <div class="col-md-8 d-flex align-items-center" style="gap: 4rem;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="is_active2" id="activeYes2" value="1" checked required>
+                            <label class="form-check-label" for="activeYes2">Yes</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="is_active2" id="activeNo2" value="0">
+                            <label class="form-check-label" for="activeNo2">No</label>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-outline-custom2" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-outline-custom" id="confirmRoleAddAction" onclick="showConfirmation('edit bank account responsible person')">Update</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+</script>

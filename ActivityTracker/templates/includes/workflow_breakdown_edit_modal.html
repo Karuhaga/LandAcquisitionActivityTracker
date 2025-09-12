@@ -1,0 +1,102 @@
+<!-- Approval Action Modal -->
+<div class="modal fade" id="workflowBreakdownEditModal" tabindex="-1" aria-labelledby="approvalActionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editWorkflowBreakdownModalLabel">Edit Workflow Breakdown</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+
+            <form id="editWorkflowBreakdownForm" class="p-4 rounded shadow-sm bg-white">
+                <input type="hidden" id="workflowBreakdownIdEdit">
+
+                <div class="mb-3 row align-items-center">
+                    <label for="workflowBreakdownNameEdit" class="col-md-4 col-form-label fw-semibold">Workflow Breakdown Name <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <input type="text" name="workflowBreakdownName" id="workflowBreakdownNameEdit" maxlength="50" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="workflowEdit" class="col-md-4 col-form-label fw-semibold">Workflow <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <select class="form-control w-100" id="workflowEdit" required>
+                            <option value="">-- Select --</option>
+                            {% for workflow_detail in workflow_details %}
+                                <option value="{{ workflow_detail.id }}">{{ workflow_detail.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="levelEdit" class="col-md-4 col-form-label fw-semibold">Level <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <select class="form-control w-100" id="levelEdit" required>
+                            <option value="">-- Select --</option>
+                            {% for i in range(1, 11) %}
+                                <option value="{{ i }}">{{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="item_menu_id_edit" class="col-md-4 col-form-label fw-semibold">Item Menu Id <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <select class="form-control w-100" id="item_menu_id_edit" required>
+                            <option value="">-- Select --</option>
+                            {% for i in range(1, 50) %}
+                                <option value="{{ i }}">{{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Is Responsibility Global? -->
+                <div class="mb-4 row">
+                    <label class="col-md-4 col-form-label fw-semibold">Is Responsibility Global? <span class="text-danger">*</span></label>
+                    <div class="col-md-8 d-flex align-items-center" style="gap: 4rem;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="is_responsibility_global_edit" id="is_responsibility_global_yes_edit" value="1">
+                            <label class="form-check-label" for="is_responsibility_global_yes_edit">Yes</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="is_responsibility_global_edit" id="is_responsibility_global_no_edit" value="0">
+                            <label class="form-check-label" for="is_responsibility_global_no_edit">No</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Is Workflow Level? -->
+                <div class="mb-4 row">
+                    <label class="col-md-4 col-form-label fw-semibold">Is Workflow Level? <span class="text-danger">*</span></label>
+                    <div class="col-md-8 d-flex align-items-center" style="gap: 4rem;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="is_workflow_level_edit" id="is_workflow_level_yes_edit" value="1">
+                            <label class="form-check-label" for="is_workflow_level_yes_edit">Yes</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="is_workflow_level_edit" id="is_workflow_level_no_edit" value="0">
+                            <label class="form-check-label" for="is_workflow_level_no_edit">No</label>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-outline-custom2" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-outline-custom" id="confirmRoleAddAction" onclick="showConfirmation('edit workflow breakdown')">Update</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+</script>

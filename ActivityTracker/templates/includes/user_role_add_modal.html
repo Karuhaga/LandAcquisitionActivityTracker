@@ -1,0 +1,73 @@
+<!-- Approval Action Modal -->
+<div class="modal fade" id="addUserRoleModal" tabindex="-1" aria-labelledby="approvalActionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="approvalActionModalLabel">Add User Role</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+
+            <form id="userRoleAddForm" class="p-4 rounded shadow-sm bg-white">
+                <div class="mb-3 row align-items-center">
+                    <label for="user" class="col-md-4 col-form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <select class="form-control w-100" id="user" required>
+                            <option value="">-- Select --</option>
+                            {% for username in usernames %}
+                                <option value="{{ username.id }}">{{ username.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="role" class="col-md-4 col-form-label fw-semibold">Role <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <select class="form-control w-100" id="role" required>
+                            <option value="">-- Select --</option>
+                            {% for role in roles %}
+                                <option value="{{ role.id }}">{{ role.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="start_date" class="col-md-4 col-form-label fw-semibold">
+                        Start Date <span class="text-danger">*</span>
+                    </label>
+                    <div class="col-md-8">
+                        <input type="date" id="start_date" name="start_date" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="end_date" class="col-md-4 col-form-label fw-semibold">
+                        End Date <span class="text-danger">*</span>
+                    </label>
+                    <div class="col-md-8">
+                        <input type="date" id="end_date" name="end_date" class="form-control" required>
+                    </div>
+                </div>
+            </form>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-outline-custom2" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-outline-custom" id="confirmUserRoleAdditionAction">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    //Load current date in start_date and end_date form fields
+    $('#addUserRoleModal').on('shown.bs.modal', function () {
+        const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        $('#start_date').val(today);
+        $('#end_date').val(today);
+    });
+</script>

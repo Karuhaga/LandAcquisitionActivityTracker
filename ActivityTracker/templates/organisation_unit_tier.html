@@ -1,0 +1,303 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Organisation Unit Tier
+{% endblock %}
+
+{% block page_title %}
+    <div data-page-title>Organisation Unit Tier</div>
+{% endblock %}
+
+
+{% block content %}
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Organisation Unit Tier</span>
+            <button style="font-size: 18px;" class="btn-outline-custom" type="button" onclick="orgUnitTier()">Add Unit Tier</button>
+        </div>
+
+        <div class="card-body">
+            <table id="uploadedFilesTable" class="table table-striped table-bordered table-hover paginated">
+                <thead>
+                    <tr>
+                        <th style="width: 5%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false">#</th> <!-- Row number column -->
+                        <th style="">Unit Tier</th>
+                        <th style="">Parent Unit Tier</th>
+                        <th style="width: 10%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false" data-orderable="false" data-ordering="false">Edit Unit Tier</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for unit_tier_detail in unit_tier_details %}
+                    <tr>
+                        <td style="width: 5%; white-space: nowrap; text-align: left;">{{ loop.index }}</td> <!-- Display row number -->
+                        <td style="">{{ unit_tier_detail.name }}</td>
+                        <td style="">{{ unit_tier_detail.parent_org_unit_tier_name }}</td>
+                        <td style="width: 10%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false">
+                            <button class="btn-outline-custom edit-org-unit-tier-btn" style="float: right;" type="button" data-org-unit-tier-id="{{ unit_tier_detail.id }}" data-org-unit-tier-name="{{ unit_tier_detail.name }}" data-parent-org-unit-tier-name="{{ unit_tier_detail.parent_org_unit_tier_id }}">Edit</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td></td>
+                        <td style="text-align: center; max-width: 150px; word-break: break-all; white-space: normal;">No unit tier(s) found.</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+    function showFlashMessage(message, type) {
+        let title = "Notification"; // Default title
+
+        if (type === "danger") {
+            title = "Error";
+        } else if (type === "success") {
+            title = "Success";
+        } else if (type === "warning") {
+            title = "Warning";
+        }
+
+        $("#flashMessageTitle").text(title);
+        $("#flashMessageBody").html(message);
+        $("#flashMessageModal").modal("show");
+    }
+
+    function orgUnitTier() {
+        // Open the modal
+        $("#orgUnitTierAddModal").modal("show");
+    }
+
+    function showConfirmation(actionType) {
+        let modalTitle = "";
+        let modalMessage = "";
+
+        if (actionType === "add unit tier") {
+            modalTitle = "Confirm Addition of Unit Tier";
+            modalMessage = "Are you sure you want to add this Unit Tier?";
+            $("#confirmAction").off("click").on("click", function () {
+                $("#confirmationModal").modal("hide");
+                registerUnitTier();
+            });
+        }
+
+        if (actionType === "edit unit tier") {
+            modalTitle = "Confirm Update of Unit Tier";
+            modalMessage = "Are you sure you want to update this Unit Tier?";
+            $("#confirmAction").off("click").on("click", function () {
+                $("#confirmationModal").modal("hide");
+                updateOrgUnitTier();
+            });
+        }
+
+        $("#confirmationModalLabel").text(modalTitle);
+        $("#confirmationMessage").text(modalMessage);
+
+        $("#confirmationModal").modal({
+            backdrop: true,
+            keyboard: false
+        });
+
+        // Wait for Bootstrap to insert backdrop, then adjust z-index
+        setTimeout(function () {
+            $('.modal-backdrop').last().addClass('confirmation-backdrop');
+        }, 10);
+    }
+
+    function registerUnitTier() {
+        const form = document.getElementById("addUnitTierForm");
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const unitTier = $("#unit_tier").val().trim();
+        const parentTier = $("#parent_unit_tier option:selected").text().trim();
+
+        if (unitTier === parentTier) {
+            showFlashMessage(
+                "Organisation Unit Tier name cannot be the same as that of the Parent Unit Tier.",
+                "danger"
+            );
+            return;
+        }
+
+        const formData = {
+            unit_tier_name: $("#unit_tier").val().trim(),
+            parent_unit_tier: $("#parent_unit_tier").val().trim(),
+        };
+
+        // Step 1: Check if organisation unit tier name already exists
+        $.ajax({
+            url: `/check-org-unit-tier-name/${encodeURIComponent(formData.unit_tier_name)}`,
+            type: "GET",
+            success: function (response) {
+                if (response.exists) {
+                    showFlashMessage(`Organisation Unit Tier name '${formData.unit_tier_name}' already exists.`, "warning");
+                    return;
+                }
+
+                // Step 2: Submit new role
+                $.ajax({
+                    url: "/admin-register-org-unit-tier",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(formData),
+                    success: function (response) {
+                        $("#orgUnitTierAddModal").modal("hide");
+                        showFlashMessage(response.message, "success");
+                        $("#flashMessageModal").on("hidden.bs.modal", function () {
+                            $(".content").load(location.href + " .content > *", function() {
+                                initializeRoleDataTable();
+                            });
+                        });
+                    },
+                    error: function (xhr) {
+                        let errorMessage = xhr.responseJSON?.error || "An unexpected error occurred.";
+                        let messageType = xhr.responseJSON?.type || "danger";
+                        showFlashMessage(errorMessage, messageType);
+                    }
+                });
+            },
+            error: function () {
+                showFlashMessage("Failed to validate name of currency. Please try again.", "danger");
+            }
+        });
+    }
+
+    function updateOrgUnitTier() {
+        const form = document.getElementById("editUnitTierForm");
+
+        const orgUnitTierId = $("#editOrgUnitTierId").val();
+        const formData = {
+            org_unit_tier_id: orgUnitTierId,
+            org_unit_tier_name: $("#unit_tier2").val(),
+            parent_org_unit_tier_id: $("#parent_unit_tier2").val(),
+        };
+
+        // Check if organisation unit tier combination exists
+        $.ajax({
+            url: `/check-org-unit-tier/${encodeURIComponent(formData.org_unit_tier_name)}/${encodeURIComponent(formData.parent_org_unit_tier_id)}`,
+
+            type: "GET",
+            success: function (response) {
+                if (response.exists) {
+                    showFlashMessage(`Organisation Unit Tier already exists.`, "warning");
+                    return;
+                }
+
+                //Update Organisation Unit Tier
+                $.ajax({
+                    url: "/admin-update-org-unit-tier",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(formData),
+                    success: function (response) {
+                        $("#orgUnitTierEditModal").modal("hide");
+                        showFlashMessage(response.message, "success");
+                        $("#flashMessageModal").on("hidden.bs.modal", function () {
+                            $(".content").load(location.href + " .content > *", function() {
+                                initializeRoleDataTable();
+                            });
+                        });
+                    },
+                    error: function (xhr) {
+                        let errorMessage = xhr.responseJSON?.error || "An error occurred while updating the role.";
+                        let messageType = xhr.responseJSON?.type || "danger";
+                        showFlashMessage(errorMessage, messageType);
+                    }
+                });
+            },
+            error: function () {
+                showFlashMessage("Failed to validate Organisation Unit Tier. Please try again.", "danger");
+            }
+        });
+    }
+
+    // Calling the organisation_unit_tier_edit_modal.html
+    $(document).off("click", ".edit-org-unit-tier-btn").on("click", ".edit-org-unit-tier-btn", function () {
+
+        const org_unit_id = $(this).data('org-unit-tier-id');
+        const org_unit_name = $(this).data('org-unit-tier-name');
+        const parent_org_unit_id = $(this).data('parent-org-unit-tier-name');
+
+        // Set form values
+        $("#unit_tier2").val(org_unit_name);
+        $("#parent_unit_tier2").val(parent_org_unit_id);
+        $("#editOrgUnitTierId").val(org_unit_id);
+
+        // Show the modal
+        $("#orgUnitTierEditModal").modal("show");
+    });
+
+    $(document).on('hidden.bs.modal', function () {
+        if ($('.modal.show').length > 0) {
+            // Keep 'modal-open' if any modal is still open
+            $('body').addClass('modal-open');
+        }
+    });
+
+    function initializeRoleDataTable() {
+        $('#uploadedFilesTable').DataTable({
+            paging: true,
+            searching: true,
+            ordering: true,
+            lengthMenu: [5, 10, 25, 50, 100],
+            pageLength: 10,
+            destroy: true, // <-- Important to allow reinitialization
+            dom: '<"row"<"col-md-6"l><"col-md-6"f>>' +
+                 '<"row"<"col-md-12"B>>' +
+                 '<"row"<"col-md-12"t>>' +
+                 '<"row"<"col-md-6"i><"col-md-6"p>>',
+            buttons: [
+                { extend: 'copy', text: 'Copy', className: 'btn btn-secondary' },
+                { extend: 'csv', text: 'Export to CSV', className: 'btn btn-secondary' },
+                { extend: 'excel', text: 'Export to Excel', className: 'btn btn-secondary' },
+                { extend: 'pdf', text: 'Export to PDF', className: 'btn btn-secondary' },
+                { extend: 'print', text: 'Print', className: 'btn btn-secondary' }
+            ],
+            language: {
+                search: "Search:",
+                lengthMenu: "Show _MENU_ entries per page",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
+            }
+        });
+    }
+
+   $(document).ready(function() {
+        initializeRoleDataTable()
+
+        // Handle "Close" button click
+        $("#closeViewRequest").click(function() {
+            $("#viewRequestCard").slideUp();
+        });
+    });
+
+</script>
+
+<style>
+    #confirmationModal {
+        z-index: 1060; /* Higher than default Bootstrap modal (1050) */
+    }
+    #roleModal {
+        z-index: 1050;
+    }
+
+    /* Ensure backdrop covers roleModal when confirmationModal is active */
+    .modal-backdrop.confirmation-backdrop {
+        z-index: 1055; /* Between roleModal and confirmationModal */
+    }
+</style>
+
+{% endblock %}

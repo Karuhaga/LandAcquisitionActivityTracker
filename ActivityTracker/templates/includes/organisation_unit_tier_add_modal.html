@@ -1,0 +1,45 @@
+<!-- Approval Action Modal -->
+<div class="modal fade" id="orgUnitTierAddModal" tabindex="-1" aria-labelledby="approvalActionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="approvalActionModalLabel">Add Organisation Unit Tier</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+
+            <form id="addUnitTierForm" class="p-4 rounded shadow-sm bg-white">
+                <div class="mb-3 row align-items-center">
+                    <label for="unit_tier" class="col-md-4 col-form-label fw-semibold">Unit Tier Name <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <input type="text" name="currency3" id="unit_tier" maxlength="25" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="parent_unit_tier" class="col-md-4 col-form-label fw-semibold">Parent Unit Tier <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <select class="form-control w-100" id="parent_unit_tier" required>
+                            <option value="">-- Select --</option>
+                            {% for unit_tier_detail in unit_tier_details %}
+                                <option value="{{ unit_tier_detail.id }}">{{ unit_tier_detail.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </form>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-outline-custom2" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-outline-custom" id="confirmRoleAddAction" onclick="showConfirmation('add unit tier')">Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+</script>

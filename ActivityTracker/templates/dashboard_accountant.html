@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Dashboard
+{% endblock %}
+
+{% block page_title %}
+    <div data-page-title>Dashboard</div>
+{% endblock %}
+
+{% block content %}
+    <!-- Dashboard Stats -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card text-white" style="background: #74787d">
+                <div class="card-body">
+                    <h5 class="card-title">Unsubmitted Reconciliations</h5>
+                    <h3>{{ unsubmitted_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card text-white" style="background: #4270a8">
+                <div class="card-body">
+                    <h5 class="card-title">Submitted Reconciliations</h5>
+                    <h3>{{ submitted_count }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pie Chart Section -->
+    <div class="row mt-4">
+        <div class="col-md-6 offset-md-3">
+            <h5 class="text-center">Submitted- vs Unsubmitted- Reconciliations</h5>
+            <div style="max-width: 250px; margin: auto; margin-bottom: 30px;">  <!-- Add bottom margin here -->
+                <canvas id="submissionStats" style="max-width: 100%; height: auto;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Submission Stats Pie Chart
+        var ctx2 = document.getElementById('submissionStats').getContext('2d');
+        var submissionStats = JSON.parse('{{ submission_stats_json|safe }}');
+        new Chart(ctx2, {
+            type: 'pie',
+            data: {
+                labels: ['Submitted', 'Unsubmitted'],
+                datasets: [{
+                    data: [submissionStats.submitted, submissionStats.unsubmitted],
+                    backgroundColor: ['#4270a8', '#74787d']
+                }]
+            },
+            options: {
+                responsive: true
+            }
+        });
+    </script>
+{% endblock %}
