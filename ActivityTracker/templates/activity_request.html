@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    Submit Reconciliations
+    Activity Request
 {% endblock %}
 
 {% block page_title %}
@@ -47,8 +47,8 @@
     <div id="collapseOverview" class="collapse show" aria-labelledby="headingOverview" data-parent="#activityAccordion">
       <div class="card-body">
         {% set fields = [
-            {"id": "subject", "label": "Subject:", "rows": None, "placeholder": "Enter subject of the activity"},
-            {"id": "objectives", "label": "Objectives:", "rows": 3, "placeholder": "State the objectives"},
+            {"id": "subject", "label": "Subject*:", "rows": None, "placeholder": "Enter subject of the activity", "maxlength": 150},
+            {"id": "objectives", "label": "Objectives*:", "rows": 3, "placeholder": "State the objectives", "maxlength": 500},
             {"id": "scope", "label": "Scope:", "rows": 3, "placeholder": "Describe the scope of the activity"},
             {"id": "stakeholders", "label": "Stakeholders:", "rows": 2, "placeholder": "List involved stakeholders"},
             {"id": "deliverables", "label": "Deliverables:", "rows": 2, "placeholder": "Outline expected deliverables"},
@@ -58,9 +58,13 @@
           <div class="mb-3">
             <label for="{{ field.id }}" class="form-label">{{ field.label }}</label>
             {% if field.rows %}
-              <textarea class="form-control" id="{{ field.id }}" name="{{ field.id }}" rows="{{ field.rows }}" placeholder="{{ field.placeholder }}"></textarea>
+              <textarea class="form-control" id="{{ field.id }}" name="{{ field.id }}"
+                        rows="{{ field.rows }}" placeholder="{{ field.placeholder }}"
+                        {% if field.maxlength %} maxlength="{{ field.maxlength }}" {% endif %}></textarea>
             {% else %}
-              <input type="text" class="form-control" id="{{ field.id }}" name="{{ field.id }}" placeholder="{{ field.placeholder }}">
+              <input type="text" class="form-control" id="{{ field.id }}" name="{{ field.id }}"
+                     placeholder="{{ field.placeholder }}"
+                     {% if field.maxlength %} maxlength="{{ field.maxlength }}" {% endif %}>
             {% endif %}
           </div>
         {% endfor %}
