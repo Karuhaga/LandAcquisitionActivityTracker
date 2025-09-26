@@ -396,11 +396,19 @@ form {
 .caret-icon {
     flex-shrink: 0; /* Prevent caret from shrinking if text wraps */
     margin-left: auto; /* Align caret to the right */
-    transition: transform 0.3s ease; /* Smooth rotation */
+    transition: transform 0.3s ease-in-out; /* Smooth rotation */
 }
 .caret-icon.rotated {
     transform: rotate(180deg); /* Rotate 180 degrees for expanded state */
 }
+
+.caret-icon2 {
+  transition: transform 0.3s ease-in-out;
+}
+.caret-icon2.rotated {
+  transform: rotate(90deg);
+}
+
 
 /* Accordion Theming */
 .accordion-button {

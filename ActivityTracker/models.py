@@ -440,6 +440,34 @@ class UserSummary:
             cursor.close()
             conn.close()
 
+    @staticmethod
+    def get_all_usersnames():
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                SELECT id, username, LTRIM(RTRIM(COALESCE(Fname + ' ' + Mname + ' ' + Sname, ''))) AS name 
+                FROM users ORDER BY Fname, Mname, Sname;     
+            """
+            cursor.execute(query, )
+            result = cursor.fetchall()
+
+            usernames = [
+                UserSummary(id=row.id, username=row.username, name=row.name)
+                for row in result
+            ]
+            return usernames
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
 
 class EmailHelper(UserMixin):
     def __init__(self):
@@ -4822,10 +4850,161 @@ class Project:
             conn.close()
 
 
-class TeamMember:
-    def __init__(self, id=None, name=None):
+class ActivityRequest:
+    def __init__(self, id=None, name=None, user_id=None, creation_date=None, last_modified=None, status=None,
+                 subject=None, objectives=None, scope=None, stakeholders=None, deliverables=None, assumptions=None,
+                 current_request_id=None, activity_id=None, member_id=None, role_id=None, team_member_no=None,
+                 task_no=None, task=None, key_process_id=None, start_date=None, end_date=None):
         self.id = id
         self.name = name
+        self.user_id = user_id
+        self.creation_date = creation_date
+        self.last_modified = last_modified
+        self.status = status
+        self.subject = subject
+        self.objectives = objectives
+        self.scope = scope
+        self.stakeholders = stakeholders
+        self.deliverables = deliverables
+        self.assumptions = assumptions
+        self.current_request_id = current_request_id
+        self.activity_id=activity_id
+        self.member_id = member_id
+        self.role_id = role_id
+        self.team_member_no = team_member_no
+        self.task_no = task_no
+        self.task = task
+        self.key_process_id = key_process_id
+        self.start_date = start_date
+        self.end_date = end_date
+
+    @staticmethod
+    def get_latest_activity_request_id():
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT TOP 1 COALESCE(id, 0) FROM trn_activity_request ORDER BY id DESC;
+            """)
+            row = cursor.fetchone()
+            return row[0] if row else 0
+        except Exception as e:
+            print("Database error:", e)
+            return None
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def insert_into_trn_activity_request(current_request_id, user_id, status, project_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+        now = datetime.now()
+
+        try:
+            cursor.execute(
+                """
+                INSERT INTO trn_activity_request (id, user_id, creation_date, last_modified, status, project_id)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (current_request_id, user_id, now, now, status, project_id),
+            )
+            conn.commit()
+            return current_request_id
+        except pyodbc.Error as e:
+            print("Could not insert into table: trn_activity_request:", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    @staticmethod
+    def insert_into_trn_activity_overview(current_request_id, subject, objectives, scope, stakeholders, deliverables,
+                                          assumptions):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+        now = datetime.now()
+
+        try:
+            cursor.execute(
+                """
+                INSERT INTO trn_activity_overview 
+                (activity_id, subject, objectives, scope, stakeholders, deliverables, assumptions)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (current_request_id, subject, objectives, scope, stakeholders, deliverables, assumptions),
+            )
+            conn.commit()
+            return current_request_id
+        except pyodbc.Error as e:
+            print("Could not insert into table: trn_activity_overview:", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    @staticmethod
+    def insert_into_trn_activity_team_composition(team_member_no, activity_id, member_id, role_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+        now = datetime.now()
+
+        try:
+            cursor.execute(
+                """
+                INSERT INTO trn_activity_team_composition 
+                (id, activity_id, member_user_id, member_role_id)
+                VALUES (?, ?, ?, ?)
+                """,
+                (team_member_no, activity_id, member_id, role_id),
+            )
+            conn.commit()
+            return activity_id
+        except pyodbc.Error as e:
+            print("Could not insert into table: trn_activity_team_composition:", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    @staticmethod
+    def insert_into_trn_activity_breakdown(task_no, activity_id, task, key_process_id, start_date, end_date):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+        now = datetime.now()
+
+        try:
+            cursor.execute(
+                """
+                INSERT INTO trn_activity_breakdown 
+                (id, activity_id, task, key_process_id, start_date, end_date)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (task_no, activity_id, task, key_process_id, start_date, end_date),
+            )
+            conn.commit()
+            return task_no
+        except pyodbc.Error as e:
+            print("Could not insert into table: trn_activity_breakdown:", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
 
     @staticmethod
     def get_team_member_roles_details():
@@ -4845,10 +5024,39 @@ class TeamMember:
 
             # Convert query result into list of Reconciliation objects
             project_details = [
-                TeamMember(id=row.id, name=row.name)
+                ActivityRequest(id=row.id, name=row.name)
                 for row in result
             ]
             return project_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_key_process_details():
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            # Fetch submitted reconciliations
+            query = """
+                        SELECT * FROM mst_key_process ORDER BY name;
+                    """
+            cursor.execute(query, )
+            result = cursor.fetchall()
+
+            # Convert query result into list of Reconciliation objects
+            process_details = [
+                ActivityRequest(id=row.id, name=row.name)
+                for row in result
+            ]
+            return process_details
         except Exception as e:
             print("Database error:", e)
             return []

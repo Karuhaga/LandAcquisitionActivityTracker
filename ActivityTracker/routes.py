@@ -2,7 +2,7 @@ from ActivityTracker import app, os, allowed_file
 from ActivityTracker.models import (User, FileUploadBatch, FileUpload, FileDelete, BankAccount,
                                        ReconciliationApprovals, WorkflowBreakdown, EmailHelper, Audit, UserSummary,
                                        Role, UserRole, Currency, BankAccountResponsibleUser, OrganisationUnitTier,
-                                       OrganisationUnit, Workflow, Project, MenuItem, TeamMember)
+                                       OrganisationUnit, Workflow, Project, MenuItem, ActivityRequest)
 from ActivityTracker.forms import LoginForm
 from flask import render_template, redirect, url_for, flash, request, jsonify, session, send_from_directory, abort
 import re
@@ -88,47 +88,20 @@ def home_page():
 @login_required
 def dashboard_page():
     if not current_user.is_authenticated:
-        return redirect(url_for("login_page"))  # Redirect if user is not authenticated
+        return redirect(url_for("login_page"))
 
-    user_roles = current_user.roles  # Get user roles
+    # Get project from query parameters
+    project_id = request.args.get('project_id')
+    project_name = request.args.get('project_name')
+    project_code = request.args.get('project_code')
 
-    if "Accountant" in user_roles or "System Administrator" in user_roles:
-        # Fetch key metrics
-        unsubmitted_count = FileUpload.unsubmitted_files_num(current_user.id) or 0
-        submitted_count = len(FileUpload.get_submitted_reconciliations(current_user.id))
-
-        # Prepare data for the pie chart
-        submission_stats_json = json.dumps({
-            "submitted": submitted_count,
-            "unsubmitted": unsubmitted_count
-        })
-
-        return render_template(
-            'dashboard_accountant.html',
-            user_roles=user_roles,
-            unsubmitted_count=unsubmitted_count,
-            submitted_count=submitted_count,
-            submission_stats_json=submission_stats_json
-        )
-
-    elif "Head of Unit" in user_roles or "Head of Section" in user_roles or "Head of Department" in user_roles:
-        # Fetch reconciliations pending approval and approved reconciliations
-        approved_reconciliations = len(FileUpload.get_approved_reconciliations(current_user.id) or [])
-        pending_reconciliations = len(FileUpload.get_reconciliations_pending_approval(current_user.id) or [])
-
-        # Prepare data for the pie chart
-        reconciliation_stats_json = json.dumps({
-            "approved": approved_reconciliations,
-            "pending": pending_reconciliations
-        })
-
-        return render_template(
-            'dashboard_approver.html',
-            user_roles=user_roles,
-            approved_reconciliations_count=approved_reconciliations,
-            reconciliations_pending_approval_submitted_count=pending_reconciliations,
-            reconciliation_stats_json=reconciliation_stats_json  # Pass the new data for the pie chart
-        )
+    # Store in session
+    if project_id and project_name and project_code:
+        session['selected_project'] = {
+            'id': project_id,
+            'name': project_name,
+            'code': project_code
+        }
 
     return render_template('dashboard.html')
 
@@ -161,10 +134,12 @@ def submit_reconciliations_page():
 # hint: "@role_required" refers to id of workflow_breakdown database table
 def activity_request_page():
 
-    user_details = UserSummary.get_all_users_details()
-    team_member_details = TeamMember.get_team_member_roles_details()
+    user_details = UserSummary.get_all_usersnames()
+    team_member_details = ActivityRequest.get_team_member_roles_details()
+    key_process_details = ActivityRequest.get_key_process_details()
 
-    return render_template('activity_request.html', user_details=user_details, team_member_details=team_member_details)
+    return render_template('activity_request.html', user_details=user_details,
+                           team_member_details=team_member_details, key_process_details=key_process_details)
 
 
 @app.route('/upload', methods=['POST'])
@@ -418,6 +393,118 @@ def submit_files():
 
         # Immediately return response while emails are being sent
         return jsonify({"message": "Files submitted successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e), "type": "danger"}), 500
+
+
+@app.route('/save_activity_request', methods=['POST'])
+@login_required
+@role_required(1, 25)
+def save_activity_request():
+    try:
+        data = request.get_json()
+
+        overview = data.get("overview", {})
+        team = data.get("team", [])
+        tasks = data.get("tasks", [])
+
+        # Pick latest level of reconciliation file from reconciliation_approvals table
+        latest_activity_request_id = (ActivityRequest.get_latest_activity_request_id())
+        if latest_activity_request_id is None:
+            return jsonify({"error": "Database error while getting latest_activity_request_id from "
+                                     "trn_activity_request table"}), 500
+
+        # pick id of selected project
+        project = session.get("selected_project")
+        project_id = project.get("id") if project else None
+
+        if not project_id:
+            return "No project selected", 400
+
+        # reconciliation_approvals table
+        current_request_id = latest_activity_request_id + 1
+
+        # Save Activity Request
+        activity_id = ActivityRequest.insert_into_trn_activity_request(
+            current_request_id=current_request_id,
+            user_id=current_user.id,
+            status=1,
+            project_id=project_id,
+        )
+        Audit.log_audit_trail(
+            user_id=current_user.id,
+            action="Insert in table: trn_activity_request",
+            details=f"Saved Activity Request ID: '{current_request_id}'",
+            ip_address=request.remote_addr
+        )
+        if not activity_id:
+            return jsonify({"error": "Database error while saving activity request", "type": "danger"}), 500
+
+        # Save Activity Overview
+        activity_id = ActivityRequest.insert_into_trn_activity_overview(
+            current_request_id=current_request_id,
+            subject=overview.get("subject"),
+            objectives=overview.get("objectives"),
+            scope=overview.get("scope"),
+            stakeholders=overview.get("stakeholders"),
+            deliverables=overview.get("deliverables"),
+            assumptions=overview.get("assumptions"),
+        )
+        Audit.log_audit_trail(
+            user_id=current_user.id,
+            action="Insert in table: trn_activity_overview",
+            details=f"Saved Activity Request ID: '{current_request_id}'",
+            ip_address=request.remote_addr
+        )
+        if not activity_id:
+            return jsonify({"error": "Database error while saving activity request", "type": "danger"}), 500
+
+        # Save team members into trn_activity_team
+        team_member_no = 1
+
+        for member in team:
+            team_saved = ActivityRequest.insert_into_trn_activity_team_composition(
+                team_member_no=team_member_no,
+                activity_id=current_request_id,
+                member_id=member.get("member_id"),
+                role_id=member.get("role_id")
+            )
+            Audit.log_audit_trail(
+                user_id=current_user.id,
+                action="Insert in table: trn_activity_team_composition",
+                details=f"Saved Activity Request ID: '{current_request_id}', Team Member Num: '{member.get('member_id')}', Role ID: '{member.get('role_id')}'",
+                ip_address=request.remote_addr
+            )
+            if not team_saved:
+                return jsonify({"error": "Error saving team member", "type": "danger"}), 500
+
+            team_member_no += 1
+
+        # Save team members into trn_activity_team
+        task_no = 1
+
+        for task in tasks:
+            team_saved = ActivityRequest.insert_into_trn_activity_breakdown(
+                task_no=task_no,
+                activity_id=current_request_id,
+                task=task.get("task"),
+                key_process_id=task.get("key_process"),
+                start_date=task.get("start_date"),
+                end_date=task.get("end_date"),
+            )
+            Audit.log_audit_trail(
+                user_id=current_user.id,
+                action="Insert in table: trn_activity_breakdown",
+                details=f"Saved Activity Request ID: '{current_request_id}', Task Num: '{team_saved}'",
+                ip_address=request.remote_addr
+            )
+            if not team_saved:
+                return jsonify({"error": "Error saving activity task", "type": "danger"}), 500
+
+            task_no += 1
+
+        return jsonify({"message": "Activity Request saved successfully"}), 200
 
     except Exception as e:
         return jsonify({"error": str(e), "type": "danger"}), 500

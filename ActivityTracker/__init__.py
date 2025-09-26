@@ -125,3 +125,21 @@ def check_session_expiry():
         else:
             flash("Your session expired. You have been redirected to login page.", "warning")
             return redirect(url_for('login_page'))
+
+
+@app.context_processor
+def inject_selected_project():
+    project = session.get('selected_project')
+    if project:
+        return {
+            'project_id': project.get('id'),
+            'project_name': project.get('name'),
+            'project_code': project.get('code'),
+            'project_display': f"{project.get('code')} - {project.get('name')}"
+        }
+    return {
+        'project_id': None,
+        'project_name': None,
+        'project_code': None,
+        'project_display': ""
+    }

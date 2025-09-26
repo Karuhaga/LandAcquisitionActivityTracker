@@ -17,7 +17,7 @@
 {% set user_options %}
     <option value="">Select Member</option>
     {% for user_detail in user_details %}
-        <option value="{{ user_detail.username }}">{{ user_detail.name }}</option>
+        <option value="{{ user_detail.id }}">{{ user_detail.name }}</option>
     {% endfor %}
 {% endset %}
 
@@ -25,6 +25,13 @@
     <option value="">Select Role</option>
     {% for team_member_detail in team_member_details %}
         <option value="{{ team_member_detail.id }}">{{ team_member_detail.name }}</option>
+    {% endfor %}
+{% endset %}
+
+{% set key_process_options %}
+    <option value="">Select Role</option>
+    {% for key_process_detail in key_process_details %}
+        <option value="{{ key_process_detail.id }}">{{ key_process_detail.name }}</option>
     {% endfor %}
 {% endset %}
 
@@ -37,22 +44,23 @@
   <div class="card">
     <div class="card-header" id="headingOverview">
       <h6 class="mb-0">
-        <button class="accordion-button" type="button" data-toggle="collapse"
-                data-target="#collapseOverview" aria-expanded="true" aria-controls="collapseOverview">
+        <button class="accordion-button collapsed" type="button" data-toggle="collapse"
+                data-target="#collapseOverview" aria-expanded="false" aria-controls="collapseOverview">
+            <i class="fa fa-caret-right caret-icon2 mr-2"></i>
           Activity Overview
         </button>
       </h6>
     </div>
 
-    <div id="collapseOverview" class="collapse show" aria-labelledby="headingOverview" data-parent="#activityAccordion">
+    <div id="collapseOverview" class="collapse" aria-labelledby="headingOverview" data-parent="#activityAccordion">
       <div class="card-body">
         {% set fields = [
             {"id": "subject", "label": "Subject*:", "rows": None, "placeholder": "Enter subject of the activity", "maxlength": 150},
             {"id": "objectives", "label": "Objectives*:", "rows": 3, "placeholder": "State the objectives", "maxlength": 500},
-            {"id": "scope", "label": "Scope:", "rows": 3, "placeholder": "Describe the scope of the activity"},
-            {"id": "stakeholders", "label": "Stakeholders:", "rows": 2, "placeholder": "List involved stakeholders"},
-            {"id": "deliverables", "label": "Deliverables:", "rows": 2, "placeholder": "Outline expected deliverables"},
-            {"id": "assumptions", "label": "Assumptions:", "rows": 2, "placeholder": "State any assumptions"}
+            {"id": "scope", "label": "Scope:", "rows": 3, "placeholder": "Describe the scope of the activity", "maxlength": 500},
+            {"id": "stakeholders", "label": "Stakeholders:", "rows": 2, "placeholder": "List involved stakeholders", "maxlength": 500},
+            {"id": "deliverables", "label": "Deliverables:", "rows": 2, "placeholder": "Outline expected deliverables", "maxlength": 500},
+            {"id": "assumptions", "label": "Assumptions:", "rows": 2, "placeholder": "State any assumptions", "maxlength": 500}
         ] %}
         {% for field in fields %}
           <div class="mb-3">
@@ -78,6 +86,7 @@
       <h6 class="mb-0">
         <button class="accordion-button collapsed" type="button" data-toggle="collapse"
                 data-target="#collapseTeam" aria-expanded="false" aria-controls="collapseTeam">
+            <i class="fa fa-caret-right caret-icon2 mr-2"></i>
           Team Composition
         </button>
       </h6>
@@ -127,6 +136,7 @@
       <h6 class="mb-0">
         <button class="accordion-button collapsed" type="button" data-toggle="collapse"
                 data-target="#collapseBreakdown" aria-expanded="false" aria-controls="collapseBreakdown">
+            <i class="fa fa-caret-right caret-icon2 mr-2"></i>
           Activity Breakdown
         </button>
       </h6>
@@ -141,29 +151,28 @@
                   <th>Key Process</th>
                   <th>Start Date</th>
                   <th>End Date</th>
+                    <th>No. of Days</th>
                   <th class="text-end">Action</th>
                 </tr>
               </thead>
               <tbody id="taskInputs">
                 <tr>
                   <td class="text-end">1</td>
-                  <td><textarea class="form-control" name="task[]" rows="3" placeholder="Enter task name"></textarea></td>
+                  <td><textarea class="form-control" name="task[]" rows="3" placeholder="Enter task name" maxlength="150"></textarea></td>
                   <td>
-                    <select name="key-process[]" class="form-control">
-                      <option value="">Select</option>
-                      <option value="Financial">Financial</option>
-                      <option value="Customer">Customer</option>
-                      <option value="Internal">Internal</option>
-                      <option value="Learning & Growth">Learning & Growth</option>
-                    </select>
+                      <select class="form-control" name="key_process_names">
+                          {{ key_process_options | safe }}
+                      </select>
                   </td>
                   <td><input type="text" class="form-control start-date" name="start_date[]" placeholder="Start Date" autocomplete="off"></td>
                   <td><input type="text" class="form-control end-date" name="end_date[]" placeholder="End Date" autocomplete="off"></td>
-                  <td></td>
+                  <td class="days-diff text-center">1</td>
+                    <td></td>
                 </tr>
-                <tr>
+                <tr class="total-days-row">
                   <td></td>
-                  <td colspan="4"></td>
+                  <td colspan="4" class="text-end font-weight-bold">Total No. of Days:</td>
+                  <td class="total-days text-center">1</td>
                   <td>
                     <button type="button" class="btn-outline-custom float-end" onclick="addTask()">Add Task</button>
                   </td>
@@ -235,7 +244,7 @@ function validateForm() {
     let hasTask = false;
     $("#taskInputs tr").each(function () {
         const taskText = $(this).find("textarea[name='task[]']").val();
-        const keyProcess = $(this).find("select[name='key-process[]']").val();
+        const keyProcess = $(this).find("select[name='key_process_names']").val();
         if (taskText !== undefined && keyProcess !== undefined) {
             if (taskText.trim() !== "" && keyProcess.trim() !== "") {
                 hasTask = true;
@@ -265,7 +274,7 @@ function validateForm() {
             modalMessage = "Are you sure you want to save this request?";
             $("#confirmAction").off("click").on("click", function () {
                 $("#confirmationModal").modal("hide");
-                    //uploadFiles();
+                    saveActivityRequest();
             });
         } else if (actionType === "submit request") {
             modalTitle = "Submission Confirmation";
@@ -309,36 +318,34 @@ function validateForm() {
         addButtonRow.before(newRow);
     }
 
-    function addTask() {
-        const addButtonRow = $("#taskInputs tr:last");
-        const newRowIndex = $("#taskInputs tr").length;
+function addTask() {
+    const addButtonRow = $("#taskInputs tr.total-days-row");
+    const newRowIndex = $("#taskInputs tr").length;
 
-        const newRow = $(`
-            <tr>
-                <td class="text-end">${newRowIndex}</td>
-                <td><textarea class="form-control" name="task[]" rows="3" placeholder="Enter task name"></textarea></td>
-                <td>
-                    <select name="key-process[]" class="form-control">
-                        <option value="">Select</option>
-                        <option value="Financial">Financial</option>
-                        <option value="Customer">Customer</option>
-                        <option value="Internal">Internal</option>
-                        <option value="Learning & Growth">Learning & Growth</option>
-                    </select>
-                </td>
-                <td><input type="text" class="form-control start-date" placeholder="Start Date" autocomplete="off"></td>
-                <td><input type="text" class="form-control end-date" placeholder="End Date" autocomplete="off"></td>
-                <td><button class="btn-outline-custom float-end" type="button" onclick="removeField(this)">Remove Task</button></td>
-            </tr>
-        `);
+    const newRow = $(`
+        <tr>
+            <td class="text-end">${newRowIndex}</td>
+            <td><textarea class="form-control" name="task[]" rows="3" placeholder="Enter task name" maxlength="150"></textarea></td>
+            <td>
+              <select class="form-control" name="key_process_names">
+                  {{ key_process_options | safe }}
+              </select>
+            </td>
+            <td><input type="text" class="form-control start-date" placeholder="Start Date" autocomplete="off"></td>
+            <td><input type="text" class="form-control end-date" placeholder="End Date" autocomplete="off"></td>
+            <td class="days-diff text-center">1</td>
+            <td><button class="btn-outline-custom float-end" type="button" onclick="removeField(this)">Remove Task</button></td>
+        </tr>
+    `);
 
-        addButtonRow.before(newRow);
-        initDatePickers(newRow);
-    }
+    addButtonRow.before(newRow);
+    initDatePickers(newRow);
+}
 
-    function removeField(button) {
-        $(button).closest("tr").remove();
-    }
+function removeField(button) {
+    $(button).closest("tr").remove();
+    calculateTotalDays();
+}
 
     // --- Date validation helpers ---
     function showDateError($row, message) {
@@ -353,6 +360,49 @@ function validateForm() {
     function clearDateError($row) {
         $row.find('.date-error').remove();
     }
+
+function daysBetween(start, end) {
+    const s = new Date(start).setHours(0, 0, 0, 0);
+    const e = new Date(end).setHours(0, 0, 0, 0);
+    return ((e - s) / (1000 * 60 * 60 * 24)) + 1; // inclusive
+}
+
+function calculateDays($row) {
+    const startPicker = $row.find('.start-date')[0]?._flatpickr;
+    const endPicker = $row.find('.end-date')[0]?._flatpickr;
+    if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
+        const start = startPicker.selectedDates[0];
+        const end = endPicker.selectedDates[0];
+        const diff = daysBetween(start, end);
+        $row.find('.days-diff').text(diff >= 0 ? diff : 0);
+    }
+    calculateTotalDays();
+}
+
+function calculateTotalDays() {
+    let earliest = null;
+    let latest = null;
+
+    $("#taskInputs tr").each(function () {
+        const startPicker = $(this).find('.start-date')[0]?._flatpickr;
+        const endPicker = $(this).find('.end-date')[0]?._flatpickr;
+
+        if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
+            const start = startPicker.selectedDates[0];
+            const end = endPicker.selectedDates[0];
+
+            if (!earliest || start < earliest) earliest = start;
+            if (!latest || end > latest) latest = end;
+        }
+    });
+
+    if (earliest && latest) {
+        const diff = daysBetween(earliest, latest);
+        $(".total-days").text(diff >= 0 ? diff : 0);
+    } else {
+        $(".total-days").text(0);
+    }
+}
 
     function initDatePickers(context) {
         context = (context instanceof jQuery) ? context : $(context);
@@ -382,6 +432,7 @@ function validateForm() {
                                 clearDateError($row);
                             }
                         }
+                        calculateDays($row);
                     }
                 });
             }
@@ -404,14 +455,90 @@ function validateForm() {
                                 clearDateError($row);
                             }
                         }
+                        calculateDays($row);
                     }
                 });
             }
         });
     }
 
+    function saveActivityRequest() {
+        // Overview fields
+        const overview = {
+            subject: $("#subject").val(),
+            objectives: $("#objectives").val(),
+            scope: $("#scope").val(),
+            stakeholders: $("#stakeholders").val(),
+            deliverables: $("#deliverables").val(),
+            assumptions: $("#assumptions").val()
+        };
+
+        // Team members
+        const team = [];
+        $("#teamCompositionInputs tr").each(function () {
+            const member_id = $(this).find("select[name='team_member_names']").val();
+            const role_id = $(this).find("select[name='team_member_role']").val();
+            if (member_id && role_id) {
+                team.push({ member_id: member_id, role_id: role_id });
+            }
+        });
+
+        // Tasks
+        const tasks = [];
+        $("#taskInputs tr").each(function () {
+            const task = $(this).find("textarea[name='task[]']").val();
+            const keyProcess = $(this).find("select[name='key_process_names']").val();
+            const startDate = $(this).find("input.start-date").val();
+            const endDate = $(this).find("input.end-date").val();
+            const days = $(this).find(".days-diff").text();
+
+            if (task && keyProcess && startDate && endDate) {
+                tasks.push({
+                    task: task,
+                    key_process: keyProcess,
+                    start_date: startDate,
+                    end_date: endDate,
+                    days: parseInt(days)
+                });
+            }
+        });
+
+        const payload = {
+            overview: overview,
+            team: team,
+            tasks: tasks
+        };
+
+        $.ajax({
+            url: "/save_activity_request",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(payload),
+            success: function (response) {
+                showFlashMessage(response.message, "success");
+                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function () {
+                    location.reload();
+                });
+            },
+            error: function (xhr) {
+                let errorMessage = xhr.responseJSON?.error || "An unexpected error occurred.";
+                let messageType = xhr.responseJSON?.type || "danger";
+                showFlashMessage(errorMessage, messageType);
+            }
+        });
+    }
+
     $(document).ready(function () {
         initDatePickers($('#taskInputs'));
+
+        // Rotate caret icons on accordion expand/collapse
+        $(document).on("show.bs.collapse", "#activityAccordion .collapse", function () {
+            $(this).prev(".card-header").find(".caret-icon2").addClass("rotated");
+        });
+
+        $(document).on("hide.bs.collapse", "#activityAccordion .collapse", function () {
+            $(this).prev(".card-header").find(".caret-icon2").removeClass("rotated");
+        });
     });
 </script>
 
