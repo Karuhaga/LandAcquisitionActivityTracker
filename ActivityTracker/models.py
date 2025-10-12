@@ -118,7 +118,7 @@ class User(UserMixin):
     @staticmethod
     def hash_password(password):
         return bcrypt.generate_password_hash(password).decode('utf-8')
-        
+
     def check_password(self, password):
         if not self.password_hash:
             # No local password hash set
@@ -136,7 +136,9 @@ class User(UserMixin):
 
 
 class UserSummary:
-    def __init__(self, id=None, username=None, name=None, email_address=None, email=None, organisation_unit_tier_name=None, organisation_unit_name=None, status=None, fname=None, mname=None, sname=None, password=None, is_active=None):
+    def __init__(self, id=None, username=None, name=None, email_address=None, email=None,
+                 organisation_unit_tier_name=None, organisation_unit_name=None, status=None, fname=None, mname=None,
+                 sname=None, password=None, is_active=None):
         self.id = id
         self.username = username
         self.name = name
@@ -182,7 +184,9 @@ class UserSummary:
 
             # Convert query result into list of Reconciliation objects
             user_details = [
-                UserSummary(username=row.username, name=row.name, email_address=row.email_address, organisation_unit_tier_name=row.organisation_unit_tier_name, organisation_unit_name=row.organisation_unit_name, status=row.status)
+                UserSummary(username=row.username, name=row.name, email_address=row.email_address,
+                            organisation_unit_tier_name=row.organisation_unit_tier_name,
+                            organisation_unit_name=row.organisation_unit_name, status=row.status)
                 for row in result
             ]
             return user_details
@@ -293,7 +297,8 @@ class UserSummary:
                 INSERT INTO users (username, fname, mname, sname, password, email, organisation_unit_id, organisation_unit_tier_id, is_active)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
-            cursor.execute(query, (username, fname, mname, sname, password_hash, email, org_unit_id, org_unit_tier_id, 1))
+            cursor.execute(query,
+                           (username, fname, mname, sname, password_hash, email, org_unit_id, org_unit_tier_id, 1))
             conn.commit()
             return True
         except Exception as e:
@@ -668,9 +673,10 @@ class EmailHelper(UserMixin):
             print(f"Email of approval sent to {initiator_approver_email}")
         except Exception as e:
             print(f"Error sending email: {e}")
-            
+
     @staticmethod
-    def email_reminder_to_initiator_reconciliations_pending_submission(current_fname, initiator_approver_email, details):
+    def email_reminder_to_initiator_reconciliations_pending_submission(current_fname, initiator_approver_email,
+                                                                       details):
         subject = "Bank Reconciliations Pending Submission"
 
         # Start building HTML body with inline styles only
@@ -1524,7 +1530,8 @@ class FileUpload:
 
             # Convert query result into list of Reconciliation objects
             reconciliations = [
-                FileUpload(id=row.id, bank_account=row.bank_account, year=row.year, month=row.month, file_name=row.file_name,
+                FileUpload(id=row.id, bank_account=row.bank_account, year=row.year, month=row.month,
+                           file_name=row.file_name,
                            approver=row.approver, rejected_on=row.rejected_on, comment=row.comment)
                 for row in result
             ]
@@ -2029,7 +2036,7 @@ class FileUpload:
         finally:
             cursor.close()
             conn.close()
-            
+
     @staticmethod
     def get_reconciliations_pending_submission_by_user(user_id):
         conn = get_db_connection()
@@ -2840,7 +2847,9 @@ class FileDelete:
 
 
 class BankAccount:
-    def __init__(self, id=None, name=None, bank_id=None, currency_id=None, strategic_business_unit_id=None, account=None, bank=None, currency=None, unit=None, creation_date=None, bank_account_name=None, bank_name=None, currency_name=None, org_unit_name=None):
+    def __init__(self, id=None, name=None, bank_id=None, currency_id=None, strategic_business_unit_id=None,
+                 account=None, bank=None, currency=None, unit=None, creation_date=None, bank_account_name=None,
+                 bank_name=None, currency_name=None, org_unit_name=None):
         self.id = id
         self.name = name
         self.bank_id = bank_id
@@ -3021,7 +3030,7 @@ class BankAccount:
             query = """
                 UPDATE bank SET name = ? WHERE id = ?
             """
-            cursor.execute(query, (bank_name, bank_id, ))
+            cursor.execute(query, (bank_name, bank_id,))
             conn.commit()
             return True
         except Exception as e:
@@ -3055,7 +3064,8 @@ class BankAccount:
 
             # Convert query result into list of Reconciliation objects
             bank_details = [
-                BankAccount(id=row.id, account=row.account, bank=row.bank, currency=row.currency, unit=row.unit, creation_date=row.creation_date)
+                BankAccount(id=row.id, account=row.account, bank=row.bank, currency=row.currency, unit=row.unit,
+                            creation_date=row.creation_date)
                 for row in result
             ]
             return bank_details
@@ -3265,7 +3275,7 @@ class Role:
             query = """
                 UPDATE role SET name = ? WHERE id = ?
             """
-            cursor.execute(query, (role_name, role_id, ))
+            cursor.execute(query, (role_name, role_id,))
             conn.commit()
             return True
         except Exception as e:
@@ -3430,7 +3440,7 @@ class Workflow:
             query = """
                 UPDATE workflow SET name = ? WHERE id = ?
             """
-            cursor.execute(query, (workflow_name, workflow_id, ))
+            cursor.execute(query, (workflow_name, workflow_id,))
             conn.commit()
             return True
         except Exception as e:
@@ -3564,7 +3574,7 @@ class Workflow:
             query = """
                 UPDATE role_workflow_breakdown SET role_id = ?, workflow_breakdown_id = ? WHERE id = ?
             """
-            cursor.execute(query, (role_id, workflow_breakdown_id, role_workflow_breakdown_id, ))
+            cursor.execute(query, (role_id, workflow_breakdown_id, role_workflow_breakdown_id,))
             conn.commit()
             return True
         except Exception as e:
@@ -3713,7 +3723,7 @@ class WorkflowBreakdown:
             query = ("SELECT COUNT(*) FROM workflow_breakdown WHERE workflow_id = ? AND level = ? AND name = ? AND "
                      "is_responsibility_global = ? AND menu_item_id = ? AND is_workflow_level = ?")
             cursor.execute(query, (workflow_id, level_id, workflowBreakdownName, is_responsibility_global,
-                                   item_menu_id, is_workflow_level, ))
+                                   item_menu_id, is_workflow_level,))
             count = cursor.fetchone()[0]
             return count > 0
         except Exception as e:
@@ -3724,7 +3734,8 @@ class WorkflowBreakdown:
             conn.close()
 
     @staticmethod
-    def insert_new_workflow_breakdown(workflowBreakdownName, workflow_id, level_id, item_menu_id, is_responsibility_global, is_workflow_level):
+    def insert_new_workflow_breakdown(workflowBreakdownName, workflow_id, level_id, item_menu_id,
+                                      is_responsibility_global, is_workflow_level):
         conn = get_db_connection()
         if conn is None:
             return []  # Return empty list if the database connection fails
@@ -3736,7 +3747,8 @@ class WorkflowBreakdown:
                 INSERT INTO workflow_breakdown (workflow_id, level, name, is_responsibility_global, menu_item_id, is_workflow_level)
                 VALUES (?, ?, ?, ?, ?, ?)
             """
-            cursor.execute(query, (workflow_id, level_id, workflowBreakdownName, is_responsibility_global, item_menu_id, is_workflow_level))
+            cursor.execute(query, (
+            workflow_id, level_id, workflowBreakdownName, is_responsibility_global, item_menu_id, is_workflow_level))
             conn.commit()
             return True
         except Exception as e:
@@ -3758,7 +3770,7 @@ class WorkflowBreakdown:
             query = """
                 UPDATE workflow SET name = ? WHERE id = ?
             """
-            cursor.execute(query, (workflow_name, workflow_id, ))
+            cursor.execute(query, (workflow_name, workflow_id,))
             conn.commit()
             return True
         except Exception as e:
@@ -3829,7 +3841,8 @@ class WorkflowBreakdown:
 
 
 class UserRole:
-    def __init__(self, id=None, user_id=None, user_name=None, username=None, role_id=None, role_name=None, start_datetime=None, expiry_datetime=None):
+    def __init__(self, id=None, user_id=None, user_name=None, username=None, role_id=None, role_name=None,
+                 start_datetime=None, expiry_datetime=None):
         self.id = id
         self.user_id = user_id
         self.username = username
@@ -3864,7 +3877,9 @@ class UserRole:
 
             # Convert query result into list of Reconciliation objects
             user_role_details = [
-                UserRole(id=row.id, user_id=row.user_id, username=row.username, user_name=row.user_name, role_id=row.role_id, role_name=row.role_name, start_datetime=row.start_datetime, expiry_datetime=row.expiry_datetime)
+                UserRole(id=row.id, user_id=row.user_id, username=row.username, user_name=row.user_name,
+                         role_id=row.role_id, role_name=row.role_name, start_datetime=row.start_datetime,
+                         expiry_datetime=row.expiry_datetime)
                 for row in result
             ]
             return user_role_details
@@ -4291,7 +4306,7 @@ class Currency:
             query = """
                 UPDATE currency SET name = ?, code = ? WHERE id = ?
             """
-            cursor.execute(query, (currency_name, currency_code, currency_id, ))
+            cursor.execute(query, (currency_name, currency_code, currency_id,))
             conn.commit()
             return True
         except Exception as e:
@@ -4303,7 +4318,8 @@ class Currency:
 
 
 class BankAccountResponsibleUser:
-    def __init__(self, id=None, bank_account_id=None, user_id=None, bank_account_name=None, username=None, name=None, is_active=None, status=None):
+    def __init__(self, id=None, bank_account_id=None, user_id=None, bank_account_name=None, username=None, name=None,
+                 is_active=None, status=None):
         self.id = id
         self.bank_account_id = bank_account_id
         self.user_id = user_id
@@ -4341,7 +4357,8 @@ class BankAccountResponsibleUser:
 
             # Convert query result into list of Reconciliation objects
             responsible_user_details = [
-                BankAccountResponsibleUser(id=row.id, bank_account_name=row.bank_account_name, username=row.username, name=row.name, status=row.status)
+                BankAccountResponsibleUser(id=row.id, bank_account_name=row.bank_account_name, username=row.username,
+                                           name=row.name, status=row.status)
                 for row in result
             ]
             return responsible_user_details
@@ -4413,11 +4430,12 @@ class BankAccountResponsibleUser:
                 LEFT OUTER JOIN users u ON baru.user_id = u.ID
                 WHERE ba.name is not null AND ba.name = ? AND u.Username = ?
             """
-            cursor.execute(query, (bank_account_name, username, ))
+            cursor.execute(query, (bank_account_name, username,))
             result = cursor.fetchall()
 
             responsibilities = [
-                BankAccountResponsibleUser(id=row.id, bank_account_id=row.bank_account_id, user_id=row.user_id, is_active=row.is_active)
+                BankAccountResponsibleUser(id=row.id, bank_account_id=row.bank_account_id, user_id=row.user_id,
+                                           is_active=row.is_active)
                 for row in result
             ]
             return responsibilities
@@ -4440,7 +4458,7 @@ class BankAccountResponsibleUser:
             query = """
                 UPDATE bank_account_responsible_user SET is_active = ? WHERE id = ?
             """
-            cursor.execute(query, (is_active, responsibility_id, ))
+            cursor.execute(query, (is_active, responsibility_id,))
             conn.commit()
             return True
         except Exception as e:
@@ -4546,7 +4564,7 @@ class OrganisationUnitTier:
             query = """
                 UPDATE organisation_unit_tier SET name = ?, parent_org_unit_tier_id = ? WHERE id = ?
             """
-            cursor.execute(query, (org_unit_tier_name, parent_org_unit_tier_id, org_unit_tier_id, ))
+            cursor.execute(query, (org_unit_tier_name, parent_org_unit_tier_id, org_unit_tier_id,))
             conn.commit()
             return True
         except Exception as e:
@@ -4578,7 +4596,8 @@ class OrganisationUnitTier:
 
 
 class OrganisationUnit:
-    def __init__(self, id=None, name=None, parent_org_unit_id=None, parent_org_unit_name=None, org_unit_tier_name=None, org_unit_tier_id=None):
+    def __init__(self, id=None, name=None, parent_org_unit_id=None, parent_org_unit_name=None, org_unit_tier_name=None,
+                 org_unit_tier_id=None):
         self.id = id
         self.name = name
         self.parent_org_unit_id = parent_org_unit_id
@@ -4676,7 +4695,7 @@ class OrganisationUnit:
         try:
             query = ("SELECT COUNT(*) FROM organisation_unit WHERE name = ? AND org_unit_tier_id = ? AND "
                      "parent_org_unit_id = ?")
-            cursor.execute(query, (org_unit_name, org_unit_tier_id, parent_unit_id, ))
+            cursor.execute(query, (org_unit_name, org_unit_tier_id, parent_unit_id,))
             count = cursor.fetchone()[0]
             return count > 0
         except Exception as e:
@@ -4698,7 +4717,7 @@ class OrganisationUnit:
             query = """
                 UPDATE organisation_unit SET name = ?, org_unit_tier_id = ?, parent_org_unit_id = ? WHERE id = ?
             """
-            cursor.execute(query, (org_unit_name, org_unit_tier_id, parent_unit_id, org_unit_id, ))
+            cursor.execute(query, (org_unit_name, org_unit_tier_id, parent_unit_id, org_unit_id,))
             conn.commit()
             return True
         except Exception as e:
@@ -4799,7 +4818,7 @@ class MenuItem:
             query = """
                 UPDATE menu_item SET name = ? WHERE id = ?
             """
-            cursor.execute(query, (menu_item_name, edit_menu_item_id, ))
+            cursor.execute(query, (menu_item_name, edit_menu_item_id,))
             conn.commit()
             return True
         except Exception as e:
@@ -4811,7 +4830,8 @@ class MenuItem:
 
 
 class Project:
-    def __init__(self, id=None, project_code=None,  project_name=None, project_objective=None, project_start_date=None, project_end_date=None, project_status=None):
+    def __init__(self, id=None, project_code=None, project_name=None, project_objective=None, project_start_date=None,
+                 project_end_date=None, project_status=None):
         self.id = id
         self.project_code = project_code
         self.project_name = project_name
@@ -4838,7 +4858,9 @@ class Project:
 
             # Convert query result into list of Reconciliation objects
             project_details = [
-                Project(id=row.id, project_code=row.project_code, project_name=row.project_name, project_objective=row.project_objective, project_start_date=row.project_start_date, project_end_date=row.project_end_date, project_status=row.project_status)
+                Project(id=row.id, project_code=row.project_code, project_name=row.project_name,
+                        project_objective=row.project_objective, project_start_date=row.project_start_date,
+                        project_end_date=row.project_end_date, project_status=row.project_status)
                 for row in result
             ]
             return project_details
@@ -4854,7 +4876,8 @@ class ActivityRequest:
     def __init__(self, id=None, name=None, user_id=None, creation_date=None, last_modified=None, status=None,
                  subject=None, objectives=None, scope=None, stakeholders=None, deliverables=None, assumptions=None,
                  current_request_id=None, activity_id=None, member_id=None, role_id=None, team_member_no=None,
-                 task_no=None, task=None, key_process_id=None, start_date=None, end_date=None):
+                 task_no=None, task=None, key_process_id=None, start_date=None, end_date=None, project_code=None,
+                 project_name=None):
         self.id = id
         self.name = name
         self.user_id = user_id
@@ -4868,7 +4891,7 @@ class ActivityRequest:
         self.deliverables = deliverables
         self.assumptions = assumptions
         self.current_request_id = current_request_id
-        self.activity_id=activity_id
+        self.activity_id = activity_id
         self.member_id = member_id
         self.role_id = role_id
         self.team_member_no = team_member_no
@@ -4877,6 +4900,8 @@ class ActivityRequest:
         self.key_process_id = key_process_id
         self.start_date = start_date
         self.end_date = end_date
+        self.project_code = project_code
+        self.project_name = project_name
 
     @staticmethod
     def get_latest_activity_request_id():
@@ -4910,8 +4935,8 @@ class ActivityRequest:
         try:
             cursor.execute(
                 """
-                INSERT INTO trn_activity_request (id, user_id, creation_date, last_modified, status, project_id)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO trn_activity_request (id, user_id, creation_date, last_modified, status, project_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (current_request_id, user_id, now, now, status, project_id),
             )
@@ -4953,6 +4978,32 @@ class ActivityRequest:
             conn.close()
 
     @staticmethod
+    def update_trn_activity_overview(current_request_id, subject, objectives, scope, stakeholders, deliverables,
+                                     assumptions):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                UPDATE trn_activity_overview
+                SET subject = ?, objectives = ?, scope = ?, stakeholders = ?, deliverables = ?, assumptions = ?
+                WHERE activity_id = ?
+            """
+            cursor.execute(query, (subject, objectives, scope, stakeholders, deliverables, assumptions,
+                                   current_request_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to update trn_activity_overview: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
     def insert_into_trn_activity_team_composition(team_member_no, activity_id, member_id, role_id):
         conn = get_db_connection()
         if conn is None:
@@ -4986,14 +5037,13 @@ class ActivityRequest:
             return None
 
         cursor = conn.cursor()
-        now = datetime.now()
 
         try:
             cursor.execute(
                 """
-                INSERT INTO trn_activity_breakdown 
-                (id, activity_id, task, key_process_id, start_date, end_date)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO trn_activity_breakdown 
+                    (id, activity_id, task, key_process_id, start_date, end_date)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (task_no, activity_id, task, key_process_id, start_date, end_date),
             )
@@ -5004,6 +5054,75 @@ class ActivityRequest:
             conn.rollback()
             return None
         finally:
+            conn.close()
+
+    @staticmethod
+    def delete_activity_overview(current_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                DELETE FROM trn_activity_overview                
+                WHERE activity_id = ?
+            """
+            cursor.execute(query, current_request_id)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to delete from trn_activity_overview: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def delete_activity_team(current_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                DELETE FROM trn_activity_team_composition                
+                WHERE activity_id = ?
+            """
+            cursor.execute(query, current_request_id)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to delete from trn_activity_overview: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def delete_activity_tasks(current_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                DELETE FROM trn_activity_breakdown                
+                WHERE activity_id = ?
+            """
+            cursor.execute(query, current_request_id)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to delete from trn_activity_breakdown: ", e)
+            return False
+        finally:
+            cursor.close()
             conn.close()
 
     @staticmethod
@@ -5063,3 +5182,208 @@ class ActivityRequest:
         finally:
             cursor.close()
             conn.close()
+
+    @staticmethod
+    def get_saved_activity_request_details(status, user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT a.id, c.project_code, c.project_name, b.subject, a.last_modified FROM trn_activity_request a
+                        LEFT OUTER JOIN trn_activity_overview b ON a.id = b.activity_id
+                        LEFT OUTER JOIN project c ON a.project_id = c.id
+                        WHERE a.status = ? AND a.user_id = ?
+                        ORDER BY a.last_modified;
+                    """
+            cursor.execute(query, (status, user_id,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                ActivityRequest(id=row.id, project_code=row.project_code, project_name=row.project_name,
+                                subject=row.subject, last_modified=row.last_modified)
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_saved_activity_request_details_2(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT a.id, b.subject, b.objectives, b.scope, b.stakeholders, b.deliverables, b.assumptions 
+                        FROM trn_activity_request a
+                        LEFT OUTER JOIN trn_activity_overview b ON a.id = b.activity_id
+                        LEFT OUTER JOIN project c ON a.project_id = c.id
+                        WHERE a.status = 1 AND a.id = ?;
+                    """
+            cursor.execute(query, (activity_request_id,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                ActivityRequest(id=row.id, subject=row.subject, objectives=row.objectives,
+                                scope=row.scope, stakeholders=row.stakeholders, deliverables=row.deliverables,
+                                assumptions=row.assumptions)
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_team_composition_details(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        try:
+            query = """
+                SELECT id, activity_id, member_user_id, member_role_id
+                FROM trn_activity_team_composition
+                WHERE activity_id = ?
+            """
+            cursor.execute(query, (activity_request_id,))
+            columns = [col[0] for col in cursor.description]
+            result = cursor.fetchall()
+
+            return [dict(zip(columns, row)) for row in result]
+
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_activity_tasks_details(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        try:
+            query = """
+                SELECT a.id, a.activity_id, a.task, a.key_process_id,
+                       CONVERT(varchar, a.start_date, 120) AS start_date,
+                       CONVERT(varchar, a.end_date, 120) AS end_date
+                FROM trn_activity_breakdown a
+                WHERE a.activity_id = ?
+                ORDER BY a.id
+            """
+            cursor.execute(query, (activity_request_id,))
+            columns = [col[0] for col in cursor.description]
+            result = cursor.fetchall()
+            return [dict(zip(columns, row)) for row in result]
+
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def insert_into_trn_activity_attachment(id, activity_id, file, description):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                "INSERT INTO trn_activity_attachment ([id], [activity_id], [file], [description]) "
+                "VALUES (?, ?, ?, ?)",
+                (id, activity_id, file, description),
+            )
+            conn.commit()
+            return id
+        except pyodbc.Error as e:
+            print("Database insert error:", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    @staticmethod
+    def get_activity_attachments(activity_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT [id], [activity_id], [file], [description]
+                FROM trn_activity_attachment
+                WHERE activity_id = ?
+                ORDER BY id
+            """, (activity_id,))
+            rows = cursor.fetchall()
+
+            attachments = []
+            for row in rows:
+                attachments.append({
+                    "id": row.id,
+                    "activity_id": row.activity_id,
+                    "file": row.file,
+                    "description": row.description
+                })
+            return attachments
+        except Exception as e:
+            print("Error fetching attachments:", e)
+            return []
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_removed_attachments(activity_id, retained_ids):
+        """
+        Deletes attachments from trn_activity_attachment that are NOT in retained_ids
+        for the given activity_id.
+        """
+        conn = get_db_connection()
+        if conn is None:
+            return
+
+        cursor = conn.cursor()
+        try:
+            if retained_ids:
+                placeholders = ",".join("?" for _ in retained_ids)
+                query = f"""
+                    DELETE FROM trn_activity_attachment
+                    WHERE activity_id = ? AND id NOT IN ({placeholders})
+                """
+                params = [activity_id] + retained_ids
+            else:
+                query = "DELETE FROM trn_activity_attachment WHERE activity_id = ?"
+                params = [activity_id]
+
+            cursor.execute(query, params)
+            conn.commit()
+        except Exception as e:
+            print("Error deleting removed attachments:", e)
+            conn.rollback()
+        finally:
+            conn.close()
+

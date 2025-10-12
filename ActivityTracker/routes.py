@@ -137,9 +137,74 @@ def activity_request_page():
     user_details = UserSummary.get_all_usersnames()
     team_member_details = ActivityRequest.get_team_member_roles_details()
     key_process_details = ActivityRequest.get_key_process_details()
+    activity_request_details = ActivityRequest.get_saved_activity_request_details(1, current_user.id)
 
     return render_template('activity_request.html', user_details=user_details,
-                           team_member_details=team_member_details, key_process_details=key_process_details)
+                           team_member_details=team_member_details, key_process_details=key_process_details,
+                           activity_request_details=activity_request_details)
+
+
+@app.route("/get-saved-activity-request-details", methods=["GET"])
+def get_saved_activity_request_details():
+    activity_request_id = request.args.get("activity_request_id")
+    saved_activity_request_details_2 = ActivityRequest.get_saved_activity_request_details_2(activity_request_id)
+
+    if not saved_activity_request_details_2:
+        return jsonify({"error": "Activity Request ID not found"}), 404
+
+    saved_activity_request_detail = saved_activity_request_details_2[0]
+
+    # Serialize manually
+    saved_activity_request_data = {
+        "id": saved_activity_request_detail.id,
+        "subject": saved_activity_request_detail.subject,
+        "objectives": saved_activity_request_detail.objectives,
+        "scope": saved_activity_request_detail.scope,
+        "stakeholders": saved_activity_request_detail.stakeholders,
+        "deliverables": saved_activity_request_detail.deliverables,
+        "assumptions": saved_activity_request_detail.assumptions
+    }
+
+    return jsonify(saved_activity_request_data)
+
+
+@app.route("/get-activity-team-composition-details", methods=["GET"])
+def get_activity_team_composition_details():
+    activity_request_id = request.args.get("activity_request_id", type=int)
+
+    if not activity_request_id:
+        return jsonify({"error": "Missing activity_request_id"}), 400
+
+    team = ActivityRequest.get_team_composition_details(activity_request_id)
+
+    return jsonify({"team": team})
+
+
+@app.route("/get-activity-tasks-details", methods=["GET"])
+def get_activity_tasks_details():
+    activity_request_id = request.args.get("activity_request_id", type=int)
+
+    if not activity_request_id:
+        return jsonify({"error": "Missing activity_request_id"}), 400
+
+    tasks = ActivityRequest.get_activity_tasks_details(activity_request_id)
+
+    return jsonify({"tasks": tasks})
+
+
+@app.route('/get-activity-attachments', methods=['GET'])
+@login_required
+def get_activity_attachments():
+    activity_id = request.args.get('activity_request_id')
+
+    if not activity_id:
+        return jsonify({"error": "Missing activity_request_id"}), 400
+
+    try:
+        attachments = ActivityRequest.get_activity_attachments(activity_id)
+        return jsonify({"attachments": attachments})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/upload', methods=['POST'])
@@ -403,7 +468,7 @@ def submit_files():
 @role_required(1, 25)
 def save_activity_request():
     try:
-        data = request.get_json()
+        data = json.loads(request.form.get("data", "{}"))
 
         overview = data.get("overview", {})
         team = data.get("team", [])
@@ -504,7 +569,136 @@ def save_activity_request():
 
             task_no += 1
 
+        # Save attachments
+        files = request.files.getlist("attachments")  # <-- from request.files
+        descriptions = request.form.getlist("attachment_descriptions")  # <-- from form fields
+
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        attachment_counter = 1
+
+        upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], 'activity_docs')
+        os.makedirs(upload_folder, exist_ok=True)
+
+        for file, desc in zip(files, descriptions):
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                new_filename = f"{timestamp}_{current_user.id}_{attachment_counter}_{filename}"
+                file.save(os.path.join(upload_folder, new_filename))
+
+                attachment_saved = ActivityRequest.insert_into_trn_activity_attachment(
+                    id=attachment_counter,
+                    activity_id=current_request_id,
+                    file=new_filename,
+                    description=desc
+                )
+
+                Audit.log_audit_trail(
+                    user_id=current_user.id,
+                    action="Insert in table: trn_activity_attachment",
+                    details=f"Saved file '{new_filename}' for Activity Request ID: '{current_request_id}'",
+                    ip_address=request.remote_addr
+                )
+                if not attachment_saved:
+                    return jsonify({"error": "Error saving attachment", "type": "danger"}), 500
+
+                attachment_counter += 1
+
         return jsonify({"message": "Activity Request saved successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e), "type": "danger"}), 500
+
+
+@app.route('/update_activity_request', methods=['POST'])
+@login_required
+@role_required(1, 25)
+def update_activity_request():
+    try:
+        data = json.loads(request.form.get("data", "{}"))
+        activity_request_id = data.get("activity_request_id")
+
+        if not activity_request_id:
+            return jsonify({"error": "Missing activity_request_id"}), 400
+
+        overview = data.get("overview", {})
+        team = data.get("team", [])
+        tasks = data.get("tasks", [])
+
+        # Delete overview
+        ActivityRequest.delete_activity_overview(activity_request_id)
+        # Update overview
+        ActivityRequest.insert_into_trn_activity_overview(
+            current_request_id=activity_request_id,
+            subject=overview.get("subject"),
+            objectives=overview.get("objectives"),
+            scope=overview.get("scope"),
+            stakeholders=overview.get("stakeholders"),
+            deliverables=overview.get("deliverables"),
+            assumptions=overview.get("assumptions")
+        )
+
+        # Replace existing team
+        ActivityRequest.delete_activity_team(activity_request_id)
+        for i, member in enumerate(team, start=1):
+            ActivityRequest.insert_into_trn_activity_team_composition(
+                team_member_no=i,
+                activity_id=activity_request_id,
+                member_id=member.get("member_id"),
+                role_id=member.get("role_id")
+            )
+
+        # Replace existing tasks
+        ActivityRequest.delete_activity_tasks(activity_request_id)
+        for i, task in enumerate(tasks, start=1):
+            ActivityRequest.insert_into_trn_activity_breakdown(
+                task_no=i,
+                activity_id=activity_request_id,
+                task=task.get("task"),
+                key_process_id=task.get("key_process"),
+                start_date=task.get("start_date"),
+                end_date=task.get("end_date")
+            )
+
+        # Handle attachments
+        files = request.files.getlist("attachments")
+        descriptions = request.form.getlist("attachment_descriptions")
+        retained_ids = json.loads(request.form.get("retained_attachment_ids", "[]"))
+
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], 'activity_docs')
+        os.makedirs(upload_folder, exist_ok=True)
+
+        # Delete attachments not retained
+        ActivityRequest.delete_removed_attachments(activity_request_id, retained_ids)
+
+        # Get current attachments to determine next available ID
+        existing_attachments = ActivityRequest.get_activity_attachments(activity_request_id)
+        existing_ids = [att["id"] for att in existing_attachments]
+        next_id = (max(existing_ids) + 1) if existing_ids else 1
+
+        # Insert new attachments
+        for file, desc in zip(files, descriptions):
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                new_filename = f"{timestamp}_{current_user.id}_{next_id}_{filename}"
+                file.save(os.path.join(upload_folder, new_filename))
+
+                ActivityRequest.insert_into_trn_activity_attachment(
+                    id=next_id,
+                    activity_id=activity_request_id,
+                    file=new_filename,
+                    description=desc
+                )
+
+                Audit.log_audit_trail(
+                    user_id=current_user.id,
+                    action="Insert in table: trn_activity_attachment",
+                    details=f"Saved new file '{new_filename}' (ID: {next_id}, Activity: {activity_request_id})",
+                    ip_address=request.remote_addr
+                )
+                next_id += 1
+
+        return jsonify({"message": "Activity Request updated successfully"}), 200
 
     except Exception as e:
         return jsonify({"error": str(e), "type": "danger"}), 500
@@ -776,8 +970,11 @@ def get_reconciliation_workflow():
 @login_required
 def download_file(filename):
     """Serves files from the uploads directory."""
+
+    upload_folder = os.path.join(app.config["UPLOAD_FOLDER"], "activity_docs")
+
     try:
-        return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=True)
+        return send_from_directory(upload_folder, filename, as_attachment=True)
     except FileNotFoundError:
         abort(404)
 

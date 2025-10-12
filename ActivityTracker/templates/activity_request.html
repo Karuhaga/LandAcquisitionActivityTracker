@@ -9,8 +9,14 @@
 {% endblock %}
 
 {% block content %}
-<div class="sticky-page-title">
-    <i class="fa-solid fa-pen-to-square"></i> Activity Request
+<div class="sticky-page-title d-flex justify-content-between align-items-center">
+    <div>
+        <i class="fa-solid fa-pen-to-square"></i> Activity Request
+    </div>
+
+    <button type="button" class="btn-outline-custom" id="resetPageBtn" onclick="resetPage()">
+        <i class="fa fa-trash"></i> Reset Page
+    </button>
 </div>
 
 {# --- Centralized option templates --- #}
@@ -36,254 +42,1286 @@
 {% endset %}
 
 <div class="card">
-  <form id="activityForm" method="post">
+    <form id="activityForm" method="post">
 
-    <div id="activityAccordion">
+        <input type="hidden" id="activity_request_id" name="activity_request_id" value="">
 
-  <!-- Activity Overview -->
-  <div class="card">
-    <div class="card-header" id="headingOverview">
-      <h6 class="mb-0">
+        <div id="activityAccordion">
+
+            <!-- Activity Overview -->
+            <div class="card">
+                <div class="card-header" id="headingOverview">
+                    <h6 class="mb-0">
         <button class="accordion-button collapsed" type="button" data-toggle="collapse"
                 data-target="#collapseOverview" aria-expanded="false" aria-controls="collapseOverview">
             <i class="fa fa-caret-right caret-icon2 mr-2"></i>
           Activity Overview
         </button>
       </h6>
-    </div>
+                </div>
 
-    <div id="collapseOverview" class="collapse" aria-labelledby="headingOverview" data-parent="#activityAccordion">
-      <div class="card-body">
-        {% set fields = [
-            {"id": "subject", "label": "Subject*:", "rows": None, "placeholder": "Enter subject of the activity", "maxlength": 150},
-            {"id": "objectives", "label": "Objectives*:", "rows": 3, "placeholder": "State the objectives", "maxlength": 500},
-            {"id": "scope", "label": "Scope:", "rows": 3, "placeholder": "Describe the scope of the activity", "maxlength": 500},
-            {"id": "stakeholders", "label": "Stakeholders:", "rows": 2, "placeholder": "List involved stakeholders", "maxlength": 500},
-            {"id": "deliverables", "label": "Deliverables:", "rows": 2, "placeholder": "Outline expected deliverables", "maxlength": 500},
-            {"id": "assumptions", "label": "Assumptions:", "rows": 2, "placeholder": "State any assumptions", "maxlength": 500}
-        ] %}
-        {% for field in fields %}
-          <div class="mb-3">
-            <label for="{{ field.id }}" class="form-label">{{ field.label }}</label>
-            {% if field.rows %}
-              <textarea class="form-control" id="{{ field.id }}" name="{{ field.id }}"
-                        rows="{{ field.rows }}" placeholder="{{ field.placeholder }}"
-                        {% if field.maxlength %} maxlength="{{ field.maxlength }}" {% endif %}></textarea>
-            {% else %}
-              <input type="text" class="form-control" id="{{ field.id }}" name="{{ field.id }}"
-                     placeholder="{{ field.placeholder }}"
-                     {% if field.maxlength %} maxlength="{{ field.maxlength }}" {% endif %}>
-            {% endif %}
-          </div>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
+                <div id="collapseOverview" class="collapse" aria-labelledby="headingOverview" data-parent="#activityAccordion">
+                    <div class="card-body">
+                        {% set fields = [ {"id": "subject", "label": "Subject*:", "rows": None, "placeholder": "Enter subject of the activity", "maxlength": 150}, {"id": "objectives", "label": "Objectives*:", "rows": 3, "placeholder": "State the objectives", "maxlength": 500},
+                        {"id": "scope", "label": "Scope:", "rows": 3, "placeholder": "Describe the scope of the activity", "maxlength": 500}, {"id": "stakeholders", "label": "Stakeholders:", "rows": 2, "placeholder": "List involved stakeholders", "maxlength":
+                        500}, {"id": "deliverables", "label": "Deliverables:", "rows": 2, "placeholder": "Outline expected deliverables", "maxlength": 500}, {"id": "assumptions", "label": "Assumptions:", "rows": 2, "placeholder": "State any assumptions",
+                        "maxlength": 500} ] %} {% for field in fields %}
+                        <div class="mb-3">
+                            <label for="{{ field.id }}" class="form-label">{{ field.label }}</label>
+                            {% if field.rows %}
+                            <textarea class="form-control" id="{{ field.id }}" name="{{ field.id }}" rows="{{ field.rows }}" placeholder="{{ field.placeholder }}" {% if field.maxlength %} maxlength="{{ field.maxlength }}" {% endif %}></textarea>
+                            {% else %}
+                            <input type="text" class="form-control" id="{{ field.id }}" name="{{ field.id }}" placeholder="{{ field.placeholder }}" {% if field.maxlength %} maxlength="{{ field.maxlength }}" {% endif %}> {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
 
-  <!-- Team Composition -->
-  <div class="card">
-    <div class="card-header" id="headingTeam">
-      <h6 class="mb-0">
-        <button class="accordion-button collapsed" type="button" data-toggle="collapse"
-                data-target="#collapseTeam" aria-expanded="false" aria-controls="collapseTeam">
-            <i class="fa fa-caret-right caret-icon2 mr-2"></i>
-          Team Composition
-        </button>
-      </h6>
-    </div>
-    <div id="collapseTeam" class="collapse" aria-labelledby="headingTeam" data-parent="#activityAccordion">
-      <div class="card-body">
-            <table class="table table-striped table-bordered table-hover">
-              <thead>
-                <tr>
-                  <th class="text-end">#</th>
-                  <th>Member</th>
-                  <th>Role</th>
-                  <th class="text-end">Action</th>
-                </tr>
-              </thead>
-              <tbody id="teamCompositionInputs">
-                  <tr>
-                      <td class="text-end">1</td>
-                      <td>
-                          <select class="form-control" name="team_member_names">
-                              {{ user_options | safe }}
-                          </select>
-                      </td>
-                      <td>
-                          <select class="form-control" name="team_member_role">
-                              {{ team_role_options | safe }}
-                          </select>
-                      </td>
-                      <td></td>
-                  </tr>
-                  <tr>
-                      <td></td>
-                      <td colspan="2"></td>
-                      <td>
-                          <button type="button" class="btn-outline-custom float-end" onclick="addTeamMember()">Add Member</button>
-                      </td>
-                  </tr>
-              </tbody>
-            </table>
-      </div>
-    </div>
-  </div>
+            <!-- Team Composition -->
+            <div class="card">
+                <div class="card-header" id="headingTeam">
+                    <h6 class="mb-0">
+      <button class="accordion-button collapsed" type="button" data-toggle="collapse"
+              data-target="#collapseTeam" aria-expanded="false" aria-controls="collapseTeam">
+        <i class="fa fa-caret-right caret-icon2 mr-2"></i>
+        Team Composition
+      </button>
+    </h6>
+                </div>
 
-  <!-- Activity Breakdown -->
-  <div class="card">
-    <div class="card-header" id="headingBreakdown">
-      <h6 class="mb-0">
-        <button class="accordion-button collapsed" type="button" data-toggle="collapse"
-                data-target="#collapseBreakdown" aria-expanded="false" aria-controls="collapseBreakdown">
-            <i class="fa fa-caret-right caret-icon2 mr-2"></i>
-          Activity Breakdown
-        </button>
-      </h6>
-    </div>
-    <div id="collapseBreakdown" class="collapse" aria-labelledby="headingBreakdown" data-parent="#activityAccordion">
-      <div class="card-body">
-            <table class="table table-striped table-bordered table-hover">
-              <thead>
-                <tr>
-                  <th class="text-end">#</th>
-                  <th>Task</th>
-                  <th>Key Process</th>
-                  <th>Start Date</th>
-                  <th>End Date</th>
-                    <th>No. of Days</th>
-                  <th class="text-end">Action</th>
-                </tr>
-              </thead>
-              <tbody id="taskInputs">
-                <tr>
-                  <td class="text-end">1</td>
-                  <td><textarea class="form-control" name="task[]" rows="3" placeholder="Enter task name" maxlength="150"></textarea></td>
-                  <td>
-                      <select class="form-control" name="key_process_names">
-                          {{ key_process_options | safe }}
-                      </select>
-                  </td>
-                  <td><input type="text" class="form-control start-date" name="start_date[]" placeholder="Start Date" autocomplete="off"></td>
-                  <td><input type="text" class="form-control end-date" name="end_date[]" placeholder="End Date" autocomplete="off"></td>
-                  <td class="days-diff text-center">1</td>
-                    <td></td>
-                </tr>
-                <tr class="total-days-row">
-                  <td></td>
-                  <td colspan="4" class="text-end font-weight-bold">Total No. of Days:</td>
-                  <td class="total-days text-center">1</td>
-                  <td>
-                    <button type="button" class="btn-outline-custom float-end" onclick="addTask()">Add Task</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-      </div>
-    </div>
-  </div>
+                <div id="collapseTeam" class="collapse" aria-labelledby="headingTeam" data-parent="#activityAccordion">
+                    <div class="card-body">
+                        <table class="table table-sm table-striped table-bordered table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-end" style="width: 5%;">#</th>
+                                    <th style="width: 45%;">Member</th>
+                                    <th style="width: 40%;">Role</th>
+                                    <th class="text-center" style="width: 10%;">Action</th>
+                                </tr>
+                            </thead>
 
+                            <tbody id="teamCompositionInputs">
+                                <tr>
+                                    <td class="text-end">1</td>
+                                    <td>
+                                        <select class="form-control" name="team_member_names">
+                                            {{ user_options | safe }}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select class="form-control" name="team_member_role">
+                                            {{ team_role_options | safe }}
+                                        </select>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+
+                            <tfoot>
+                                <tr>
+                                    <td colspan="4" class="text-end">
+                                        <button type="button" class="btn-outline-custom float-end" onclick="addTeamMember()">
+                                            <i class="fa fa-plus"></i> Add Member
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Breakdown -->
+            <div class="card">
+                <div class="card-header" id="headingBreakdown">
+                    <h6 class="mb-0">
+      <button class="accordion-button collapsed" type="button" data-toggle="collapse"
+              data-target="#collapseBreakdown" aria-expanded="false" aria-controls="collapseBreakdown">
+        <i class="fa fa-caret-right caret-icon2 mr-2"></i>
+        Activity Breakdown
+      </button>
+    </h6>
+                </div>
+
+                <div id="collapseBreakdown" class="collapse" aria-labelledby="headingBreakdown" data-parent="#activityAccordion">
+                    <div class="card-body">
+                        <table class="table table-sm table-striped table-bordered table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-end" style="width: 5%;">#</th>
+                                    <th style="width: 25%;">Task</th>
+                                    <th style="width: 20%;">Key Process</th>
+                                    <th style="width: 15%;">Start Date</th>
+                                    <th style="width: 15%;">End Date</th>
+                                    <th style="width: 10%;">No. of Days</th>
+                                    <th class="text-center" style="width: 10%;">Action</th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="taskInputs">
+                                <!-- Example Row -->
+                                <tr>
+                                    <td class="text-end">1</td>
+                                    <td>
+                                        <textarea class="form-control" name="task[]" rows="2" placeholder="Enter task name" maxlength="150"></textarea>
+                                    </td>
+                                    <td>
+                                        <select class="form-control" name="key_process_names">
+                                            {{ key_process_options | safe }}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control start-date" name="start_date[]" placeholder="Start Date" autocomplete="off">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control end-date" name="end_date[]" placeholder="End Date" autocomplete="off">
+                                    </td>
+                                    <td class="days-diff text-center">1</td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+
+                            <tfoot>
+                                <tr>
+                                    <td></td>
+                                    <td colspan="4" class="text-end fw-bold">Total No. of Days:</td>
+                                    <td class="total-days text-center">1</td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="7" class="text-end">
+                                        <button type="button" class="btn-outline-custom float-end" onclick="addTask()">
+                                            <i class="fa fa-plus"></i> Add Task
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attachments -->
+            <div class="card">
+                <div class="card-header" id="headingAttachments">
+                    <h6 class="mb-0">
+      <button class="accordion-button collapsed" type="button" data-toggle="collapse"
+              data-target="#collapseAttachments" aria-expanded="false" aria-controls="collapseAttachments">
+        <i class="fa fa-caret-right caret-icon2 mr-2"></i>
+        Attachments
+      </button>
+    </h6>
+                </div>
+                <div id="collapseAttachments" class="collapse" aria-labelledby="headingAttachments" data-parent="#activityAccordion">
+                    <div class="card-body">
+                        <table class="table table-striped table-bordered table-hover">
+                            <thead>
+                                <tr>
+                                    <th class="text-end">#</th>
+                                    <th>File</th>
+                                    <th>Description</th>
+                                    <th>Download</th>
+                                    <th class="text-center">Delete</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attachmentsTable">
+                                <tr>
+                                    <td class="text-end">1</td>
+                                    <td>
+                                        <input type="file" class="form-control" name="attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
+                                    </td>
+                                    <td>
+                                        <textarea class="form-control" name="attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-secondary">
+                                            <i class="fa fa-download"></i>
+                                        </button>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="5" class="text-end">
+                                        <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRow()">
+                                            <i class="fa fa-plus"></i> Add File
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Final Action Buttons -->
+        <div class="mt-3 d-flex justify-content-center gap-5">
+            <button type="button" class="btn-outline-custom" style="margin: 0 1rem;" onclick="handleAction('save request')">Save Request</button>
+            <button type="button" class="btn-outline-custom" style="margin: 0 1rem;" onclick="handleAction('submit request')">Submit Request</button>
+        </div>
+
+    </form>
 </div>
 
-    <!-- Final Action Buttons -->
-    <div class="mt-3 d-flex justify-content-center gap-5">
-      <button type="button" class="btn-outline-custom" style="margin: 0 1rem;" onclick="handleAction('save request')">Save Request</button>
-      <button type="button" class="btn-outline-custom" style="margin: 0 1rem;" onclick="handleAction('submit request')">Submit Request</button>
+<div class="card">
+    <div class="card-header">
+        Saved Activity Requests
     </div>
 
-  </form>
+    <div class="card-body">
+        <table id="savedActivityRequestsTable" class="table table-striped table-bordered table-hover paginated">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <!-- Row number column -->
+                    <th>Project Code</th>
+                    <th>Project Name</th>
+                    <th>Subject</th>
+                    <th>Last Modified</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for activity_request_detail in activity_request_details %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ activity_request_detail.project_code }}</td>
+                    <td>{{ activity_request_detail.project_name }}</td>
+                    <td>{{ activity_request_detail.subject }}</td>
+                    <td>{{ activity_request_detail.last_modified.strftime('%Y-%m-%d %I:%M %p') }}</td>
+                    <td style="width: 10%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false">
+                        <button class="btn-outline-custom edit-saved-activity-request-btn" style="float: right;"
+                                type="button" saved-activity-request-id="{{ activity_request_detail.id }}">Edit
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
+    window.currentActivityRequestId = window.currentActivityRequestId || 0;
+
   function handleAction(actionType) {
-      // Run validation before showing confirmation
-      if (!validateForm()) {
-          return; // stop if invalid
-      }
-      showConfirmation(actionType);
+     // Run validation before showing confirmation
+     if (!validateForm()) {
+        return; // stop if invalid
+     }
+     showConfirmation(actionType);
   }
 
-function validateForm() {
-    let isValid = true;
+  function validateForm() {
+     let isValid = true;
 
-    // Clear old errors
-    $(".text-danger.validation-error").remove();
+     // Clear old errors
+     $(".text-danger.validation-error").remove();
 
-    // Track which accordions need to open
-    let invalidSections = new Set();
+     // Track which accordions need to open
+     let invalidSections = new Set();
 
-    // --- Check Activity Overview: only Subject & Objectives are required ---
-    const subjectVal = $("#subject").val().trim();
-    if (subjectVal === "") {
+     // --- Check Activity Overview ---
+     const subjectVal = $("#subject").val()?.trim() || "";
+     if (subjectVal === "") {
         isValid = false;
         $("#subject").after('<div class="text-danger validation-error small">Subject is required.</div>');
         invalidSections.add("#collapseOverview");
-    }
+     }
 
-    const objectivesVal = $("#objectives").val().trim();
-    if (objectivesVal === "") {
+     const objectivesVal = $("#objectives").val()?.trim() || "";
+     if (objectivesVal === "") {
         isValid = false;
         $("#objectives").after('<div class="text-danger validation-error small">Objectives are required.</div>');
         invalidSections.add("#collapseOverview");
-    }
+     }
 
-    // --- Check at least one Team Member (both name and role) ---
-    $("#teamCompositionInputs tr").each(function () {
-        const name = $(this).find("select[name='team_member_names']").val();
-        const role = $(this).find("select[name='team_member_role']").val();
-        if (name !== undefined && role !== undefined) {
-            if (name.trim() === "" || role.trim() === "") {
-                isValid = false;
-                $(this).find("td:last").append('<div class="text-danger validation-error small">Select both member and role.</div>');
-                invalidSections.add("#collapseTeam");
-            }
-        }
-    });
+     // --- Check Team Members ---
+     let teamRows = $("#teamCompositionInputs tr");
+     let hasValidTeamMember = false;
 
-    // --- Check at least one Task row ---
-    let hasTask = false;
-    $("#taskInputs tr").each(function () {
-        const taskText = $(this).find("textarea[name='task[]']").val();
-        const keyProcess = $(this).find("select[name='key_process_names']").val();
-        if (taskText !== undefined && keyProcess !== undefined) {
-            if (taskText.trim() !== "" && keyProcess.trim() !== "") {
-                hasTask = true;
-            }
+     teamRows.each(function () {
+        const $row = $(this);
+        const member = $row.find("select[name='team_member_names']").val();
+        const role = $row.find("select[name='team_member_role']").val();
+
+        // Remove previous row-level errors
+        $row.find(".text-danger.validation-error").remove();
+
+        if (!member || !role) {
+           isValid = false;
+           $row.find("td:last").append('<div class="text-danger validation-error small">Select both member and role.</div>');
+           invalidSections.add("#collapseTeam");
+        } else {
+           hasValidTeamMember = true;
         }
-    });
-    if (!hasTask) {
+     });
+
+     if (!hasValidTeamMember) {
         isValid = false;
-        $("#taskInputs").after('<div class="text-danger validation-error small">At least one task with a key process is required.</div>');
+        if (!$("#teamCompositionInputs").find(".text-danger.validation-error").length) {
+           $("#teamCompositionInputs").after('<div class="text-danger validation-error small">At least one team member with a role is required.</div>');
+        }
+        invalidSections.add("#collapseTeam");
+     }
+
+     // --- Check Task Rows ---
+     let taskRows = $("#taskInputs tr").filter(function () {
+        // Only include rows that have a task textarea (ignore empty template rows)
+        return $(this).find("textarea[name='task[]']").length > 0;
+     });
+     let hasValidTask = false;
+
+     taskRows.each(function () {
+        const $row = $(this);
+        const taskName = $row.find("textarea[name='task[]']").val()?.trim() || "";
+        const keyProcess = $row.find("select[name='key_process_names']").val() || "";
+        const startDate = $row.find("input.start-date").val()?.trim() || "";
+        const endDate = $row.find("input.end-date").val()?.trim() || "";
+
+        $row.find(".text-danger.validation-error").remove();
+
+        if (!taskName || !keyProcess || !startDate || !endDate) {
+           isValid = false;
+           $row.find("td:last").append('<div class="text-danger validation-error small">Fill all fields in this row.</div>');
+           invalidSections.add("#collapseBreakdown");
+        } else {
+           hasValidTask = true;
+        }
+     });
+
+     if (!hasValidTask) {
+        isValid = false;
+        if (!$("#taskInputs").find(".text-danger.validation-error").length) {
+           $("#taskInputs").after('<div class="text-danger validation-error small">At least one task row must be fully filled.</div>');
+        }
         invalidSections.add("#collapseBreakdown");
-    }
+     }
 
-    // Expand all accordion sections with errors
-    invalidSections.forEach(function (id) {
-        $(id).collapse("show");
-    });
+     // --- Expand invalid accordions ---
+     invalidSections.forEach(id => $(id).collapse("show"));
 
-    return isValid;
-}
+     return isValid;
+  }
 
-    function showConfirmation(actionType) {
-        let modalTitle = "";
-        let modalMessage = "";
+function showConfirmation(actionType) {
+    let modalTitle = "";
+    let modalMessage = "";
 
-        if (actionType === "save request") {
+         if (actionType === "save request" && currentActivityRequestId === 0) {
+            // --- New request (save) ---
             modalTitle = "Save Confirmation";
             modalMessage = "Are you sure you want to save this request?";
             $("#confirmAction").off("click").on("click", function () {
                 $("#confirmationModal").modal("hide");
-                    saveActivityRequest();
-            });
-        } else if (actionType === "submit request") {
-            modalTitle = "Submission Confirmation";
-            modalMessage = "Are you sure you want to submit this request?";
+                    saveActivityRequest(false, null);
+        });
+        }
+       else if (actionType === "save request" && currentActivityRequestId !== 0) {
+            // --- Existing request (update) ---
+            modalTitle = "Update Confirmation";
+            modalMessage = "Are you sure you want to update this request?";
             $("#confirmAction").off("click").on("click", function () {
                 $("#confirmationModal").modal("hide");
-                    //submitFiles();
+                    saveActivityRequest(true, currentActivityRequestId);
+        });
+    } else if (actionType === "submit request") {
+        // --- Submitting request ---
+        modalTitle = "Submission Confirmation";
+        modalMessage = "Are you sure you want to submit this request?";
+        $("#confirmAction").off("click").on("click", function () {
+            $("#confirmationModal").modal("hide");
+                // submitFiles();
+        });
+    }
+
+    // --- Set modal text ---
+    $("#confirmationModalLabel").text(modalTitle);
+    $("#confirmationMessage").text(modalMessage);
+
+    // --- Show modal ---
+    $("#confirmationModal").modal({
+        backdrop: true,
+        keyboard: false
+    });
+
+    // --- Adjust z-index for modal backdrop ---
+    setTimeout(function () {
+        $(".modal-backdrop").last().addClass("confirmation-backdrop");
+    }, 10);
+}
+
+  function addTeamMember() {
+     const $tbody = $("#teamCompositionInputs");
+     const newRowIndex = $tbody.find("tr").length + 1; // count existing rows + 1
+
+     const newRow = $(`
+          <tr>
+              <td class="text-end">${newRowIndex}</td>
+              <td><select class="form-control" name="team_member_names">{{ user_options | safe }}</select></td>
+              <td><select class="form-control" name="team_member_role">{{ team_role_options | safe }}</select></td>
+              <td class="text-center">
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                  <i class="fa fa-trash"></i>
+                </button>
+              </td>
+          </tr>
+      `);
+
+     $tbody.append(newRow);
+  }
+
+  function addTask() {
+     const $tbody = $("#taskInputs");
+     const newRowIndex = $tbody.find("tr").length + 1; // count existing rows + 1
+
+     const newRow = $(`
+          <tr>
+              <td class="text-end">${newRowIndex}</td>
+              <td>
+                  <textarea class="form-control" name="task[]" rows="2"
+                            placeholder="Enter task name" maxlength="150"></textarea>
+              </td>
+              <td>
+                  <select class="form-control" name="key_process_names">
+                      {{ key_process_options | safe }}
+                  </select>
+              </td>
+              <td>
+                  <input type="text" class="form-control start-date"
+                         name="start_date[]" placeholder="Start Date" autocomplete="off">
+              </td>
+              <td>
+                  <input type="text" class="form-control end-date"
+                         name="end_date[]" placeholder="End Date" autocomplete="off">
+              </td>
+              <td class="days-diff text-center">1</td>
+              <td class="text-center">
+                  <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                      <i class="fa fa-trash"></i>
+                  </button>
+              </td>
+          </tr>
+      `);
+
+     $tbody.append(newRow);
+
+     // re-init datepickers for new row
+     initDatePickers(newRow);
+
+     // recalc totals
+     calculateTotalDays();
+  }
+
+  function removeField(button) {
+     const $row = $(button).closest("tr");
+     const $tbody = $row.closest("tbody");
+     $row.remove();
+
+     // Re-number rows
+     $tbody.find("tr").each(function (index) {
+        const $cells = $(this).find("td");
+        if ($cells.length > 1) {
+           $cells.eq(0).text(index + 1);
+        }
+     });
+
+     // Recalculate task totals if applicable
+     if ($tbody.attr("id") === "taskInputs") {
+        calculateTotalDays();
+     }
+  }
+
+  // --- Date validation helpers ---
+  function showDateError($row, message) {
+     let $err = $row.find('.date-error');
+     if (!$err.length) {
+        $err = $('<div class="date-error text-danger small mt-1"></div>');
+        $row.find('.end-date').closest('td').append($err);
+     }
+     $err.text(message);
+  }
+
+  function clearDateError($row) {
+     $row.find('.date-error').remove();
+  }
+
+  function daysBetween(start, end) {
+     const s = new Date(start).setHours(0, 0, 0, 0);
+     const e = new Date(end).setHours(0, 0, 0, 0);
+     return ((e - s) / (1000 * 60 * 60 * 24)) + 1; // inclusive
+  }
+
+  function calculateDays($row) {
+     const startPicker = $row.find('.start-date')[0]?._flatpickr;
+     const endPicker = $row.find('.end-date')[0]?._flatpickr;
+     if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
+        const start = startPicker.selectedDates[0];
+        const end = endPicker.selectedDates[0];
+        const diff = daysBetween(start, end);
+        $row.find('.days-diff').text(diff >= 0 ? diff : 0);
+     }
+     calculateTotalDays();
+  }
+
+  function calculateTotalDays() {
+     let earliest = null;
+     let latest = null;
+
+     $("#taskInputs tr").each(function () {
+        const startPicker = $(this).find('.start-date')[0]?._flatpickr;
+        const endPicker = $(this).find('.end-date')[0]?._flatpickr;
+
+        if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
+           const start = startPicker.selectedDates[0];
+           const end = endPicker.selectedDates[0];
+
+           if (!earliest || start < earliest) earliest = start;
+           if (!latest || end > latest) latest = end;
+        }
+     });
+
+     if (earliest && latest) {
+        const diff = daysBetween(earliest, latest);
+        $(".total-days").text(diff >= 0 ? diff : 0);
+     } else {
+        $(".total-days").text(0);
+     }
+  }
+
+function addAttachmentRow() {
+    const table = document.getElementById("attachmentsTable");
+    const rowCount = table.rows.length - 1; // exclude last "Add File" row
+    const newRow = table.insertRow(rowCount);
+
+    // No data-attachment-id for new uploads
+    newRow.dataset.attachmentId = "";
+
+    newRow.innerHTML = `
+        <td class="text-end">${rowCount + 1}</td>
+        <td>
+            <input type="file" class="form-control" name="attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
+        </td>
+        <td>
+            <textarea class="form-control" name="attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="handleDownload(this)">
+                <i class="fa fa-download"></i>
+            </button>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+                <i class="fa fa-trash"></i>
+            </button>
+        </td>
+    `;
+}
+
+// New handler for download button
+function handleDownload(button) {
+    const row = button.closest("tr");
+    const attachmentId = row.dataset.attachmentId;
+    const fileName = row.cells[1].innerText.trim();
+
+    if (!attachmentId || !fileName) {
+        alert("File not uploaded yet.");
+        return;
+    }
+
+    const fileUrl = `/download/${fileName}`;
+    // Auto-detect file type
+    const ext = fileName.split('.').pop().toLowerCase();
+    if (["pdf", "png", "jpg", "jpeg"].includes(ext)) {
+        window.open(fileUrl, "_blank"); // open in new tab
+    } else {
+        const a = document.createElement("a");
+        a.href = fileUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+}
+
+  function removeAttachmentRow(btn) {
+     let row = btn.closest("tr");
+     row.parentNode.removeChild(row);
+
+     // Re-number rows
+     let table = document.getElementById("attachmentsTable");
+     for (let i = 0; i < table.rows.length - 1; i++) {
+        table.rows[i].cells[0].innerText = i + 1;
+     }
+  }
+
+function initDatePickers(context) {
+    context = (context instanceof jQuery) ? context : $(context);
+    let rows = context.is("tr") ? context : context.find("tr");
+
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+    rows.each(function () {
+        const $row = $(this);
+        const startElem = $row.find(".start-date")[0];
+        const endElem = $row.find(".end-date")[0];
+        if (!startElem || !endElem) return;
+
+        // --- Start date ---
+        if (!startElem._flatpickr) {
+            flatpickr(startElem, {
+                enableTime: false,
+                dateFormat: "Y-m-d",
+                allowInput: true,
+                defaultDate: startElem.value ? startElem.value : today,  // ✅ use today if empty
+                onChange: function (selectedDates) {
+                    const startDate = selectedDates[0];
+                    const endPicker = endElem._flatpickr;
+
+                    if (startDate && endPicker && endPicker.selectedDates[0]) {
+                        if (endPicker.selectedDates[0] < startDate) {
+                            endPicker.setDate(startDate, false);
+                            showDateError($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
+                        } else {
+                            clearDateError($row);
+                        }
+                    }
+                    calculateDays($row);
+                }
             });
         }
+
+        // --- End date ---
+        if (!endElem._flatpickr) {
+            flatpickr(endElem, {
+                enableTime: false,
+                dateFormat: "Y-m-d",
+                allowInput: true,
+                defaultDate: endElem.value ? endElem.value : today,  // ✅ use today if empty
+                onChange: function (selectedDates) {
+                    const endDate = selectedDates[0];
+                    const startPicker = startElem._flatpickr;
+
+                    if (endDate && startPicker && startPicker.selectedDates[0]) {
+                        if (endDate < startPicker.selectedDates[0]) {
+                            this.setDate(startPicker.selectedDates[0], false);
+                            showDateError($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
+                        } else {
+                            clearDateError($row);
+                        }
+                    }
+                    calculateDays($row);
+                }
+            });
+        }
+    });
+}
+
+
+function saveActivityRequest() {
+    // --- Overview fields ---
+    const overview = {
+        subject: $("#subject").val(),
+        objectives: $("#objectives").val(),
+        scope: $("#scope").val(),
+        stakeholders: $("#stakeholders").val(),
+        deliverables: $("#deliverables").val(),
+        assumptions: $("#assumptions").val()
+    };
+
+    // --- Team members ---
+    const team = [];
+    $("#teamCompositionInputs tr").each(function () {
+        const member_id = $(this).find("select[name='team_member_names']").val();
+        const role_id = $(this).find("select[name='team_member_role']").val();
+        if (member_id && role_id) {
+            team.push({ member_id, role_id });
+        }
+    });
+
+    // --- Tasks ---
+    const tasks = [];
+    $("#taskInputs tr").each(function () {
+        const task = $(this).find("textarea[name='task[]']").val();
+        const keyProcess = $(this).find("select[name='key_process_names']").val();
+        const startDate = $(this).find("input.start-date").val();
+        const endDate = $(this).find("input.end-date").val();
+        const days = $(this).find(".days-diff").text();
+
+        if (task && keyProcess && startDate && endDate) {
+            tasks.push({
+                task,
+                key_process: keyProcess,
+                start_date: startDate,
+                end_date: endDate,
+                days: parseInt(days)
+            });
+        }
+    });
+
+    // --- FormData for files & text ---
+    const formData = new FormData();
+
+    // Add structured data
+    const payload = { overview, team, tasks };
+    if (currentActivityRequestId !== 0) {
+        payload.activity_request_id = currentActivityRequestId;
+    }
+    formData.append("data", JSON.stringify(payload));
+
+    // --- Attachments ---
+    const retainedAttachmentIds = [];
+    $("#attachmentsTable tr").each(function () {
+        const fileInput = $(this).find("input[type='file']")[0];
+        const desc = $(this).find("textarea[name='attachment_description[]']").val();
+        const attachmentId = $(this).data("attachment-id");
+
+        if (attachmentId) {
+            retainedAttachmentIds.push(attachmentId);
+        }
+
+        if (fileInput && fileInput.files.length > 0) {
+            formData.append("attachments", fileInput.files[0]);
+            formData.append("attachment_descriptions", desc || "");
+        }
+    });
+
+    if (currentActivityRequestId !== 0) {
+        formData.append("retained_attachment_ids", JSON.stringify(retainedAttachmentIds));
+    }
+
+    // --- Determine URL based on currentActivityRequestId ---
+    const url = currentActivityRequestId === 0
+        ? "/save_activity_request"
+        : "/update_activity_request";
+
+    // --- AJAX request ---
+    $.ajax({
+        url: url,
+        type: "POST",
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function (response) {
+            showFlashMessage(response.message, "success");
+
+            // Reset ID after successful save to avoid accidental updates
+            currentActivityRequestId = 0;
+
+            $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function () {
+                location.reload();
+            });
+        },
+        error: function (xhr) {
+            let errorMessage = xhr.responseJSON?.error || "An unexpected error occurred.";
+            let messageType = xhr.responseJSON?.type || "danger";
+            showFlashMessage(errorMessage, messageType);
+        }
+    });
+}
+
+  $(document).ready(function () {
+
+                    // --- Reset global tracker ---
+                currentActivityRequestId = 0;
+
+                // --- Clear hidden ID field ---
+                $("#activity_request_id").val("");
+
+                // --- Reset all form inputs, selects, and textareas ---
+                $("#activityForm")[0].reset();
+
+     initDatePickers($('#taskInputs'));
+
+     // Rotate caret icons on accordion expand/collapse
+     $(document).on("show.bs.collapse", "#activityAccordion .collapse", function () {
+        $(this).prev(".card-header").find(".caret-icon2").addClass("rotated");
+     });
+
+     $(document).on("hide.bs.collapse", "#activityAccordion .collapse", function () {
+        $(this).prev(".card-header").find(".caret-icon2").removeClass("rotated");
+     });
+
+        const table = $('#savedActivityRequestsTable').DataTable({
+            paging: true,
+            searching: true,
+            ordering: true,
+            lengthMenu: [5, 10, 25, 50, 100],
+            pageLength: 10,
+            dom:
+                '<"row"<"col-md-6"l><"col-md-6"f>>' +
+                '<"row"<"col-md-12"B>>' +
+                '<"row"<"col-md-12"t>>' +
+                '<"row"<"col-md-6"i><"col-md-6"p>>',
+            buttons: [
+                {
+                    extend: 'copy',
+                    text: 'Copy',
+                    className: 'btn btn-secondary',
+                    exportOptions: {
+                        stripHtml: false,
+                        columns: ':visible',
+                        format: {
+                            body: function (data, row, column, node) {
+                                return $(node).text().trim();
+                            }
+                        }
+                    }
+                },
+                {
+                    extend: 'csv',
+                    text: 'Export to CSV',
+                    className: 'btn btn-secondary',
+                    exportOptions: {
+                        stripHtml: false,
+                        columns: ':visible',
+                        format: {
+                            body: function (data, row, column, node) {
+                                return $(node).text().trim();
+                            }
+                        }
+                    }
+                },
+                {
+                    extend: 'excel',
+                    text: 'Export to Excel',
+                    className: 'btn btn-secondary',
+                    exportOptions: {
+                        stripHtml: false,
+                        columns: ':visible',
+                        format: {
+                            body: function (data, row, column, node) {
+                                return $(node).text().trim();
+                            }
+                        }
+                    }
+                },
+                {
+                    extend: 'pdfHtml5',
+                    text: 'Export to PDF',
+                    className: 'btn btn-secondary',
+                    orientation: 'landscape',
+                    title: function () {
+                        return 'Saved Activity Requests';
+                    },
+                    customize: function (doc) {
+                        // Insert logo (left-aligned)
+                        doc.content.splice(0, 0, {
+                            image: logoBase64,
+                            width: 100,
+                            alignment: 'left',
+                            margin: [0, 0, 0, 10]
+                        });
+                        // Center only the title text
+                        doc.styles.title.alignment = 'center';
+                    },
+                    exportOptions: {
+                        stripHtml: false,
+                        columns: ':visible',
+                        format: {
+                            body: function (data, row, column, node) {
+                                return $(node).text().trim();
+                            }
+                        }
+                    }
+                },
+                {
+                    extend: 'print',
+                    text: 'Print',
+                    className: 'btn btn-secondary',
+                    orientation: 'landscape',
+                    title: function () {
+                        return 'Saved Activity Requests';
+                    },
+                    customize: function (win) {
+                        // Add logo (left-aligned)
+                        $(win.document.body).prepend(
+                            '<div style="text-align:left; margin-bottom:10px;">' +
+                            '<img src="' + logoBase64 + '" style="width:200px; margin-bottom:10px;" />' +
+                            '</div>'
+                        );
+                        // Center only the title text
+                        $(win.document.body).find('h1').css('text-align', 'center');
+                    },
+                    exportOptions: {
+                        stripHtml: false,
+                        columns: ':visible',
+                        format: {
+                            body: function (data, row, column, node) {
+                                return $(node).text().trim();
+                            }
+                        }
+                    }
+                }
+            ],
+            language: {
+                emptyTable: "No records found",
+                zeroRecords: "No matching records found",
+                search: "Search:",
+                lengthMenu: "Show _MENU_ entries per page",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
+            },
+            columnDefs: [
+                { orderable: false, targets: 0 } // Disable ordering on # column
+            ]
+        });
+
+        // Add dynamic row numbering
+        table.on('order.dt search.dt draw.dt', function () {
+            table.column(0, { search: 'applied', order: 'applied' }).nodes().each(function (cell, i) {
+                cell.innerHTML = i + 1;
+            });
+        }).draw();
+  });
+
+    // Populate saved activity request
+    $(document).off("click", ".edit-saved-activity-request-btn").on("click", ".edit-saved-activity-request-btn", function () {
+
+    console.log("Edit button clicked");
+    const activityId = $(this).attr("saved-activity-request-id");
+    console.log("Loaded activity_request_id:", activityId);
+
+        currentActivityRequestId = activityId;
+
+        $.ajax({
+            url: "/get-saved-activity-request-details",
+            type: "GET",
+            data: { activity_request_id: activityId },
+            success: function (data) {
+                // Populate modal fields
+                $("#subject").val(data.subject);
+                $("#objectives").val(data.objectives);
+                $("#scope").val(data.scope);
+                $("#stakeholders").val(data.stakeholders);
+                $("#deliverables").val(data.deliverables);
+                $("#assumptions").val(data.assumptions);
+            },
+            error: function () {
+                showFlashMessage("Failed to load saved activity request details. Please try again.", "danger");
+            }
+        });
+
+        // Load team composition separately
+        $.ajax({
+            url: "/get-activity-team-composition-details",
+            type: "GET",
+            data: { activity_request_id: activityId },
+            success: function (response) {
+                if (response.team && response.team.length > 0) {
+                    const $tbody = $("#teamCompositionInputs");
+                    $tbody.empty(); // clear old rows
+
+                    response.team.forEach((member, index) => {
+                        const newRow = $(`
+                            <tr>
+                                <td class="text-end">${index + 1}</td>
+                                <td>
+                                    <select class="form-control" name="team_member_names">
+                                        {{ user_options | safe }}
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-control" name="team_member_role">
+                                        {{ team_role_options | safe }}
+                                    </select>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `);
+
+                        // Pre-select saved values
+                        newRow.find("select[name='team_member_names']").val(member.member_user_id);
+                        newRow.find("select[name='team_member_role']").val(member.member_role_id);
+
+                        $tbody.append(newRow);
+                    });
+                } else {
+                    showFlashMessage("No team members found for this request.", "warning");
+                }
+            },
+            error: function (xhr) {
+                showFlashMessage(xhr.responseJSON?.error || "Failed to load team members.", "danger");
+            }
+        });
+
+        // Load tasks of activity request
+        $.ajax({
+            url: "/get-activity-tasks-details",
+            type: "GET",
+            data: { activity_request_id: activityId },
+            success: function (response) {
+                if (response.tasks && response.tasks.length > 0) {
+                    const $tbody = $("#taskInputs");
+                    $tbody.empty(); // clear old rows
+
+                    response.tasks.forEach((task, index) => {
+                        // Format dates to match Flatpickr’s Y-m-d
+                        const startDate = task.start_date ? new Date(task.start_date).toISOString().split('T')[0] : '';
+                        const endDate = task.end_date ? new Date(task.end_date).toISOString().split('T')[0] : '';
+
+                        const newRow = $(`
+                            <tr>
+                                <td class="text-end">${index + 1}</td>
+                                <td>
+                                    <textarea class="form-control" name="task[]" rows="2"
+                                        placeholder="Enter task name" maxlength="150">${task.task || ''}</textarea>
+                                </td>
+                                <td>
+                                    <select class="form-control" name="key_process_names">
+                                        {{ key_process_options | safe }}
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control start-date" name="start_date[]"
+                                        placeholder="Start Date" value="${startDate}" autocomplete="off">
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control end-date" name="end_date[]"
+                                        placeholder="End Date" value="${endDate}" autocomplete="off">
+                                </td>
+                                <td class="days-diff text-center">1</td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `);
+
+                        // Preselect key process if available
+                        newRow.find("select[name='key_process_names']").val(task.key_process_id);
+
+                        $tbody.append(newRow);
+                    });
+
+                    // Reinitialize datepickers on loaded rows
+                    initDatePickers($tbody);
+
+                    // Recalculate days per row based on loaded start/end values
+                    $tbody.find("tr").each(function () {
+                        calculateDays($(this));
+                    });
+
+                    // Trigger day calculations
+                    calculateTotalDays();
+                } else {
+                    showFlashMessage("No tasks found for this request.", "warning");
+                }
+            },
+            error: function (xhr) {
+                showFlashMessage(xhr.responseJSON?.error || "Failed to load tasks.", "danger");
+            }
+        });
+
+        // Load attachments
+        $.ajax({
+            url: "/get-activity-attachments",
+            type: "GET",
+            data: { activity_request_id: activityId },
+            success: function (response) {
+                const attachments = response.attachments || [];
+                const $tbody = $("#attachmentsTable");
+                $tbody.empty(); // clear any existing rows
+
+                if (attachments.length > 0) {
+                    attachments.forEach((att, index) => {
+                        const fileUrl = `/download/${att.file}`; // adjust if uploads folder is elsewhere
+                        const newRow = $(`
+                            <tr data-attachment-id="${att.id}">
+                                <td class="text-end">${index + 1}</td>
+                                <td>${att.file}</td>
+                                <td>
+                                    <textarea class="form-control" name="attachment_description[]" rows="2"
+                                        placeholder="Enter description (optional)" maxlength="500">${att.description || ''}</textarea>
+                                </td>
+                                <td class="text-center">
+                                    <a href="${fileUrl}" class="btn btn-sm btn-secondary"
+                                       ${att.file.toLowerCase().match(/\.(pdf|png|jpg|jpeg)$/) ? 'target="_blank"' : 'download'}>
+                                        <i class="fa fa-download"></i>
+                                    </a>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `);
+                        $tbody.append(newRow);
+                    });
+                } else {
+                    // If no attachments exist, show an empty file input row
+                    const emptyRow = $(`
+                        <tr>
+                            <td class="text-end">1</td>
+                            <td><input type="file" class="form-control" name="attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"></td>
+                            <td><textarea class="form-control" name="attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea></td>
+                            <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)"><i class="fa fa-trash"></i></button></td>
+                        </tr>
+                    `);
+                    $tbody.append(emptyRow);
+                }
+
+                // Always append the "Add File" row at the end
+                $tbody.append(`
+                    <tr>
+                        <td colspan="5" class="text-end">
+                            <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRow()">
+                                <i class="fa fa-plus"></i> Add File
+                            </button>
+                        </td>
+                    </tr>
+                `);
+            },
+            error: function (xhr) {
+                showFlashMessage(xhr.responseJSON?.error || "Failed to load attachments.", "danger");
+            }
+        });
+    });
+
+    function resetPage() {
+        let modalTitle = "";
+        let modalMessage = "";
+
+        modalTitle = "Page Reset Confirmation";
+        modalMessage = "Are you sure you want to reset this page?";
+
+        $("#confirmAction").off("click").on("click", function () {
+            $("#confirmationModal").modal("hide");
+                // --- Reset global tracker ---
+                currentActivityRequestId = 0;
+
+                // --- Clear hidden ID field ---
+                $("#activity_request_id").val("");
+
+                // --- Reset all form inputs, selects, and textareas ---
+                $("#activityForm")[0].reset();
+
+                // --- Clear and repopulate Team Composition section ---
+                const $teamBody = $("#teamCompositionInputs");
+                $teamBody.empty().append(`
+                    <tr>
+                        <td class="text-end">1</td>
+                        <td>
+                            <select class="form-control" name="team_member_names">
+                                {{ user_options | safe }}
+                            </select>
+                        </td>
+                        <td>
+                            <select class="form-control" name="team_member_role">
+                                {{ team_role_options | safe }}
+                            </select>
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                                <i class="fa fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+
+                // --- Clear and repopulate Task Breakdown section ---
+                const $taskBody = $("#taskInputs");
+                $taskBody.empty().append(`
+                    <tr>
+                        <td class="text-end">1</td>
+                        <td>
+                            <textarea class="form-control" name="task[]" rows="2" placeholder="Enter task name" maxlength="150"></textarea>
+                        </td>
+                        <td>
+                            <select class="form-control" name="key_process_names">
+                                {{ key_process_options | safe }}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" class="form-control start-date" name="start_date[]" placeholder="Start Date" autocomplete="off">
+                        </td>
+                        <td>
+                            <input type="text" class="form-control end-date" name="end_date[]" placeholder="End Date" autocomplete="off">
+                        </td>
+                        <td class="days-diff text-center">1</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                                <i class="fa fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+
+                // Reset total days display
+                $(".total-days").text("1");
+
+                // Reinitialize Flatpickr on newly inserted date inputs
+                if (typeof initDatePickers === "function") {
+                    initDatePickers($taskBody);
+                }
+
+                // --- Clear and repopulate Attachments section ---
+                const $attachmentsBody = $("#attachmentsTable");
+                $attachmentsBody.empty().append(`
+                    <tr>
+                        <td class="text-end">1</td>
+                        <td>
+                            <input type="file" class="form-control" name="attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
+                        </td>
+                        <td>
+                            <textarea class="form-control" name="attachment_description[]" rows="2"
+                                      placeholder="Enter description (optional)" maxlength="500"></textarea>
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-secondary">
+                                <i class="fa fa-download"></i>
+                            </button>
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+                                <i class="fa fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" class="text-end">
+                            <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRow()">
+                                <i class="fa fa-plus"></i> Add File
+                            </button>
+                        </td>
+                    </tr>
+                `);
+
+                // --- Collapse all accordion sections ---
+                $("#activityAccordion .collapse").collapse("hide");
+
+                // --- Scroll to top ---
+                $("html, body").animate({ scrollTop: 0 }, "fast");
+
+                // --- Feedback for user ---
+                showFlashMessage("Page has been reset successfully.", "info");
+        });
 
         $("#confirmationModalLabel").text(modalTitle);
         $("#confirmationMessage").text(modalMessage);
@@ -293,253 +1331,12 @@ function validateForm() {
             keyboard: false
         });
 
-        // Wait for Bootstrap to insert backdrop, then adjust z-index
+        // Adjust z-index for confirmation backdrop
         setTimeout(function () {
             $('.modal-backdrop').last().addClass('confirmation-backdrop');
         }, 10);
     }
 
-    function addTeamMember() {
-        const addButtonRow = $("#teamCompositionInputs tr:last");
-        const newRowIndex = $("#teamCompositionInputs tr").length;
-
-        const memberOptions = `{{ user_options | safe }}`;
-        const roleOptions = `{{ team_role_options | safe }}`;
-
-        const newRow = $(`
-            <tr>
-                <td class="text-end">${newRowIndex}</td>
-                <td><select class="form-control" name="team_member_names">${memberOptions}</select></td>
-                <td><select class="form-control" name="team_member_role">${roleOptions}</select></td>
-                <td><button class="btn-outline-custom float-end" type="button" onclick="removeField(this)">Remove Member</button></td>
-            </tr>
-        `);
-
-        addButtonRow.before(newRow);
-    }
-
-function addTask() {
-    const addButtonRow = $("#taskInputs tr.total-days-row");
-    const newRowIndex = $("#taskInputs tr").length;
-
-    const newRow = $(`
-        <tr>
-            <td class="text-end">${newRowIndex}</td>
-            <td><textarea class="form-control" name="task[]" rows="3" placeholder="Enter task name" maxlength="150"></textarea></td>
-            <td>
-              <select class="form-control" name="key_process_names">
-                  {{ key_process_options | safe }}
-              </select>
-            </td>
-            <td><input type="text" class="form-control start-date" placeholder="Start Date" autocomplete="off"></td>
-            <td><input type="text" class="form-control end-date" placeholder="End Date" autocomplete="off"></td>
-            <td class="days-diff text-center">1</td>
-            <td><button class="btn-outline-custom float-end" type="button" onclick="removeField(this)">Remove Task</button></td>
-        </tr>
-    `);
-
-    addButtonRow.before(newRow);
-    initDatePickers(newRow);
-}
-
-function removeField(button) {
-    $(button).closest("tr").remove();
-    calculateTotalDays();
-}
-
-    // --- Date validation helpers ---
-    function showDateError($row, message) {
-        let $err = $row.find('.date-error');
-        if (!$err.length) {
-            $err = $('<div class="date-error text-danger small mt-1"></div>');
-            $row.find('.end-date').closest('td').append($err);
-        }
-        $err.text(message);
-    }
-
-    function clearDateError($row) {
-        $row.find('.date-error').remove();
-    }
-
-function daysBetween(start, end) {
-    const s = new Date(start).setHours(0, 0, 0, 0);
-    const e = new Date(end).setHours(0, 0, 0, 0);
-    return ((e - s) / (1000 * 60 * 60 * 24)) + 1; // inclusive
-}
-
-function calculateDays($row) {
-    const startPicker = $row.find('.start-date')[0]?._flatpickr;
-    const endPicker = $row.find('.end-date')[0]?._flatpickr;
-    if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
-        const start = startPicker.selectedDates[0];
-        const end = endPicker.selectedDates[0];
-        const diff = daysBetween(start, end);
-        $row.find('.days-diff').text(diff >= 0 ? diff : 0);
-    }
-    calculateTotalDays();
-}
-
-function calculateTotalDays() {
-    let earliest = null;
-    let latest = null;
-
-    $("#taskInputs tr").each(function () {
-        const startPicker = $(this).find('.start-date')[0]?._flatpickr;
-        const endPicker = $(this).find('.end-date')[0]?._flatpickr;
-
-        if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
-            const start = startPicker.selectedDates[0];
-            const end = endPicker.selectedDates[0];
-
-            if (!earliest || start < earliest) earliest = start;
-            if (!latest || end > latest) latest = end;
-        }
-    });
-
-    if (earliest && latest) {
-        const diff = daysBetween(earliest, latest);
-        $(".total-days").text(diff >= 0 ? diff : 0);
-    } else {
-        $(".total-days").text(0);
-    }
-}
-
-    function initDatePickers(context) {
-        context = (context instanceof jQuery) ? context : $(context);
-        let rows = context.is('tr') ? context : context.find('tr');
-
-        rows.each(function () {
-            const $row = $(this);
-            const startElem = $row.find('.start-date')[0];
-            const endElem = $row.find('.end-date')[0];
-            if (!startElem || !endElem) return;
-
-            // Start date
-            if (!startElem._flatpickr) {
-                flatpickr(startElem, {
-                    enableTime: false,
-                    dateFormat: "Y-m-d",
-                    allowInput: true,
-                    defaultDate: new Date(),
-                    onChange: function (selectedDates) {
-                        const startDate = selectedDates[0];
-                        const endPicker = endElem._flatpickr;
-                        if (startDate && endPicker && endPicker.selectedDates[0]) {
-                            if (endPicker.selectedDates[0] < startDate) {
-                                endPicker.setDate(startDate, false);
-                                showDateError($row, 'End Date cannot be earlier than Start Date. Adjusted automatically.');
-                            } else {
-                                clearDateError($row);
-                            }
-                        }
-                        calculateDays($row);
-                    }
-                });
-            }
-
-            // End date
-            if (!endElem._flatpickr) {
-                flatpickr(endElem, {
-                    enableTime: false,
-                    dateFormat: "Y-m-d",
-                    allowInput: true,
-                    defaultDate: new Date(),
-                    onChange: function (selectedDates) {
-                        const endDate = selectedDates[0];
-                        const startPicker = startElem._flatpickr;
-                        if (endDate && startPicker && startPicker.selectedDates[0]) {
-                            if (endDate < startPicker.selectedDates[0]) {
-                                this.setDate(startPicker.selectedDates[0], false);
-                                showDateError($row, 'End Date cannot be earlier than Start Date. Adjusted automatically.');
-                            } else {
-                                clearDateError($row);
-                            }
-                        }
-                        calculateDays($row);
-                    }
-                });
-            }
-        });
-    }
-
-    function saveActivityRequest() {
-        // Overview fields
-        const overview = {
-            subject: $("#subject").val(),
-            objectives: $("#objectives").val(),
-            scope: $("#scope").val(),
-            stakeholders: $("#stakeholders").val(),
-            deliverables: $("#deliverables").val(),
-            assumptions: $("#assumptions").val()
-        };
-
-        // Team members
-        const team = [];
-        $("#teamCompositionInputs tr").each(function () {
-            const member_id = $(this).find("select[name='team_member_names']").val();
-            const role_id = $(this).find("select[name='team_member_role']").val();
-            if (member_id && role_id) {
-                team.push({ member_id: member_id, role_id: role_id });
-            }
-        });
-
-        // Tasks
-        const tasks = [];
-        $("#taskInputs tr").each(function () {
-            const task = $(this).find("textarea[name='task[]']").val();
-            const keyProcess = $(this).find("select[name='key_process_names']").val();
-            const startDate = $(this).find("input.start-date").val();
-            const endDate = $(this).find("input.end-date").val();
-            const days = $(this).find(".days-diff").text();
-
-            if (task && keyProcess && startDate && endDate) {
-                tasks.push({
-                    task: task,
-                    key_process: keyProcess,
-                    start_date: startDate,
-                    end_date: endDate,
-                    days: parseInt(days)
-                });
-            }
-        });
-
-        const payload = {
-            overview: overview,
-            team: team,
-            tasks: tasks
-        };
-
-        $.ajax({
-            url: "/save_activity_request",
-            type: "POST",
-            contentType: "application/json",
-            data: JSON.stringify(payload),
-            success: function (response) {
-                showFlashMessage(response.message, "success");
-                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function () {
-                    location.reload();
-                });
-            },
-            error: function (xhr) {
-                let errorMessage = xhr.responseJSON?.error || "An unexpected error occurred.";
-                let messageType = xhr.responseJSON?.type || "danger";
-                showFlashMessage(errorMessage, messageType);
-            }
-        });
-    }
-
-    $(document).ready(function () {
-        initDatePickers($('#taskInputs'));
-
-        // Rotate caret icons on accordion expand/collapse
-        $(document).on("show.bs.collapse", "#activityAccordion .collapse", function () {
-            $(this).prev(".card-header").find(".caret-icon2").addClass("rotated");
-        });
-
-        $(document).on("hide.bs.collapse", "#activityAccordion .collapse", function () {
-            $(this).prev(".card-header").find(".caret-icon2").removeClass("rotated");
-        });
-    });
 </script>
 
 <style>

@@ -319,7 +319,7 @@
                      {% if 'Submit Reconciliations' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('activity_request_page') %} active {% endif %}"
                            href="{{ url_for('activity_request_page') }}">
-                           <i class="fa-solid fa-paper-plane"></i>
+                           <i class="fa-solid fa-pen-to-square"></i>
                            <span>Activity Request</span>
                               {% if pending_submissions_count > 0 %}
                                  <span class="badge badge-danger rounded-pill ml-1">{{ pending_submissions_count }}</span>
