@@ -5184,7 +5184,7 @@ class ActivityRequest:
             conn.close()
 
     @staticmethod
-    def get_saved_activity_request_details(status, user_id):
+    def get_saved_activity_request_details(status, user_id, project_id):
         conn = get_db_connection()
         if conn is None:
             return []  # Return empty list if the database connection fails
@@ -5193,13 +5193,14 @@ class ActivityRequest:
 
         try:
             query = """
-                        SELECT a.id, c.project_code, c.project_name, b.subject, a.last_modified FROM trn_activity_request a
+                        SELECT a.id, c.project_code, c.project_name, b.subject, a.last_modified 
+                        FROM trn_activity_request a
                         LEFT OUTER JOIN trn_activity_overview b ON a.id = b.activity_id
                         LEFT OUTER JOIN project c ON a.project_id = c.id
-                        WHERE a.status = ? AND a.user_id = ?
+                        WHERE a.status = ? AND a.user_id = ? AND a.project_id = ?
                         ORDER BY a.last_modified;
                     """
-            cursor.execute(query, (status, user_id,))
+            cursor.execute(query, (status, user_id, project_id,))
             result = cursor.fetchall()
 
             activity_request_details = [

@@ -133,11 +133,21 @@ def submit_reconciliations_page():
 @role_required(1, 25)
 # hint: "@role_required" refers to id of workflow_breakdown database table
 def activity_request_page():
+    # Get selected project from session
+    project = session.get('selected_project')
+    project_id = project.get('id') if project else None
+
+    if not project_id:
+        # Optionally handle missing project selection
+        return render_template(
+            'error.html',
+            message="No project selected. Please select a project first."
+        )
 
     user_details = UserSummary.get_all_usersnames()
     team_member_details = ActivityRequest.get_team_member_roles_details()
     key_process_details = ActivityRequest.get_key_process_details()
-    activity_request_details = ActivityRequest.get_saved_activity_request_details(1, current_user.id)
+    activity_request_details = ActivityRequest.get_saved_activity_request_details(1, current_user.id, project_id)
 
     return render_template('activity_request.html', user_details=user_details,
                            team_member_details=team_member_details, key_process_details=key_process_details,
