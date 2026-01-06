@@ -280,16 +280,16 @@
             </div>
             <div class="panel-group" id="accordion">
                <!-- Static Sidebar Items -->
-               <div class="panel panel-default">
-                  <div class="panel-heading">
-                     <a class="nav-link menu-collapse-heading d-flex align-items-center {% if request.path == url_for('home_page') %} active {% endif %}"
-                        href="{{ url_for('home_page') }}">
-                     <i class="fa-solid fa-house"></i>
-                     <span>Home</span>
-                     <i class="fa fa-caret-down caret-icon" style="visibility: hidden;"></i>
-                     </a>
-                  </div>
-               </div>
+<!--               <div class="panel panel-default">-->
+<!--                  <div class="panel-heading">-->
+<!--                     <a class="nav-link menu-collapse-heading d-flex align-items-center {% if request.path == url_for('home_page') %} active {% endif %}"-->
+<!--                        href="{{ url_for('home_page') }}">-->
+<!--                     <i class="fa-solid fa-house"></i>-->
+<!--                     <span>Home</span>-->
+<!--                     <i class="fa fa-caret-down caret-icon" style="visibility: hidden;"></i>-->
+<!--                     </a>-->
+<!--                  </div>-->
+<!--               </div>-->
 
                <div class="panel panel-default">
                   <div class="panel-heading">
@@ -327,30 +327,27 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Submit Reconciliations' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('submit_reconciliations_page') %} active {% endif %}"
-                           href="{{ url_for('submit_reconciliations_page') }}">
-                           <i class="fa-solid fa-paper-plane"></i>
-                           <span>Submit Reconciliations</span>
-                              {% if pending_submissions_count > 0 %}
-                                 <span class="badge badge-danger rounded-pill ml-1">{{ pending_submissions_count }}</span>
-                              {% endif %}
+                     {% if 'Submitted Reconciliations' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('submitted_activity_requests_page') %} active {% endif %}"
+                           href="{{ url_for('submitted_activity_requests_page') }}">
+                        <i class="fa-solid fa-folder"></i>
+                        <span>Submitted Activity Requests</span>
                         </a>
                      {% endif %}
 
                      {% if 'Submitted Reconciliations' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('submitted_reconciliations_page') %} active {% endif %}"
-                           href="{{ url_for('submitted_reconciliations_page') }}">
-                        <i class="fa-solid fa-folder"></i>
-                        <span>Submitted Reconciliations</span>
+                        <a class="nav-link {% if request.path == url_for('work_in_progress_page') %} active {% endif %}"
+                           href="{{ url_for('work_in_progress_page') }}">
+                           <i class="fa fa-spinner"></i>
+                        <span>Work in Progress</span>
                         </a>
                      {% endif %}
 
                      {% if 'Approve Reconciliations' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('approve_reconciliations_page') %} active {% endif %}"
-                           href="{{ url_for('approve_reconciliations_page') }}">
+                        <a class="nav-link {% if request.path == url_for('approve_activity_requests_page') %} active {% endif %}"
+                           href="{{ url_for('approve_activity_requests_page') }}">
                         <i class="fa fa-check-square"></i>
-                        <span>Approve Reconciliations</span>
+                        <span>Approve Activity Requests</span>
                            {% if pending_approvals_count > 0 %}
                               <span class="badge badge-danger rounded-pill ml-1">{{ pending_approvals_count }}</span>
                            {% endif %}
@@ -598,7 +595,8 @@
             {% include 'includes/submit_uploaded_files_edit_modal.html' %}
             {% include 'includes/flash_message_modal.html' %}
             {% include 'includes/approval_action_modal.html' %}
-            {% include 'includes/reconciliation_file_details_modal.html' %}
+            {% include 'includes/activity_request_details_modal.html' %}
+            {% include 'includes/work_in_progress_add_log_modal.html' %}
          </div>
       </main>
    </body>

@@ -479,8 +479,8 @@ class EmailHelper(UserMixin):
         self.id = id
 
     @staticmethod
-    def send_submitted_reconciliations_email(current_fname, next_approver_email, next_approver_fname, files):
-        subject = "Bank Reconciliations Submitted for Approval"
+    def send_submitted_activity_request_email(current_fname, next_approver_email, next_approver_fname, details):
+        subject = "Activity Request Submitted for Approval"
 
         # Email body with Poppins font and inline styles
         body = f"""
@@ -490,31 +490,29 @@ class EmailHelper(UserMixin):
         </head>
         <body style="font-family: 'Poppins', sans-serif; margin: 20px; color: #333;">
             <p style="font-size: 14px;">Dear {next_approver_fname},</p>
-            <p style="font-size: 14px;">{current_fname} has submitted reconciliation files that require your approval.</p>
+            <p style="font-size: 14px;">{current_fname} has submitted the following activity request for your approval.</p>
 
-            <p style="font-size: 14px; font-weight: bold; margin-top: 25px;">Submitted Reconciliations:</p>
+            <p style="font-size: 14px; font-weight: bold; margin-top: 25px;">Activity Request:</p>
 
             <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%; font-size: 14px;">
                 <thead>
                     <tr style="background-color: #f2f2f2;">
                         <th style="border: 1px solid #ddd; text-align: center; padding: 8px;">#</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Bank Account ID</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Year</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Month</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">File Name</th>
+                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Project Code</th>
+                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Project Name</th>
+                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Subject</th>
                     </tr>
                 </thead>
                 <tbody>
         """
 
-        for index, file in enumerate(files, start=1):
+        for index, detail in enumerate(details, start=1):
             body += f"""
                     <tr>
                         <td style="border: 1px solid #ddd; text-align: center; padding: 8px;">{index}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('bank_account_id')}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('year')}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('month')}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('file_name')}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.get('project_code')}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.get('project_name')}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{detail.get('subject')}</td>
                     </tr>
             """
 
@@ -523,7 +521,7 @@ class EmailHelper(UserMixin):
             </table>
 
             <p style="margin-top: 25px; margin-bottom: 25px;">
-                🔗 <a href="https://brt.uetcl.com/approve-reconciliations" 
+                🔗 <a href="http://127.0.0.1:5000/approve-activity-requests" 
                 style="color: #4270a8; text-decoration: none; font-weight: 600;">Click here to review and approve</a>
             </p>
 
@@ -531,7 +529,7 @@ class EmailHelper(UserMixin):
 
             <p style="font-size: 14px;">
                 <strong>Best Regards,</strong><br>
-                Bank Reconciliation Tracker<br>              
+                Land Acquisition Activity Tracker<br>              
             </p>
         </body>
         </html>
@@ -547,7 +545,7 @@ class EmailHelper(UserMixin):
 
     @staticmethod
     def send_email_notification_to_next_approver(current_fname, next_approver_email, next_approver_fname, files):
-        subject = "Bank Reconciliations Approval"
+        subject = "Activity Request Approval"
 
         # Email body with Poppins font and inline styles
         body = f"""
@@ -557,16 +555,15 @@ class EmailHelper(UserMixin):
         </head>
         <body style="font-family: 'Poppins', sans-serif; margin: 20px; color: #333;">
             <p style="font-size: 14px;">Dear {next_approver_fname},</p>
-            <p style="font-size: 14px;">Please be notified that the following reconciliations have been forwarded to you for approval:</p>
+            <p style="font-size: 14px;">Please be notified that the following activity requests have been forwarded to you for approval:</p>
 
             <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%; font-size: 14px;">
                 <thead>
                     <tr style="background-color: #f2f2f2;">
                         <th style="border: 1px solid #ddd; text-align: center; padding: 8px;">#</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Bank Account ID</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Year</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Month</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">File Name</th>
+                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Project Code</th>
+                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Project Name</th>
+                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Subject</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -576,10 +573,9 @@ class EmailHelper(UserMixin):
             body += f"""
                     <tr>
                         <td style="border: 1px solid #ddd; text-align: center; padding: 8px;">{index}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('bank_account_id')}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('year')}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('month')}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('file_name')}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('project_code')}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('project_name')}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('subject')}</td>
                     </tr>
             """
 
@@ -596,7 +592,7 @@ class EmailHelper(UserMixin):
 
             <p style="font-size: 14px;">
                 <strong>Best Regards,</strong><br>
-                Bank Reconciliation Tracker<br>                
+                Land Acquisition Activity Tracker<br>                
             </p>
         </body>
         </html>
@@ -613,7 +609,7 @@ class EmailHelper(UserMixin):
     @staticmethod
     def send_approval_summary_emails(current_fname, initiator_approver_email, initiator_approver_fname, files, action):
         action_for_email_subject = "Approval" if action == "approved" else "Rejection"
-        subject = "Bank Reconciliation(s) " + action_for_email_subject
+        subject = "Activity Request(s) " + action_for_email_subject
 
         # Email body with Poppins font and inline styles
         body = f"""
@@ -623,16 +619,15 @@ class EmailHelper(UserMixin):
         </head>
         <body style="font-family: 'Poppins', sans-serif; margin: 20px; color: #333;">
             <p style="font-size: 14px;">Dear {initiator_approver_fname},</p>
-            <p style="font-size: 14px;">The following reconciliation(s) that you submitted have been {action} by {current_fname}.</p>
+            <p style="font-size: 14px;">The following activity requests(s) that you submitted have been {action} by {current_fname}.</p>
 
             <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%; font-size: 14px;">
                 <thead>
                     <tr style="background-color: #f2f2f2;">
                         <th style="border: 1px solid #ddd; text-align: center; padding: 8px;">#</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Bank Account ID</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Year</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Month</th>
-                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">File Name</th>
+                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Project Code</th>
+                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Project Name</th>
+                        <th style="border: 1px solid #ddd; text-align: left; padding: 8px;">Subject</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -642,10 +637,9 @@ class EmailHelper(UserMixin):
             body += f"""
                     <tr>
                         <td style="border: 1px solid #ddd; text-align: center; padding: 8px;">{index}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('bank_account_id')}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('year')}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('month')}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('file_name')}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('project_code', '')}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('project_name', '')}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">{file.get('subject', '')}</td>
                     </tr>
             """
 
@@ -660,7 +654,7 @@ class EmailHelper(UserMixin):
 
             <p style="font-size: 14px;">
                 <strong>Best Regards,</strong><br>
-                Bank Reconciliation Tracker<br>                
+                Land Acquisition Activity Tracker<br>                
             </p>
         </body>
         </html>
@@ -1355,10 +1349,10 @@ class FileUpload:
                         LEFT OUTER JOIN users d ON d.id = c.user_id
                         LEFT OUTER JOIN (
                             SELECT ra1.file_upload_id, ra1.decision
-                            FROM reconciliation_approvals ra1
+                            FROM trn_activity_request_approvals ra1
                             WHERE ra1.date_time = (
                                 SELECT MAX(ra2.date_time)
-                                FROM reconciliation_approvals ra2
+                                FROM trn_activity_request_approvals ra2
                                 WHERE ra2.file_upload_id = ra1.file_upload_id
                             )
                         ) ra ON ra.file_upload_id = a.id
@@ -1415,7 +1409,7 @@ class FileUpload:
                                 WHEN ra.decision = 3 THEN 'Rejected by'
                                 ELSE 'Unknown'
                               END + ' ' + r.name
-                            FROM reconciliation_approvals ra
+                            FROM trn_activity_request_approvals ra
                             LEFT JOIN workflow_breakdown wb ON ra.level = wb.level 
                             LEFT JOIN role_workflow_breakdown rwb ON wb.id = rwb.workflow_breakdown_id
                             LEFT JOIN role r ON rwb.role_id = r.id
@@ -1466,19 +1460,40 @@ class FileUpload:
         try:
             # Fetch submitted reconciliations
             query = """
-                    DECLARE @workflow_id INT = 1; -- workflow_id from workflow table
-                    DECLARE @is_workflow_level INT = 1;
-                    
-                    SELECT c.name as bank_account, b.year, (select DateName(month, DateAdd(month, b.month, 
-                    0) - 1)) as month, b.file_name, FORMAT(b.creation_datetime, 'yyyy-MM-dd HH:mm:ss') AS 
-                    date_time, (SELECT r.name FROM role r LEFT OUTER JOIN role_workflow_breakdown rwb ON r.id = 
-                    rwb.role_id LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id WHERE 
-                    wb.workflow_id = @workflow_id AND wb.is_workflow_level = @is_workflow_level AND wb.level = 
-                    b.submission_status + 1) as next_approver FROM file_upload_batch a LEFT OUTER JOIN file_upload b ON 
-                    a.id = b.batch_id LEFT OUTER JOIN bank_account c ON b.bank_account_id = c.id WHERE 
-                    b.submission_status != 0 AND b.submission_status < (SELECT COALESCE(MAX(level), 0) FROM workflow wf 
-                    LEFT OUTER JOIN workflow_breakdown wb ON wf.id = wb.workflow_id WHERE wf.id = @workflow_id) AND 
-                    b.removed_by_user_on_upload_page = 0 ORDER BY c.name, b.year, b.month ASC;
+                        DECLARE @workflow_id INT = 1;-- workflow_id from workflow table
+                        DECLARE @is_workflow_level INT = 1;
+                        
+                        SELECT c.NAME AS bank_account
+                            ,b.year
+                            ,(
+                                SELECT DateName(month, DateAdd(month, b.month, 0) - 1)
+                                ) AS month
+                            ,b.file_name
+                            ,FORMAT(b.creation_datetime, 'yyyy-MM-dd HH:mm:ss') AS date_time
+                            ,(
+                                SELECT r.NAME
+                                FROM ROLE r
+                                LEFT JOIN role_workflow_breakdown rwb ON r.id = rwb.role_id
+                                LEFT JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                WHERE wb.workflow_id = @workflow_id
+                                    AND wb.is_workflow_level = @is_workflow_level
+                                    AND wb.LEVEL = b.submission_status + 1
+                                ) AS next_approver
+                        FROM file_upload_batch a
+                        LEFT JOIN file_upload b ON a.id = b.batch_id
+                        LEFT JOIN bank_account c ON b.bank_account_id = c.id
+                        WHERE b.submission_status != 0
+                            AND b.submission_status < (
+                                SELECT COALESCE(MAX(LEVEL), 0)
+                                FROM workflow wf
+                                LEFT JOIN workflow_breakdown wb ON wf.id = wb.workflow_id
+                                WHERE wf.id = @workflow_id
+                                )
+                            AND b.removed_by_user_on_upload_page = 0
+                        ORDER BY c.NAME
+                            ,b.year
+                            ,b.month ASC;
+
                 """
             cursor.execute(query, )
             result = cursor.fetchall()
@@ -1517,7 +1532,7 @@ class FileUpload:
                             LTRIM(RTRIM(COALESCE(r.name + ' - ' + u.Fname + ' ' + u.Mname + ' ' + u.Sname, ''))) AS approver,
                             CONVERT(VARCHAR(19), ra.date_time, 120) AS rejected_on,  -- YYYY-MM-DD HH:MI:SS
                             ra.comment
-                        FROM reconciliation_approvals ra
+                        FROM trn_activity_request_approvals ra
                         LEFT OUTER JOIN file_upload fu ON ra.file_upload_id = fu.id
                         LEFT OUTER JOIN bank_account ba ON fu.bank_account_id = ba.id
                         LEFT OUTER JOIN users u ON ra.approver_id = u.ID
@@ -1560,11 +1575,11 @@ class FileUpload:
                         SELECT c.name as bank_account, b.year, (select DateName(month, DateAdd(month, b.month, 
                         0) - 1)) as month, b.file_name, ( SELECT TOP 1 CASE WHEN ra.decision = 1 THEN 'Submitted by' 
                         WHEN ra.decision = 2 THEN 'Approved by' WHEN ra.decision = 3 THEN 'Rejected by' ELSE 
-                        'Unknown' END + ' ' + r.name FROM reconciliation_approvals ra LEFT JOIN workflow_breakdown wb 
+                        'Unknown' END + ' ' + r.name FROM trn_activity_request_approvals ra LEFT JOIN workflow_breakdown wb 
                         ON ra.level = wb.level LEFT JOIN role_workflow_breakdown rwb ON wb.id = 
                         rwb.workflow_breakdown_id LEFT JOIN role r ON rwb.role_id = r.id WHERE ra.file_upload_id = 
                         b.id AND wb.workflow_id = @workflow_id AND wb.is_workflow_level = @is_workflow_level ORDER BY 
-                        ra.id DESC ) AS status, FORMAT((SELECT MAX(ra.date_time) FROM reconciliation_approvals ra 
+                        ra.id DESC ) AS status, FORMAT((SELECT MAX(ra.date_time) FROM trn_activity_request_approvals ra 
                         WHERE file_upload_id = b.id), 'yyyy-MM-dd HH:mm:ss') AS date_time FROM file_upload_batch a 
                         LEFT OUTER JOIN file_upload b ON a.id = b.batch_id LEFT OUTER JOIN bank_account c ON 
                         b.bank_account_id = c.id WHERE b.submission_status != 0 AND b.submission_status = (SELECT 
@@ -1606,7 +1621,7 @@ class FileUpload:
                         SELECT c.name as bank_account, b.year, ( select DateName( month, DateAdd(month, 
                         b.month, 0) -1 ) ) as month, ( SELECT TOP 1 CASE WHEN ra.decision = 1 THEN 'Submitted by' 
                         WHEN ra.decision = 2 THEN 'Approved by' WHEN ra.decision = 3 THEN 'Rejected by' ELSE 
-                        'Unknown' END + ' ' + r.name FROM reconciliation_approvals ra LEFT JOIN workflow_breakdown wb 
+                        'Unknown' END + ' ' + r.name FROM trn_activity_request_approvals ra LEFT JOIN workflow_breakdown wb 
                         ON ra.level = wb.level LEFT JOIN role_workflow_breakdown rwb ON wb.id = 
                         rwb.workflow_breakdown_id LEFT JOIN role r ON rwb.role_id = r.id WHERE ra.file_upload_id = 
                         b.id AND wb.workflow_id = @workflow_id AND wb.is_workflow_level = 
@@ -1764,7 +1779,7 @@ class FileUpload:
                                         WHEN ra2.decision = 3 THEN 'Rejected by'
                                         ELSE 'Unknown'
                                     END + ' ' + r.name
-                                FROM reconciliation_approvals ra2
+                                FROM trn_activity_request_approvals ra2
                                 LEFT JOIN workflow_breakdown wb ON ra2.level = wb.level AND wb.workflow_id = @workflow_id
                                 LEFT JOIN role_workflow_breakdown rwb ON wb.id = rwb.workflow_breakdown_id
                                 LEFT JOIN role r ON rwb.role_id = r.id
@@ -1775,7 +1790,7 @@ class FileUpload:
                         FROM file_upload a
                         LEFT JOIN bank_account b ON a.bank_account_id = b.id
                         WHERE EXISTS (
-                            SELECT 1 FROM reconciliation_approvals ra
+                            SELECT 1 FROM trn_activity_request_approvals ra
                             WHERE ra.file_upload_id = a.id
                             AND ra.approver_id = ? 
                             AND ra.decision IN (2, 3) -- Only Approved or Rejected
@@ -1948,94 +1963,6 @@ class FileUpload:
             cursor.close()
             conn.close()
 
-    @staticmethod
-    def get_reconciliations_pending_approval_count(user_id):
-        conn = get_db_connection()
-        if conn is None:
-            return 0  # Return 0 if the database connection fails
-
-        cursor = conn.cursor()
-
-        try:
-            query = """
-                DECLARE @logged_in_user_id INT = ?;
-
-                WITH GlobalFiles AS (
-                    SELECT DISTINCT(f.id)
-                    FROM file_upload f
-                    JOIN reconciliation_approvals ra ON f.id = ra.file_upload_id
-                    JOIN file_upload_batch fub ON f.batch_id = fub.id
-                    JOIN users u ON fub.user_id = u.ID
-                    JOIN bank_account ba ON f.bank_account_id = ba.id
-                    JOIN bank b ON ba.bank_id = b.id
-                    JOIN user_role ur ON u.ID = ur.user_id
-                    JOIN role r ON ur.role_id = r.id
-                    WHERE ra.approver_id IN (
-                        SELECT DISTINCT a.ID
-                        FROM users a
-                        JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
-                        WHERE b.parent_org_unit_tier_id IN (
-                            SELECT d.organisation_unit_tier_id
-                            FROM users d
-                            WHERE d.ID = @logged_in_user_id
-                        )
-                    )
-                    AND f.submission_status != 0
-                    AND f.submission_status IN (
-                        SELECT DISTINCT a.level - 1
-                        FROM workflow_breakdown a
-                        JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
-                        JOIN role c ON b.role_id = c.id
-                        JOIN user_role d ON c.id = d.role_id
-                        WHERE a.is_responsibility_global = 1
-                        AND d.user_id = @logged_in_user_id
-                    )
-                ),
-                OrgBasedFiles AS (
-                    SELECT DISTINCT(f.id)
-                    FROM file_upload f
-                    JOIN reconciliation_approvals ra ON f.id = ra.file_upload_id
-                    JOIN file_upload_batch fub ON f.batch_id = fub.id
-                    JOIN users u ON fub.user_id = u.ID
-                    JOIN bank_account ba ON f.bank_account_id = ba.id
-                    JOIN bank b ON ba.bank_id = b.id
-                    JOIN user_role ur ON u.ID = ur.user_id
-                    JOIN role r ON ur.role_id = r.id
-                    WHERE ra.approver_id IN (
-                        SELECT DISTINCT a.ID
-                        FROM users a
-                        JOIN organisation_unit b ON a.organisation_unit_id = b.id
-                        WHERE b.parent_org_unit_id IN (
-                            SELECT d.organisation_unit_id
-                            FROM users d
-                            WHERE d.ID = @logged_in_user_id
-                        )
-                    )
-                    AND f.submission_status != 0
-                    AND f.submission_status IN (
-                        SELECT DISTINCT a.level - 1
-                        FROM workflow_breakdown a
-                        JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
-                        JOIN role c ON b.role_id = c.id
-                        JOIN user_role d ON c.id = d.role_id
-                        WHERE a.is_responsibility_global = 0
-                        AND d.user_id = @logged_in_user_id
-                    )
-                )
-
-                SELECT 
-                    (SELECT COUNT(*) FROM GlobalFiles) + 
-                    (SELECT COUNT(*) FROM OrgBasedFiles) AS TotalPendingApprovals;
-            """
-            cursor.execute(query, [user_id])
-            pending_approvals_count = cursor.fetchone()[0]
-            return pending_approvals_count if pending_approvals_count is not None else 0
-        except Exception as e:
-            print("Database error:", e)
-            return 0
-        finally:
-            cursor.close()
-            conn.close()
 
     @staticmethod
     def get_reconciliations_pending_submission_by_user(user_id):
@@ -3600,7 +3527,7 @@ class WorkflowBreakdown:
         self.is_workflow_level = is_workflow_level
 
     @staticmethod
-    def get_workflow_breakdown_for_reconciliation_approval(workflow_id, is_workflow_level=True):
+    def get_workflow_breakdown_for_reconciliation_approval(workflow_id, is_workflow_level):
         conn = get_db_connection()
         if conn is None:
             return []  # Return empty list if the database connection fails
@@ -3609,7 +3536,8 @@ class WorkflowBreakdown:
 
         try:
             # Get workflow breakdown
-            query = """SELECT wb.id, wb.workflow_id, wb.level, wb.name, 
+            query = """
+                        SELECT wb.id, wb.workflow_id, wb.level, wb.name, 
                         wb.is_responsibility_global, wb.menu_item_id, r.name AS role_name 
                         FROM workflow_breakdown wb
                         JOIN role_workflow_breakdown rwb ON wb.id = rwb.workflow_breakdown_id
@@ -4010,7 +3938,7 @@ class ReconciliationApprovals:
         now = datetime.now()
 
         try:
-            cursor.execute("SELECT COALESCE(MAX(id), 0) FROM reconciliation_approvals")
+            cursor.execute("SELECT COALESCE(MAX(id), 0) FROM trn_activity_request_approvals")
             last_reconciliation_approvals_id = cursor.fetchone()[0]  # Fetch last batch_id
 
             # Set new batch_id
@@ -4042,7 +3970,7 @@ class ReconciliationApprovals:
 
         try:
             # check if User has a request pending submission
-            cursor.execute("SELECT TOP 1 COALESCE(level, 0) FROM reconciliation_approvals WHERE file_upload_id = ? "
+            cursor.execute("SELECT TOP 1 COALESCE(level, 0) FROM trn_activity_request_approvals WHERE file_upload_id = ? "
                            "ORDER BY date_time DESC;", file_upload_id)
 
             latest_approval_level = cursor.fetchone()[0]  # Fetch last batch_id
@@ -4069,7 +3997,7 @@ class ReconciliationApprovals:
                         THEN 'Submitted' WHEN ra.decision = 2 THEN 'Approved' WHEN ra.decision = 3 THEN 'Rejected' 
                         ELSE 'Pending' END AS decision,
                         CONCAT(u.Fname, ' ', u.Mname, ' ', u.Sname) AS approver, ra.date_time, ra.comment 
-                        FROM reconciliation_approvals ra
+                        FROM trn_activity_request_approvals ra
                         LEFT OUTER JOIN users u ON ra.approver_id = u.ID
                         WHERE ra.file_upload_id = ? ORDER BY ra.date_time
                     """
@@ -4851,7 +4779,7 @@ class Project:
         try:
             # Fetch submitted reconciliations
             query = """
-                        SELECT * FROM project ORDER BY project_name;
+                        SELECT * FROM mst_project ORDER BY project_name;
                     """
             cursor.execute(query, )
             result = cursor.fetchall()
@@ -4919,6 +4847,113 @@ class ActivityRequest:
         except Exception as e:
             print("Database error:", e)
             return None
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_activity_requests_pending_submission(status, user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return 0  # Return 0 if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT COUNT(*)
+                        FROM trn_activity_request a
+                        WHERE a.status = ? AND a.user_id = ?
+            """
+            cursor.execute(query, [status, user_id])
+            pending_submissions_count = cursor.fetchone()[0]
+            return pending_submissions_count if pending_submissions_count is not None else 0
+        except Exception as e:
+            print("Database error:", e)
+            return 0
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_activity_requests_pending_approval_count(user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return 0  # Return 0 if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        DECLARE @logged_in_user_id INT = ?;
+
+                        WITH GlobalFiles AS (
+                            SELECT DISTINCT(tar.id)
+                            FROM trn_activity_request tar
+                            JOIN trn_activity_request_approvals tara ON tar.id = tara.activity_request_id
+                            JOIN users u ON tar.user_id = u.ID
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE tara.approver_id IN (
+                                SELECT DISTINCT a.ID
+                                FROM users a
+                                JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
+                                WHERE b.parent_org_unit_tier_id IN (
+                                    SELECT d.organisation_unit_tier_id
+                                    FROM users d
+                                    WHERE d.ID = @logged_in_user_id
+                                )
+                            )
+                            AND tar.status > 1
+                            AND tar.status IN (
+                                SELECT DISTINCT a.level
+                                FROM workflow_breakdown a
+                                JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                JOIN role c ON b.role_id = c.id
+                                JOIN user_role d ON c.id = d.role_id
+                                WHERE a.is_responsibility_global = 1
+                                AND d.user_id = @logged_in_user_id
+                            )
+                        ),
+                        OrgBasedFiles AS (
+                            SELECT DISTINCT(tar.id)
+                            FROM trn_activity_request tar
+                            JOIN trn_activity_request_approvals tara ON tar.id = tara.activity_request_id
+                            JOIN users u ON tar.user_id = u.ID
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE tara.approver_id IN (
+                                SELECT DISTINCT a.ID
+                                FROM users a
+                                JOIN organisation_unit b ON a.organisation_unit_id = b.id
+                                WHERE b.parent_org_unit_id IN (
+                                    SELECT d.organisation_unit_id
+                                    FROM users d
+                                    WHERE d.ID = @logged_in_user_id
+                                )
+                            )
+                            AND tar.status > 1
+                            AND tar.status IN (
+                                SELECT DISTINCT a.level
+                                FROM workflow_breakdown a
+                                JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                JOIN role c ON b.role_id = c.id
+                                JOIN user_role d ON c.id = d.role_id
+                                WHERE a.is_responsibility_global = 0
+                                AND d.user_id = @logged_in_user_id
+                            )
+                        )
+
+                        SELECT 
+                            (SELECT COUNT(*) FROM GlobalFiles) + 
+                            (SELECT COUNT(*) FROM OrgBasedFiles) AS TotalPendingApprovals;
+            """
+            cursor.execute(query, [user_id])
+            pending_approvals_count = cursor.fetchone()[0]
+            return pending_approvals_count if pending_approvals_count is not None else 0
+        except Exception as e:
+            print("Database error:", e)
+            return 0
         finally:
             cursor.close()
             conn.close()
@@ -5004,6 +5039,54 @@ class ActivityRequest:
             conn.close()
 
     @staticmethod
+    def update_activity_request_status(status, activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                UPDATE trn_activity_request
+                SET status = ?
+                WHERE id = ?
+            """
+            cursor.execute(query, (status, activity_request_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to update status of trn_activity_request: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def update_trn_activity_request_project_id(activity_request_id, project_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                UPDATE trn_activity_request
+                SET project_id = ?
+                WHERE id = ?
+            """
+            cursor.execute(query, (activity_request_id, project_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to update project_id of trn_activity_request: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
     def insert_into_trn_activity_team_composition(team_member_no, activity_id, member_id, role_id):
         conn = get_db_connection()
         if conn is None:
@@ -5054,6 +5137,558 @@ class ActivityRequest:
             conn.rollback()
             return None
         finally:
+            conn.close()
+
+    @staticmethod
+    def get_team_member_roles_details():
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            # Fetch submitted reconciliations
+            query = """
+                        SELECT * FROM team_member_role ORDER BY name;
+                    """
+            cursor.execute(query, )
+            result = cursor.fetchall()
+
+            # Convert query result into list of Reconciliation objects
+            project_details = [
+                ActivityRequest(id=row.id, name=row.name)
+                for row in result
+            ]
+            return project_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_key_process_details():
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            # Fetch submitted reconciliations
+            query = """
+                        SELECT * FROM mst_key_process ORDER BY name;
+                    """
+            cursor.execute(query, )
+            result = cursor.fetchall()
+
+            # Convert query result into list of Reconciliation objects
+            process_details = [
+                ActivityRequest(id=row.id, name=row.name)
+                for row in result
+            ]
+            return process_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_saved_activity_request_details(status, user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT 
+                            a.id,
+                            c.project_code,
+                            c.project_name,
+                            b.subject,
+                            a.last_modified,
+                            CASE 
+                                WHEN (SELECT COUNT(*) 
+                                      FROM trn_activity_request_approvals ar 
+                                      WHERE ar.activity_request_id = a.id) > 0 
+                                THEN 'Rejected'
+                                ELSE 'Pending Submission'
+                            END AS status
+                        FROM trn_activity_request a
+                        LEFT JOIN trn_activity_overview b ON a.id = b.activity_id
+                        LEFT JOIN mst_project c ON a.project_id = c.id
+                        WHERE a.status = ?
+                          AND a.user_id = ?
+                        ORDER BY a.last_modified;
+                    """
+            cursor.execute(query, (status, user_id,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                ActivityRequest(id=row.id, project_code=row.project_code, project_name=row.project_name,
+                                subject=row.subject, last_modified=row.last_modified, status=row.status)
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_wip_activity_request_details(status, user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT 
+                            a.id,
+                            c.project_code,
+                            c.project_name,
+                            b.subject,
+                            a.last_modified,
+                            CASE 
+                                WHEN (SELECT COUNT(*) 
+                                      FROM trn_activity_request_approvals ar 
+                                      WHERE ar.activity_request_id = a.id) > 0 
+                                THEN 'Rejected'
+                                ELSE 'Pending Submission'
+                            END AS status
+                        FROM trn_activity_request a
+                        LEFT JOIN trn_activity_overview b ON a.id = b.activity_id
+                        LEFT JOIN mst_project c ON a.project_id = c.id
+                        WHERE a.wip_status = ?
+                          AND a.user_id = ?
+                        ORDER BY a.last_modified;
+                    """
+            cursor.execute(query, (status, user_id,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                ActivityRequest(id=row.id, project_code=row.project_code, project_name=row.project_name,
+                                subject=row.subject, last_modified=row.last_modified, status=row.status)
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_saved_activity_request_details_2(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT a.id, a.project_id as project_code, b.subject, b.objectives, b.scope, b.stakeholders, 
+                        b.deliverables, b.assumptions 
+                        FROM trn_activity_request a
+                        LEFT OUTER JOIN trn_activity_overview b ON a.id = b.activity_id
+                        LEFT OUTER JOIN mst_project c ON a.project_id = c.id
+                        WHERE a.id = ?;
+                    """
+            cursor.execute(query, (activity_request_id,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                ActivityRequest(id=row.id, project_code=row.project_code, subject=row.subject, objectives=row.objectives,
+                                scope=row.scope, stakeholders=row.stakeholders, deliverables=row.deliverables,
+                                assumptions=row.assumptions)
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_saved_activity_request_details_3(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT a.id, c.project_code, c.project_name, b.subject
+                        FROM trn_activity_request a
+                        LEFT OUTER JOIN trn_activity_overview b ON a.id = b.activity_id
+                        LEFT OUTER JOIN mst_project c ON a.project_id = c.id
+                        WHERE a.id = ?
+                        ORDER BY a.last_modified;
+                    """
+            cursor.execute(query, (activity_request_id,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                {
+                    "id": row.id,
+                    "project_code": row.project_code,
+                    "project_name": row.project_name,
+                    "subject": row.subject
+                }
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_submitted_activity_request_details(status, user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        DECLARE @workflow_id INT = 1;
+                        
+                        ;WITH WorkflowMaxLevel AS (
+                            SELECT wf.id AS workflow_id, MAX(wb.level) AS max_level
+                            FROM workflow wf
+                            LEFT JOIN workflow_breakdown wb ON wf.id = wb.workflow_id
+                            GROUP BY wf.id
+                        ),
+                        LatestApproval AS (
+                            SELECT 
+                                ar.activity_request_id,
+                                MAX(ar.date_time) AS latest_date,
+                                COUNT(*) AS approval_count
+                            FROM trn_activity_request_approvals ar
+                            GROUP BY ar.activity_request_id
+                        ),
+                        ApprovalLevel AS (
+                            SELECT 
+                                la.activity_request_id,
+                                la.approval_count,
+                                ar.level AS latest_level
+                            FROM LatestApproval la
+                            LEFT JOIN trn_activity_request_approvals ar
+                                ON ar.activity_request_id = la.activity_request_id 
+                                AND ar.date_time = la.latest_date
+                        )
+                        SELECT 
+                            a.id,
+                            c.project_code,
+                            c.project_name,
+                            b.subject,
+                            a.last_modified,
+                            CASE 
+                                WHEN ISNULL(al.approval_count, 0) = 1 THEN 'Submitted'
+                                WHEN al.latest_level = 1 AND al.approval_count > 1 THEN 'Re-submitted'
+                                WHEN al.latest_level > 1 
+                                     AND al.latest_level < wml.max_level THEN 'In Review'
+                                WHEN al.latest_level = wml.max_level THEN 'Approved'
+                                ELSE 'Unknown'
+                            END AS status
+                        FROM trn_activity_request a
+                        LEFT JOIN trn_activity_overview b ON a.id = b.activity_id
+                        LEFT JOIN mst_project c ON a.project_id = c.id
+                        LEFT JOIN ApprovalLevel al ON a.id = al.activity_request_id
+                        LEFT JOIN WorkflowMaxLevel wml ON wml.workflow_id = @workflow_id
+                        WHERE 
+                            a.status != ?
+                            AND (
+                                a.user_id = ?
+                                OR a.id IN (
+                                    SELECT DISTINCT(activity_id)
+                                    FROM trn_activity_team_composition
+                                    WHERE member_user_id = ?
+                                )
+                            )
+                        ORDER BY a.last_modified DESC;
+                    """
+            cursor.execute(query, (status, user_id, user_id,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                ActivityRequest(id=row.id, project_code=row.project_code, project_name=row.project_name,
+                                subject=row.subject, last_modified=row.last_modified, status=row.status)
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_tasks_by_key_process(key_process_id, activity_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            # Fetch tasks associated with the Key Process
+            query = """
+                SELECT id, task FROM trn_activity_breakdown WHERE key_process_id = ? and activity_id = ? ORDER BY task
+            """
+            cursor.execute(query, (key_process_id, activity_id,))
+            result = cursor.fetchall()
+
+            activity_tasks = [
+                ActivityRequest(id=row.id, task=row.task)
+                for row in result
+            ]
+            return activity_tasks
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_process_by_activity_request_id(activity_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            # Fetch tasks associated with the Key Process
+            query = """
+                SELECT id, name FROM mst_key_process 
+                WHERE id IN (SELECT DISTINCT(key_process_id) FROM trn_activity_breakdown WHERE activity_id = ?)
+                ORDER BY name
+            """
+            cursor.execute(query, (activity_id,))
+            result = cursor.fetchall()
+
+            activity_key_processes = [
+                ActivityRequest(id=row.id, name=row.name)
+                for row in result
+            ]
+            return activity_key_processes
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_team_composition_details(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        try:
+            query = """
+                SELECT id, activity_id, member_user_id, member_role_id
+                FROM trn_activity_team_composition
+                WHERE activity_id = ?
+            """
+            cursor.execute(query, (activity_request_id,))
+            columns = [col[0] for col in cursor.description]
+            result = cursor.fetchall()
+
+            return [dict(zip(columns, row)) for row in result]
+
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_team_composition_details_2(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        try:
+            query = """
+                        SELECT tatc.id, tatc.activity_id, tatc.member_user_id, tatc.member_role_id,
+                        CONCAT(u.Fname, ' ', u.Mname, ' ', u.Sname) AS member_name, tmr.name AS member_role
+                        FROM trn_activity_team_composition tatc
+                        LEFT OUTER JOIN users u ON tatc.member_user_id = u.ID
+                        LEFT OUTER JOIN team_member_role tmr ON tatc.member_role_id = tmr.id
+                        WHERE activity_id = ?
+                        ORDER BY id
+                    """
+            cursor.execute(query, (activity_request_id,))
+            columns = [col[0] for col in cursor.description]
+            result = cursor.fetchall()
+
+            return [dict(zip(columns, row)) for row in result]
+
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_activity_tasks_details(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        try:
+            query = """
+                SELECT a.id, a.activity_id, a.task, a.key_process_id,
+                       CONVERT(varchar, a.start_date, 120) AS start_date,
+                       CONVERT(varchar, a.end_date, 120) AS end_date
+                FROM trn_activity_breakdown a
+                WHERE a.activity_id = ?
+                ORDER BY a.id
+            """
+            cursor.execute(query, (activity_request_id,))
+            columns = [col[0] for col in cursor.description]
+            result = cursor.fetchall()
+            return [dict(zip(columns, row)) for row in result]
+
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_activity_tasks_details_2(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        try:
+            query = """
+                        SELECT a.id, a.activity_id, a.task, a.key_process_id, b.name as process_name, 
+                            CONVERT(varchar, a.start_date, 23) AS start_date,  -- YYYY-MM-DD
+                            CONVERT(varchar, a.end_date, 23) AS end_date      
+                        FROM trn_activity_breakdown a
+                        LEFT OUTER JOIN mst_key_process b on a.key_process_id = b.id
+                        WHERE a.activity_id = ?
+                        ORDER BY a.id
+            """
+            cursor.execute(query, (activity_request_id,))
+            columns = [col[0] for col in cursor.description]
+            result = cursor.fetchall()
+            return [dict(zip(columns, row)) for row in result]
+
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def insert_into_trn_activity_attachment(id, activity_id, file, description):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                "INSERT INTO trn_activity_attachment ([id], [activity_id], [file], [description]) "
+                "VALUES (?, ?, ?, ?)",
+                (id, activity_id, file, description),
+            )
+            conn.commit()
+            return id
+        except pyodbc.Error as e:
+            print("Database insert error:", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    @staticmethod
+    def get_activity_attachments(activity_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT [id], [activity_id], [file], [description]
+                FROM trn_activity_attachment
+                WHERE activity_id = ?
+                ORDER BY id
+            """, (activity_id,))
+            rows = cursor.fetchall()
+
+            attachments = []
+            for row in rows:
+                attachments.append({
+                    "id": row.id,
+                    "activity_id": row.activity_id,
+                    "file": row.file,
+                    "description": row.description
+                })
+            return attachments
+        except Exception as e:
+            print("Error fetching attachments:", e)
+            return []
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_activity_request(current_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                DELETE FROM trn_activity_request                
+                WHERE id = ?
+            """
+            cursor.execute(query, current_request_id)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to delete from trn_activity_request: ", e)
+            return False
+        finally:
+            cursor.close()
             conn.close()
 
     @staticmethod
@@ -5126,235 +5761,26 @@ class ActivityRequest:
             conn.close()
 
     @staticmethod
-    def get_team_member_roles_details():
+    def delete_activity_attachments(current_request_id):
         conn = get_db_connection()
         if conn is None:
-            return []  # Return empty list if the database connection fails
-
-        cursor = conn.cursor()
-
-        try:
-            # Fetch submitted reconciliations
-            query = """
-                        SELECT * FROM team_member_role ORDER BY name;
-                    """
-            cursor.execute(query, )
-            result = cursor.fetchall()
-
-            # Convert query result into list of Reconciliation objects
-            project_details = [
-                ActivityRequest(id=row.id, name=row.name)
-                for row in result
-            ]
-            return project_details
-        except Exception as e:
-            print("Database error:", e)
-            return []
-        finally:
-            cursor.close()
-            conn.close()
-
-    @staticmethod
-    def get_key_process_details():
-        conn = get_db_connection()
-        if conn is None:
-            return []  # Return empty list if the database connection fails
-
-        cursor = conn.cursor()
-
-        try:
-            # Fetch submitted reconciliations
-            query = """
-                        SELECT * FROM mst_key_process ORDER BY name;
-                    """
-            cursor.execute(query, )
-            result = cursor.fetchall()
-
-            # Convert query result into list of Reconciliation objects
-            process_details = [
-                ActivityRequest(id=row.id, name=row.name)
-                for row in result
-            ]
-            return process_details
-        except Exception as e:
-            print("Database error:", e)
-            return []
-        finally:
-            cursor.close()
-            conn.close()
-
-    @staticmethod
-    def get_saved_activity_request_details(status, user_id, project_id):
-        conn = get_db_connection()
-        if conn is None:
-            return []  # Return empty list if the database connection fails
-
-        cursor = conn.cursor()
-
-        try:
-            query = """
-                        SELECT a.id, c.project_code, c.project_name, b.subject, a.last_modified 
-                        FROM trn_activity_request a
-                        LEFT OUTER JOIN trn_activity_overview b ON a.id = b.activity_id
-                        LEFT OUTER JOIN project c ON a.project_id = c.id
-                        WHERE a.status = ? AND a.user_id = ? AND a.project_id = ?
-                        ORDER BY a.last_modified;
-                    """
-            cursor.execute(query, (status, user_id, project_id,))
-            result = cursor.fetchall()
-
-            activity_request_details = [
-                ActivityRequest(id=row.id, project_code=row.project_code, project_name=row.project_name,
-                                subject=row.subject, last_modified=row.last_modified)
-                for row in result
-            ]
-            return activity_request_details
-        except Exception as e:
-            print("Database error:", e)
-            return []
-        finally:
-            cursor.close()
-            conn.close()
-
-    @staticmethod
-    def get_saved_activity_request_details_2(activity_request_id):
-        conn = get_db_connection()
-        if conn is None:
-            return []  # Return empty list if the database connection fails
-
-        cursor = conn.cursor()
-
-        try:
-            query = """
-                        SELECT a.id, b.subject, b.objectives, b.scope, b.stakeholders, b.deliverables, b.assumptions 
-                        FROM trn_activity_request a
-                        LEFT OUTER JOIN trn_activity_overview b ON a.id = b.activity_id
-                        LEFT OUTER JOIN project c ON a.project_id = c.id
-                        WHERE a.status = 1 AND a.id = ?;
-                    """
-            cursor.execute(query, (activity_request_id,))
-            result = cursor.fetchall()
-
-            activity_request_details = [
-                ActivityRequest(id=row.id, subject=row.subject, objectives=row.objectives,
-                                scope=row.scope, stakeholders=row.stakeholders, deliverables=row.deliverables,
-                                assumptions=row.assumptions)
-                for row in result
-            ]
-            return activity_request_details
-        except Exception as e:
-            print("Database error:", e)
-            return []
-        finally:
-            cursor.close()
-            conn.close()
-
-    @staticmethod
-    def get_team_composition_details(activity_request_id):
-        conn = get_db_connection()
-        if conn is None:
-            return []
-
-        cursor = conn.cursor()
-        try:
-            query = """
-                SELECT id, activity_id, member_user_id, member_role_id
-                FROM trn_activity_team_composition
-                WHERE activity_id = ?
-            """
-            cursor.execute(query, (activity_request_id,))
-            columns = [col[0] for col in cursor.description]
-            result = cursor.fetchall()
-
-            return [dict(zip(columns, row)) for row in result]
-
-        except Exception as e:
-            print("Database error:", e)
-            return []
-        finally:
-            cursor.close()
-            conn.close()
-
-    @staticmethod
-    def get_activity_tasks_details(activity_request_id):
-        conn = get_db_connection()
-        if conn is None:
-            return []
-
-        cursor = conn.cursor()
-        try:
-            query = """
-                SELECT a.id, a.activity_id, a.task, a.key_process_id,
-                       CONVERT(varchar, a.start_date, 120) AS start_date,
-                       CONVERT(varchar, a.end_date, 120) AS end_date
-                FROM trn_activity_breakdown a
-                WHERE a.activity_id = ?
-                ORDER BY a.id
-            """
-            cursor.execute(query, (activity_request_id,))
-            columns = [col[0] for col in cursor.description]
-            result = cursor.fetchall()
-            return [dict(zip(columns, row)) for row in result]
-
-        except Exception as e:
-            print("Database error:", e)
-            return []
-        finally:
-            cursor.close()
-            conn.close()
-
-    @staticmethod
-    def insert_into_trn_activity_attachment(id, activity_id, file, description):
-        conn = get_db_connection()
-        if conn is None:
-            return None  # Handle database connection failure
-
-        cursor = conn.cursor()
-
-        try:
-            cursor.execute(
-                "INSERT INTO trn_activity_attachment ([id], [activity_id], [file], [description]) "
-                "VALUES (?, ?, ?, ?)",
-                (id, activity_id, file, description),
-            )
-            conn.commit()
-            return id
-        except pyodbc.Error as e:
-            print("Database insert error:", e)
-            conn.rollback()
             return None
-        finally:
-            conn.close()
-
-    @staticmethod
-    def get_activity_attachments(activity_id):
-        conn = get_db_connection()
-        if conn is None:
-            return []
 
         cursor = conn.cursor()
-        try:
-            cursor.execute("""
-                SELECT [id], [activity_id], [file], [description]
-                FROM trn_activity_attachment
-                WHERE activity_id = ?
-                ORDER BY id
-            """, (activity_id,))
-            rows = cursor.fetchall()
 
-            attachments = []
-            for row in rows:
-                attachments.append({
-                    "id": row.id,
-                    "activity_id": row.activity_id,
-                    "file": row.file,
-                    "description": row.description
-                })
-            return attachments
+        try:
+            query = """
+                DELETE FROM trn_activity_attachment                
+                WHERE activity_id = ?
+            """
+            cursor.execute(query, current_request_id)
+            conn.commit()
+            return True
         except Exception as e:
-            print("Error fetching attachments:", e)
-            return []
+            print("Database error; failed to delete from trn_activity_breakdown: ", e)
+            return False
         finally:
+            cursor.close()
             conn.close()
 
     @staticmethod
@@ -5385,6 +5811,623 @@ class ActivityRequest:
         except Exception as e:
             print("Error deleting removed attachments:", e)
             conn.rollback()
+        finally:
+            conn.close()
+
+
+class ActivityRequestApprovals:
+    def __init__(self, id=None, activity_request_id=None, decision=None, approver_id=None, approver=None, level=None,
+                 comment=None, date_time=None, project_code=None, project_name=None, subject=None, approve_as=None,
+                 requester=None):
+        self.id = id
+        self.activity_request_id = activity_request_id
+        self.decision = decision
+        self.approver_id = approver_id
+        self.approver = approver
+        self.level = level
+        self.comment = comment
+        self.date_time = date_time
+        self.project_code = project_code
+        self.project_name = project_name
+        self.subject = subject
+        self.approve_as = approve_as
+        self.requester = requester
+
+    @staticmethod
+    def get_activity_requests_pending_approval(user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            # Fetch submitted reconciliations
+            query = """
+                        DECLARE @logged_in_user_id INT = ?; -- Set logged-in user's ID
+
+                        ;WITH GlobalFiles AS (
+                            -- Get files where responsibility is global
+                            SELECT 
+                                (SELECT CONCAT(u.Fname, ' ', u.Mname, ' ', u.Sname) FROM users WHERE ID = tar.user_id) 
+                                AS requester,
+                                tar.id AS activity_request_id, 
+                                mp.project_code AS project_code, 
+                                mp.project_name AS project_name, 
+                                tao.subject AS subject,
+                                FORMAT(tar.last_modified, 'yyyy-MM-dd HH:mm:ss') AS date_time, 
+                                (
+                                    SELECT TOP 1 r.name 
+                                    FROM role r 
+                                    LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
+                                    LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
+                                    LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                    WHERE 
+                                        wb.is_workflow_level = 1 
+                                        AND wb.level = tar.status
+                                        AND ur.user_id = @logged_in_user_id
+                                ) AS approve_as,
+                                ROW_NUMBER() OVER (PARTITION BY tar.id ORDER BY tar.last_modified DESC) AS row_num
+                            FROM trn_activity_request tar
+                            JOIN trn_activity_request_approvals tara ON tar.id = tara.activity_request_id
+                            JOIN mst_project mp ON tar.project_id = mp.id
+                            JOIN trn_activity_overview tao ON tar.id = tao.activity_id
+                            JOIN users u ON tar.user_id = u.ID
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE 
+                                ur.start_datetime <= GETDATE() 
+                                AND ur.expiry_datetime >= GETDATE()
+                                AND tara.approver_id IN (
+                                    SELECT DISTINCT a.ID
+                                    FROM users a
+                                    JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
+                                    WHERE b.parent_org_unit_tier_id IN (
+                                        SELECT d.organisation_unit_tier_id 
+                                        FROM users d 
+                                        WHERE d.ID = @logged_in_user_id
+                                    )
+                                )
+                                AND tar.status != 1 
+                                AND tar.status IN (
+                                    SELECT DISTINCT a.level
+                                    FROM workflow_breakdown a
+                                    JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                    JOIN role c ON b.role_id = c.id
+                                    JOIN user_role d ON c.id = d.role_id
+                                    JOIN users e ON d.user_id = e.ID
+                                    WHERE 
+                                        a.is_responsibility_global = 1
+                                        AND e.ID = @logged_in_user_id
+                                )
+                        ),
+                        OrgBasedFiles AS (
+                            -- Get files where responsibility is restricted to specific organizational units
+                            SELECT 
+                                (SELECT CONCAT(u.Fname, ' ', u.Mname, ' ', u.Sname) FROM users WHERE ID = tar.user_id) 
+                                AS requester,
+                                tar.id AS activity_request_id, 
+                                mp.project_code AS project_code, 
+                                mp.project_name AS project_name, 
+                                tao.subject AS subject,
+                                FORMAT(tar.last_modified, 'yyyy-MM-dd HH:mm:ss') AS date_time, 
+                                (
+                                    SELECT TOP 1 r.name 
+                                    FROM role r 
+                                    LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
+                                    LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
+                                    LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                    WHERE 
+                                        wb.is_workflow_level = 1 
+                                        AND wb.level = tar.status
+                                        AND ur.user_id = @logged_in_user_id
+                                ) AS approve_as,
+                                ROW_NUMBER() OVER (PARTITION BY tar.id ORDER BY tar.last_modified DESC) AS row_num
+                            FROM trn_activity_request tar
+                            JOIN trn_activity_request_approvals tara ON tar.id = tara.activity_request_id
+                            JOIN mst_project mp ON tar.project_id = mp.id
+                            JOIN trn_activity_overview tao ON tar.id = tao.activity_id
+                            JOIN users u ON tar.user_id = u.ID
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE 
+                                ur.start_datetime <= GETDATE() 
+                                AND ur.expiry_datetime >= GETDATE()
+                                AND tara.approver_id IN (
+                                    SELECT DISTINCT a.ID
+                                    FROM users a
+                                    JOIN organisation_unit b ON a.organisation_unit_id = b.id
+                                    WHERE b.parent_org_unit_id IN (
+                                        SELECT d.organisation_unit_id 
+                                        FROM users d 
+                                        WHERE d.ID = @logged_in_user_id
+                                    )
+                                )
+                                AND tar.status != 1 
+                                AND tar.status IN (
+                                    SELECT DISTINCT a.level
+                                    FROM workflow_breakdown a
+                                    JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                    JOIN role c ON b.role_id = c.id
+                                    JOIN user_role d ON c.id = d.role_id
+                                    JOIN users e ON d.user_id = e.ID
+                                    WHERE 
+                                        a.is_responsibility_global = 0
+                                        AND e.ID = @logged_in_user_id
+                                )
+                        )
+
+                        -- Combine results
+                        SELECT 
+                            requester, activity_request_id, project_code, project_name, subject, date_time, approve_as
+                        FROM (
+                            SELECT * FROM GlobalFiles WHERE row_num = 1
+                            UNION
+                            SELECT * FROM OrgBasedFiles WHERE row_num = 1
+                        ) AS UniqueResults
+                        ORDER BY project_code, date_time, subject ASC;
+
+            """
+            cursor.execute(query, (user_id,))
+            result = cursor.fetchall()
+
+            activity_requests = [
+                ActivityRequestApprovals(requester=row.requester, activity_request_id=row.activity_request_id,
+                                         project_code=row.project_code, project_name=row.project_name,
+                                         subject=row.subject, date_time=row.date_time, approve_as=row.approve_as)
+                for row in result
+            ]
+            return activity_requests
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_activity_request_approval_levels(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                           SELECT tara.level, CASE WHEN tara.decision = 1 
+                           THEN 'Submitted' WHEN tara.decision = 2 THEN 'Approved' WHEN tara.decision = 3 
+                           THEN 'Rejected' 
+                           ELSE 'Pending' 
+                           END AS decision,
+                           CONCAT(u.Fname, ' ', u.Mname, ' ', u.Sname) AS approver, tara.date_time, tara.comment 
+                           FROM trn_activity_request_approvals tara
+                           LEFT OUTER JOIN users u ON tara.approver_id = u.ID
+                           WHERE tara.activity_request_id = ? ORDER BY tara.date_time
+                       """
+            cursor.execute(query, (activity_request_id,))  # Pass the parameter twice
+            result = cursor.fetchall()  # Fetch results properly
+
+            return result if result else []
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_latest_activity_request_approval_level(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            # check if User has a request pending submission
+            cursor.execute("SELECT TOP 1 COALESCE(level, 0) FROM trn_activity_request_approvals "
+                           "WHERE activity_request_id = ? ORDER BY date_time DESC;", activity_request_id)
+
+            latest_approval_level = cursor.fetchone()[0]  # Fetch last batch_id
+            return latest_approval_level
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_status_of_activity_request(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            # Check if a record with the given bank_account, year, and month exists
+            cursor.execute(
+                "SELECT status FROM trn_activity_request WHERE id = ?", activity_request_id
+            )
+            result = cursor.fetchone()[0]
+            return result
+        except Exception as e:
+            print("Database error:", e)
+            return None  # Return None to indicate an error occurred
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_activity_request_initiator_user_id(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            # check if User has a request pending submission
+            cursor.execute("SELECT user_id FROM trn_activity_request WHERE id = ?", activity_request_id)
+
+            id_of_initiator = cursor.fetchone()[0]  # Fetch last batch_id
+
+            return id_of_initiator
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_activity_request_initiator_email_and_fname(user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """      
+                SELECT DISTINCT Fname, Email FROM users WHERE id = ? ;
+            """
+
+            cursor.execute(query, (user_id,))
+            result = cursor.fetchall()
+
+            # Return a list of dictionaries instead of trying to map to FileUpload
+            return [{"Fname": row[0], "Email": row[1]} for row in result]
+
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_next_approver_fname_email(user_id, activity_request_status):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                WITH ParentOrgUnits AS (
+                    SELECT DISTINCT b.parent_org_unit_id 
+                    FROM users a
+                    JOIN organisation_unit b ON a.organisation_unit_id = b.id 
+                    WHERE a.ID = ?
+                ),
+                ParentOrgUnitTiers AS (
+                    SELECT DISTINCT b.parent_org_unit_tier_id 
+                    FROM users a
+                    JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id 
+                    WHERE a.ID = ?
+                ),
+                GlobalApprovers AS (
+                    SELECT DISTINCT u.Fname, u.Email
+                    FROM users u
+                    JOIN user_role ur ON u.id = ur.user_id
+                    JOIN role r ON ur.role_id = r.id
+                    JOIN role_workflow_breakdown rwb ON r.id = rwb.role_id
+                    JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                    WHERE wb.is_workflow_level = 1
+                    AND wb.level = ?
+                    AND wb.is_responsibility_global = 1
+                    AND ur.start_datetime <= GETDATE() 
+                    AND ur.expiry_datetime >= GETDATE()
+                    AND u.ID IN (
+                        SELECT DISTINCT a.ID
+                        FROM users a
+                        JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
+                        WHERE b.id IN (SELECT parent_org_unit_tier_id FROM ParentOrgUnitTiers)
+                    )
+                ),
+                OrgBasedApprovers AS (
+                    SELECT DISTINCT u.Fname, u.Email
+                    FROM users u
+                    JOIN user_role ur ON u.id = ur.user_id
+                    JOIN role r ON ur.role_id = r.id
+                    JOIN role_workflow_breakdown rwb ON r.id = rwb.role_id
+                    JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                    WHERE wb.is_workflow_level = 1
+                    AND wb.level = ?
+                    AND wb.is_responsibility_global = 0
+                    AND ur.start_datetime <= GETDATE() 
+                    AND ur.expiry_datetime >= GETDATE()
+                    AND u.ID IN (
+                        SELECT DISTINCT a.ID
+                        FROM users a
+                        JOIN organisation_unit b ON a.organisation_unit_id = b.id
+                        WHERE b.id IN (SELECT parent_org_unit_id FROM ParentOrgUnits)
+                    )
+                )
+
+                SELECT DISTINCT Fname, Email
+                FROM (
+                    SELECT Fname, Email FROM GlobalApprovers
+                    UNION
+                    SELECT Fname, Email FROM OrgBasedApprovers
+                ) AS Approvers
+                ORDER BY Fname ASC;
+            """
+
+            cursor.execute(query, (user_id, user_id, activity_request_status, activity_request_status))
+            result = cursor.fetchall()
+
+            # Return a list of dictionaries instead of trying to map to FileUpload
+            return [{"Fname": row[0], "Email": row[1]} for row in result]
+
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_max_approval_level(workflow_id):
+        """
+        Returns the maximum approval level for a given workflow_id.
+        If no levels are found, returns 0.
+        If a database error occurs, returns None.
+        """
+        conn = get_db_connection()
+        if conn is None:
+            app.logger.error("Database connection failed in get_max_approval_level()")
+            return None
+
+        try:
+            with conn.cursor() as cursor:
+                query = """
+                    SELECT COALESCE(MAX(wb.level), 0)
+                    FROM workflow wf
+                    LEFT JOIN workflow_breakdown wb ON wf.id = wb.workflow_id
+                    WHERE wf.id = ?
+                """
+                cursor.execute(query, (workflow_id,))
+                result = cursor.fetchone()
+                return result[0] if result else 0
+
+        except Exception as e:
+            app.logger.error(f"Database error in get_max_approval_level({workflow_id}): {e}")
+            return None
+
+        finally:
+            conn.close()
+
+    @staticmethod
+    def insert_into_trn_activity_request_approvals(activity_request_id, decision, approver_id, level, comment):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        now = datetime.now()
+
+        try:
+            cursor.execute("SELECT COALESCE(MAX(id), 0) FROM trn_activity_request_approvals")
+            last_activity_request_approvals_id = cursor.fetchone()[0]  # Fetch last batch_id
+
+            # Set new batch_id
+            last_activity_request_approvals_id = (last_activity_request_approvals_id + 1) \
+                if last_activity_request_approvals_id else 1
+
+            cursor.execute(
+                "INSERT INTO trn_activity_request_approvals (id, activity_request_id, decision, approver_id, level, "
+                "comment, date_time)"
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (last_activity_request_approvals_id, activity_request_id, decision, approver_id, level, comment, now),
+            )
+            conn.commit()
+            return last_activity_request_approvals_id
+        except pyodbc.Error as e:
+            print("Database insert error:", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    @staticmethod
+    def update_activity_request_approval_status(activity_request_id, action, workflow_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            if action == "reject":
+                query = """
+                    UPDATE trn_activity_request
+                    SET status = 1
+                    WHERE id = ?;
+                """
+
+            else:
+                query = """                    
+                    UPDATE trn_activity_request
+                    SET 
+                        status = status + 1,
+                        wip_status = CASE 
+                                        WHEN status = (
+                                            SELECT MAX(wb.level)
+                                            FROM workflow wf
+                                            LEFT JOIN workflow_breakdown wb 
+                                                ON wf.id = wb.workflow_id
+                                            WHERE wf.id = ?
+                                        ) 
+                                        THEN 1
+                                        ELSE 0
+                                    END
+                    WHERE id = ?;
+                """
+
+            cursor.execute(query, (workflow_id, activity_request_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating approval status of trn_activity_request record: {e}")
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def update_activity_request_approval_status_following_a_rejected_approval(activity_request_id):
+
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                UPDATE trn_activity_request
+                SET status = 1
+                WHERE id = ?
+            """
+            file_upload_id = cursor.execute(query, activity_request_id)
+            conn.commit()
+            return activity_request_id
+        except Exception as e:
+            print(f"Error updating status of trn_activity_request following a rejected request: {e}")
+
+        finally:
+            cursor.close()
+            conn.close()
+
+
+class ActivityRequestLog:
+    def __init__(self, id=None, activity_id=None, key_process_id=None, task_id=None, user_id=None):
+        self.id = id
+        self.activity_id = activity_id
+        self.key_process_id = key_process_id
+        self.task_id = task_id
+        self.user_id = user_id
+
+    @staticmethod
+    def get_id_of_insert_into_trn_activity_log_overview_row(activity_id, key_process_id, task_id, user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            # Check if a record with the given bank_account, year, and month exists
+            cursor.execute(
+                "SELECT MAX(id) FROM trn_activity_log_overview WHERE activity_id=? AND "
+                "key_process_id=? AND task_id=? AND user_id=?", activity_id, key_process_id,
+                task_id, user_id
+            )
+            result = cursor.fetchone()[0]
+            return result
+        except Exception as e:
+            print("Database error:", e)
+            return None  # Return None to indicate an error occurred
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def insert_into_trn_activity_log_overview(activity_id, key_process_id, task_id, user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+        now = datetime.now()
+
+        try:
+            cursor.execute(
+                """
+                    INSERT INTO trn_activity_log_overview (activity_id, key_process_id, task_id, creation_date, user_id)
+                    VALUES (?, ?, ?, ?, ?)
+                """,
+                (activity_id, key_process_id, task_id, now, user_id),
+            )
+            conn.commit()
+            return activity_id
+        except pyodbc.Error as e:
+            print("Could not insert into table: trn_activity_log_overview:", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    @staticmethod
+    def insert_into_trn_activity_log_activity_breakdown(activity_breakdown_count, trn_activity_log_id, start_date, end_Date, activity_breakdown_detail):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                """
+                    INSERT INTO trn_activity_log_activity_breakdown (activity_breakdown_details_count, trn_activity_log_id, start_date, end_date, detail)
+                    VALUES (?, ?, ?, ?, ?)
+                """,
+                (activity_breakdown_count, trn_activity_log_id, start_date, end_Date, activity_breakdown_detail),
+            )
+            conn.commit()
+            return activity_breakdown_count
+        except pyodbc.Error as e:
+            print("Could not insert into table: trn_activity_log_activity_breakdown:", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    @staticmethod
+    def insert_into_trn_activity_log_attachment(attachment_counter, trn_activity_log_id, file, description):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                "INSERT INTO trn_activity_log_attachment ([attachment_counter], [activity_log_id], [file], "
+                "[description]) VALUES (?, ?, ?, ?)",
+                (attachment_counter, trn_activity_log_id, file, description),
+            )
+            conn.commit()
+            return id
+        except pyodbc.Error as e:
+            print("Database insert error:", e)
+            conn.rollback()
+            return None
         finally:
             conn.close()
 

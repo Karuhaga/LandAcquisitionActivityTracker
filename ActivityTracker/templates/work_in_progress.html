@@ -1,0 +1,521 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Work In Progress
+{% endblock %}
+
+{% block page_title %}
+    <div data-page-title>Work In Progress</div>
+{% endblock %}
+
+
+{% block content %}
+
+    {% set key_process_options %}
+        <option value="">Select Role</option>
+        {% for key_process_detail in key_process_details %}
+            <option value="{{ key_process_detail.id }}">{{ key_process_detail.name }}</option>
+        {% endfor %}
+    {% endset %}
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+           <span>Work In Progress</span>
+            <div class="d-flex align-items-center flex-wrap gap-2 py-2">
+                <div class="input-group input-group-sm" style="max-width: 200px;">
+                    <span class="input-group-text text-muted"
+                          style="font-weight: 400; font-size: 0.8rem; color: #484a52; height: calc(1.5em + 0.5rem + 2px);">
+                        From
+                    </span>
+                    <input type="text" id="minDate" class="form-control"
+                           placeholder="Start Date/Time"
+                           style="height: calc(1.4em + 0.5rem + 2px);">
+                </div>
+
+                <div class="input-group input-group-sm" style="max-width: 200px;">
+                    <span class="input-group-text text-muted"
+                          style="font-weight: 400; font-size: 0.8rem; color: #484a52; height: calc(1.5em + 0.5rem + 2px);">
+                        To
+                    </span>
+                    <input type="text" id="maxDate" class="form-control"
+                           placeholder="End Date/Time"
+                           style="height: calc(1.4em + 0.5rem + 2px);">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                Work In Progress
+            </div>
+
+            <div class="card-body">
+                <table id="savedActivityRequestsTable" class="table table-striped table-bordered table-hover paginated">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <!-- Row number column -->
+                            <th>Project Code</th>
+                            <th>Project Name</th>
+                            <th>Subject</th>
+                            <th>Last Modified</th>
+                            <th>Add Log</th>
+                            <th>View Logs</th>
+                            <th>Close Activity</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for activity_request_detail in activity_request_details %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ activity_request_detail.project_code }}</td>
+                            <td>{{ activity_request_detail.project_name }}</td>
+                            <td>{{ activity_request_detail.subject }}</td>
+                            <td>{{ activity_request_detail.last_modified.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="text-center" data-orderable="false" data-ordering="false">
+                                <button class="btn btn-sm btn-outline-custom add-log-btn"
+                                        type="button"
+                                        data-activity-request-id="{{ activity_request_detail.id }}">
+                                            <i class="fa fa-file-medical"></i>
+                                </button>
+                            </td>
+                            <td class="text-center" data-orderable="false" data-ordering="false">
+                                <button class="btn btn-sm btn-secondary edit-saved-activity-request-btn" style="float: center;"
+                                        type="button" saved-activity-request-id="{{ activity_request_detail.id }}">
+                                            <i class="fa fa-book"></i>
+
+                                </button>
+                            </td>
+                            <td class="text-center">
+                                <label class="switch">
+                                    <input type="checkbox" class="toggle-switch" data-row-id="{{ loop.index }}">
+                                    <span class="slider round"></span>
+                                </label>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+<script>
+    window.workFlowId = 1;
+
+    function showFlashMessage(message, type) {
+        let title = "Notification"; // Default title
+
+        if (type === "danger") {
+            title = "Error";
+        } else if (type === "success") {
+            title = "Success";
+        } else if (type === "warning") {
+            title = "Warning";
+        }
+
+        $("#flashMessageTitle").text(title);
+        $("#flashMessageBody").html(message);
+        $("#flashMessageModal").modal("show");
+    }
+
+    $(document).ready(function() {
+        // Custom filter for DataTables
+        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+            let min = $('#minDate').val();
+            let max = $('#maxDate').val();
+            let dateStr = data[4]; // Adjust index if "Last Modified" is not at index 6
+
+            if (!dateStr) return true; // Include rows without a date
+
+            let rowDate = flatpickr.parseDate(dateStr, "Y-m-d H:i");
+            if (!rowDate) return true; // Include if unable to parse
+
+            min = min ? flatpickr.parseDate(min, "Y-m-d H:i") : null;
+            max = max ? flatpickr.parseDate(max, "Y-m-d H:i") : null;
+
+            if (
+                (!min && !max) ||
+                (!min && rowDate <= max) ||
+                (min <= rowDate && !max) ||
+                (min <= rowDate && rowDate <= max)
+            ) {
+                return true;
+            }
+            return false;
+        });
+        // Calculate default date range (last 30 days)
+        let now = new Date();
+        let thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(now.getDate() - 30);
+
+        // Format dates for Flatpickr input (Y-m-d H:i)
+        function formatDate(date) {
+            return date.getFullYear() + "-" +
+                String(date.getMonth() + 1).padStart(2, '0') + "-" +
+                String(date.getDate()).padStart(2, '0') + " " +
+                String(date.getHours()).padStart(2, '0') + ":" +
+                String(date.getMinutes()).padStart(2, '0');
+        }
+
+        $("#minDate").val(formatDate(thirtyDaysAgo));
+        $("#maxDate").val(formatDate(now));
+
+        // Initialize Flatpickr
+        flatpickr("#minDate", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            time_24hr: true,
+            allowInput: true
+        });
+        flatpickr("#maxDate", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            time_24hr: true,
+            allowInput: true
+        });
+
+        const table = $('#savedActivityRequestsTable').DataTable({
+            paging: true,
+            searching: true,
+            ordering: true,
+            lengthMenu: [5, 10, 25, 50, 100],
+            pageLength: 10,
+            dom:
+                '<"row"<"col-md-6"l><"col-md-6"f>>' +
+                '<"row"<"col-md-12"B>>' +
+                '<"row"<"col-md-12"t>>' +
+                '<"row"<"col-md-6"i><"col-md-6"p>>',
+            buttons: [
+                {
+                    extend: 'copy',
+                    text: 'Copy',
+                    className: 'btn btn-secondary',
+                    exportOptions: {
+                        stripHtml: false,
+                        columns: ':visible',
+                        format: {
+                            body: function (data, row, column, node) {
+                                return $(node).text().trim();
+                            }
+                        }
+                    }
+                },
+                {
+                    extend: 'csv',
+                    text: 'Export to CSV',
+                    className: 'btn btn-secondary',
+                    exportOptions: {
+                        stripHtml: false,
+                        columns: ':visible',
+                        format: {
+                            body: function (data, row, column, node) {
+                                return $(node).text().trim();
+                            }
+                        }
+                    }
+                },
+                {
+                    extend: 'excel',
+                    text: 'Export to Excel',
+                    className: 'btn btn-secondary',
+                    exportOptions: {
+                        stripHtml: false,
+                        columns: ':visible',
+                        format: {
+                            body: function (data, row, column, node) {
+                                return $(node).text().trim();
+                            }
+                        }
+                    }
+                },
+                {
+                    extend: 'pdfHtml5',
+                    text: 'Export to PDF',
+                    className: 'btn btn-secondary',
+                    orientation: 'landscape',
+                    title: function () {
+                        let fromDate = $('#minDate').val();
+                        let toDate = $('#maxDate').val();
+
+                        // Format as "01 July 2025"
+                        const options = { day: '2-digit', month: 'long', year: 'numeric' };
+                        let from = new Date(fromDate).toLocaleDateString(undefined, options);
+                        let to = new Date(toDate).toLocaleDateString(undefined, options);
+
+                        return 'Submitted Activity Requests ' + from + ' - ' + to;
+                    },
+                    customize: function (doc) {
+                        // Insert logo (left-aligned)
+                        doc.content.splice(0, 0, {
+                            image: logoBase64,
+                            width: 100,
+                            alignment: 'left',
+                            margin: [0, 0, 0, 10]
+                        });
+                        // Center only the title text
+                        doc.styles.title.alignment = 'center';
+                    },
+                    exportOptions: {
+                        stripHtml: false,
+                        columns: ':visible',
+                        format: {
+                            body: function (data, row, column, node) {
+                                return $(node).text().trim();
+                            }
+                        }
+                    }
+                },
+                {
+                    extend: 'print',
+                    text: 'Print',
+                    className: 'btn btn-secondary',
+                    orientation: 'landscape',
+                    title: function () {
+                        let fromDate = $('#minDate').val();
+                        let toDate = $('#maxDate').val();
+
+                        // Format as "01 July 2025"
+                        const options = { day: '2-digit', month: 'long', year: 'numeric' };
+                        let from = new Date(fromDate).toLocaleDateString(undefined, options);
+                        let to = new Date(toDate).toLocaleDateString(undefined, options);
+
+                        return 'Submitted Activity Requests ' + from + ' - ' + to;
+                    },
+                    customize: function (win) {
+                        // Add logo (left-aligned)
+                        $(win.document.body).prepend(
+                            '<div style="text-align:left; margin-bottom:10px;">' +
+                            '<img src="' + logoBase64 + '" style="width:200px; margin-bottom:10px;" />' +
+                            '</div>'
+                        );
+                        // Center only the title text
+                        $(win.document.body).find('h1').css('text-align', 'center');
+                    },
+                    exportOptions: {
+                        stripHtml: false,
+                        columns: ':visible',
+                        format: {
+                            body: function (data, row, column, node) {
+                                return $(node).text().trim();
+                            }
+                        }
+                    }
+                }
+            ],
+            language: {
+                search: "Search:",
+                lengthMenu: "Show _MENU_ entries per page",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
+            },
+            columnDefs: [
+                { orderable: false, targets: 0 } // Disable ordering on # column
+            ]
+        });
+
+        // Add dynamic row numbering
+        table.on('order.dt search.dt draw.dt', function () {
+            table.column(0, { search: 'applied', order: 'applied' }).nodes().each(function (cell, i) {
+                cell.innerHTML = i + 1;
+            });
+        }).draw();
+
+        // Filter table on initial load for last 30 days
+        table.draw();
+
+        // Redraw when user changes date filters
+        $('#minDate, #maxDate').on('change', function () {
+            table.draw();
+        });
+        //add a request key lock to prevent below function from being triggered multiple times
+        let loadingKeyProcesses = false;
+
+        // Calling the activity_request_file_details_modal.html
+        $(document).off("click", ".add-log-btn").on("click", ".add-log-btn", function () {
+
+            if (loadingKeyProcesses) {
+                return; // STOP duplicate execution
+            }
+            loadingKeyProcesses = true;
+
+            let row = $(this).closest("tr");
+
+            let activityRequestId = $(this).data("activity-request-id");
+            let requester = {{ (
+                                    " ".join([current_user.fname, current_user.mname, current_user.sname]
+                                    | select("string") | list)
+                                ) | tojson | safe }};
+            let projectCode = row.find("td:nth-child(2)").text().trim();
+            let projectName = row.find("td:nth-child(3)").text().trim();
+            let subject = row.find("td:nth-child(4)").text().trim();
+
+            // Populate the modal fields
+            $("#viewRequesterWIP").text(requester);
+            $("#viewProjectCodeWIP").text(projectCode);
+            $("#viewProjectNameWIP").text(projectName);
+            $("#viewSubjectWIP").text(subject);
+            $("#activityTaskId").val(activityRequestId);
+
+            const wipActivityId = $("#activityTaskId").val();
+            const $processDropdown = $("#key_process_drop_down_WIP");
+
+            // Reset dropdown
+            $processDropdown
+                .empty()
+                .append('<option value="">Select Key Process</option>')
+                .prop("disabled", true);
+
+            // Safety checks
+            if (!wipActivityId || !$processDropdown) {
+                return;
+            }
+
+            $.ajax({
+                url: `/get-process-by-activity-request-id/${wipActivityId}`,
+                type: "GET",
+                success: function (keyProcesses) {
+
+                    if (keyProcesses.length === 0) {
+                        $processDropdown.append(
+                            '<option value="">No key processes available</option>'
+                        );
+                        return;
+                    }
+
+                    keyProcesses.forEach(key_process => {
+                        $processDropdown.append(
+                            `<option value="${key_process.id}">${key_process.name}</option>`
+                        );
+                    });
+
+                    $processDropdown.prop("disabled", false);
+                },
+                error: function () {
+                    alert("Failed to load key processes for the selected activity request.");
+                }
+            });
+
+            // Show the modal after data is populated
+            $("#workInProgressAddLogModal").modal("show");
+        });
+
+        // Handle toggle switch change
+        $(document).on("change", ".toggle-switch", function () {
+            let isChecked = $(this).is(":checked");
+            let rowId = $(this).data("row-id");
+
+            console.log("Toggle changed on row:", rowId, "State:", isChecked);
+
+            // TODO: send AJAX or update status here
+            // Example:
+            // $.post("/update-status", { id: rowId, active: isChecked });
+        });
+
+        // Reset the flag when the modal is fully closed.
+        $('#workInProgressAddLogModal').on('hidden.bs.modal', function () {
+            loadingKeyProcesses = false;
+        });
+    });
+
+    function addAttachmentRow() {
+        const table = document.getElementById("attachmentsTable");
+        const rowCount = table.rows.length - 1; // exclude last "Add File" row
+        const newRow = table.insertRow(rowCount);
+
+        // No data-attachment-id for new uploads
+        newRow.dataset.attachmentId = "";
+
+        newRow.innerHTML = `
+        <td class="text-end">${rowCount + 1}</td>
+        <td>
+            <input type="file" class="form-control" name="attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
+        </td>
+        <td>
+            <textarea class="form-control" name="attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="handleDownload(this)">
+                <i class="fa fa-download"></i>
+            </button>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+                <i class="fa fa-trash"></i>
+            </button>
+        </td>
+    `;
+    }
+
+    function removeAttachmentRow(btn) {
+        let row = btn.closest("tr");
+        row.parentNode.removeChild(row);
+
+        // Re-number rows
+        let table = document.getElementById("attachmentsTable");
+        for (let i = 0; i < table.rows.length - 1; i++) {
+            table.rows[i].cells[0].innerText = i + 1;
+        }
+    }
+
+</script>
+
+<style>
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #0d6efd; /* Bootstrap primary */
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    .slider.round {
+      border-radius: 24px;
+    }
+
+</style>
+
+{% endblock %}

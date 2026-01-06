@@ -1,8 +1,9 @@
 from ActivityTracker import app, os, allowed_file
 from ActivityTracker.models import (User, FileUploadBatch, FileUpload, FileDelete, BankAccount,
-                                       ReconciliationApprovals, WorkflowBreakdown, EmailHelper, Audit, UserSummary,
-                                       Role, UserRole, Currency, BankAccountResponsibleUser, OrganisationUnitTier,
-                                       OrganisationUnit, Workflow, Project, MenuItem, ActivityRequest)
+                                    ReconciliationApprovals, WorkflowBreakdown, EmailHelper, Audit, UserSummary,
+                                    Role, UserRole, Currency, BankAccountResponsibleUser, OrganisationUnitTier,
+                                    OrganisationUnit, Workflow, Project, MenuItem, ActivityRequest,
+                                    ActivityRequestApprovals, ActivityRequestLog)
 from ActivityTracker.forms import LoginForm
 from flask import render_template, redirect, url_for, flash, request, jsonify, session, send_from_directory, abort
 import re
@@ -68,7 +69,7 @@ def login_page():
                 ip_address=request.remote_addr
             )
 
-            return redirect(url_for('home_page'))
+            return redirect(url_for('dashboard_page'))
 
     return render_template('login.html', form=form)
 
@@ -106,52 +107,20 @@ def dashboard_page():
     return render_template('dashboard.html')
 
 
-@app.route('/submit-reconciliations', methods=['GET', 'POST'])
-@login_required
-@role_required(1, 25)
-# hint: "@role_required" refers to id of workflow_breakdown database table
-def submit_reconciliations_page():
-    # Fetch bank accounts from the database
-    bank_accounts = BankAccount.get_bank_accounts_for_dropdown_menu(current_user.id)
-    if bank_accounts is None:
-        return jsonify({"error": "No bank account found in the database"}), 500
-
-    num_of_unsubmitted_files = FileUpload.unsubmitted_files_num(current_user.id)
-    if num_of_unsubmitted_files is None:
-        return jsonify({"error": "Database error while fetching unsubmitted files"}), 500
-
-    uploaded_files = FileUpload.get_uploaded_pending_submission_files_by_user(current_user.id)
-    if uploaded_files is None:
-        return jsonify({"error": "Database error while fetching uploaded files"}), 500
-    return render_template('submit_reconciliations.html',
-                           num_of_unsubmitted_files=num_of_unsubmitted_files,
-                           uploaded_files=uploaded_files, bank_accounts=bank_accounts)
-
-
 @app.route('/activity-request', methods=['GET', 'POST'])
 @login_required
 @role_required(1, 25)
 # hint: "@role_required" refers to id of workflow_breakdown database table
 def activity_request_page():
-    # Get selected project from session
-    project = session.get('selected_project')
-    project_id = project.get('id') if project else None
-
-    if not project_id:
-        # Optionally handle missing project selection
-        return render_template(
-            'error.html',
-            message="No project selected. Please select a project first."
-        )
-
     user_details = UserSummary.get_all_usersnames()
+    project_details = Project.get_projects_details()
     team_member_details = ActivityRequest.get_team_member_roles_details()
     key_process_details = ActivityRequest.get_key_process_details()
-    activity_request_details = ActivityRequest.get_saved_activity_request_details(1, current_user.id, project_id)
+    activity_request_details = ActivityRequest.get_saved_activity_request_details(1, current_user.id)
 
-    return render_template('activity_request.html', user_details=user_details,
-                           team_member_details=team_member_details, key_process_details=key_process_details,
-                           activity_request_details=activity_request_details)
+    return render_template('activity_request.html', project_details=project_details,
+                           user_details=user_details, team_member_details=team_member_details,
+                           key_process_details=key_process_details, activity_request_details=activity_request_details)
 
 
 @app.route("/get-saved-activity-request-details", methods=["GET"])
@@ -167,6 +136,7 @@ def get_saved_activity_request_details():
     # Serialize manually
     saved_activity_request_data = {
         "id": saved_activity_request_detail.id,
+        "project_code": saved_activity_request_detail.project_code,
         "subject": saved_activity_request_detail.subject,
         "objectives": saved_activity_request_detail.objectives,
         "scope": saved_activity_request_detail.scope,
@@ -176,6 +146,24 @@ def get_saved_activity_request_details():
     }
 
     return jsonify(saved_activity_request_data)
+
+
+@app.route("/delete-saved-activity-request-details", methods=["POST"])
+@login_required
+def delete_saved_activity_request_details():
+    activity_request_id = request.form.get("activity_request_id")
+
+    if not activity_request_id:
+        return jsonify({"message": "Invalid activity ID."}), 400
+
+    # Delete related records
+    ActivityRequest.delete_activity_request(activity_request_id)
+    ActivityRequest.delete_activity_overview(activity_request_id)
+    ActivityRequest.delete_activity_team(activity_request_id)
+    ActivityRequest.delete_activity_tasks(activity_request_id)
+    ActivityRequest.delete_activity_attachments(activity_request_id)
+
+    return jsonify({"message": "Activity request deleted successfully."}), 200
 
 
 @app.route("/get-activity-team-composition-details", methods=["GET"])
@@ -380,105 +368,18 @@ def get_uploaded_files():
     return jsonify({"files": uploaded_files}), 200
 
 
-@app.route('/submit_files', methods=['POST'])
-@login_required
-@role_required(1, 25)
-def submit_files():
-    """
-    Processes the submission of files by updating their submission_status.
-    """
-    try:
-        data = request.get_json()
-        files = data.get("files", [])
-
-        if not files:
-            return jsonify({"error": "No files provided"}), 400
-
-        max_submission_status = None
-
-        for file in files:
-            bank_account_id = file.get("bank_account_id")
-            year = file.get("year")
-            month = file.get("month")
-            file_name = file.get("file_name")
-
-            # Update file status
-            updated_file = FileUpload.update_file_submission_status(bank_account_id, year, month, file_name)
-            # Update Audit Trail
-            user_id = current_user.id
-            Audit.log_audit_trail(
-                user_id=user_id,
-                action="Update table: file_upload",
-                details=f"Reconciliation File Submission, Bank Account Id: '{bank_account_id}', Year: '{year}', "
-                        f"Month: '{month}', File Name: '{file_name}'",
-                ip_address=request.remote_addr
-            )
-            if updated_file is None:
-                return jsonify({"error": "Database error while updating status of file", "type": "danger"}), 500
-
-            # Get batch_id
-            batch_id = FileUpload.get_batch_id(bank_account_id, year, month, file_name)
-            if batch_id is None:
-                return jsonify({"error": "Database error while updating status of file", "type": "danger"}), 500
-
-            # Pick id of file in file upload table
-            id_of_file_upload = FileUploadBatch.get_id_of_file_upload(bank_account_id, year, month, file_name)
-            if id_of_file_upload is None:
-                return jsonify({"error": "Database error while picking id of uploaded file", "type": "danger"}), 500
-            # reconciliation_approvals table
-            decision = 1
-            level = 1
-            comment = ""
-
-            submission_status = FileUpload.get_submission_status_of_reconciliation(id_of_file_upload)
-            if max_submission_status is None or submission_status > max_submission_status:
-                max_submission_status = submission_status
-
-            last_reconciliation_approvals_id = (ReconciliationApprovals.insert_into_reconciliation_approvals
-                                                (id_of_file_upload, decision, current_user.id, level, comment))
-            if last_reconciliation_approvals_id is None:
-                return jsonify({"error": "Database error while writing to reconciliation_approvals table", "type": "danger"}), 500
-
-            # Update batch status
-            updated_batch = FileUploadBatch.update_batch_submission_status(batch_id)
-            if updated_batch is None:
-                return jsonify({"error": "Database error while updating status of batch", "type": "danger"}), 500
-
-        if max_submission_status is None:
-            return jsonify({"error": "Could not determine max submission status", "type": "danger"}), 500
-
-        # Store user details before threading
-        user_fname = current_user.fname
-        user_id = current_user.id
-
-        # Get next approver(s)
-        next_approvers = FileUpload.get_next_approver_fname_email(user_id, max_submission_status)
-
-        if not next_approvers:
-            return jsonify({"error": "No next approver found"}), 500
-
-        # Send emails in the background with app context
-        def send_emails():
-            with app.app_context():  # Ensure Flask app context is available in the thread
-                for approver in next_approvers:
-                    EmailHelper.send_submitted_reconciliations_email(user_fname, approver["Email"], approver["Fname"], files)
-
-        email_thread = threading.Thread(target=send_emails)
-        email_thread.start()
-
-        # Immediately return response while emails are being sent
-        return jsonify({"message": "Files submitted successfully"}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e), "type": "danger"}), 500
-
-
 @app.route('/save_activity_request', methods=['POST'])
 @login_required
 @role_required(1, 25)
 def save_activity_request():
     try:
         data = json.loads(request.form.get("data", "{}"))
+
+        # Get mode (1 = Save, 2 = Submit)
+        activity_mode = data.get("activity_mode", 1)
+
+        # Determine status based on mode
+        status = 1 if activity_mode == 1 else 2
 
         overview = data.get("overview", {})
         team = data.get("team", [])
@@ -490,22 +391,22 @@ def save_activity_request():
             return jsonify({"error": "Database error while getting latest_activity_request_id from "
                                      "trn_activity_request table"}), 500
 
-        # pick id of selected project
-        project = session.get("selected_project")
-        project_id = project.get("id") if project else None
-
-        if not project_id:
-            return "No project selected", 400
-
         # reconciliation_approvals table
         current_request_id = latest_activity_request_id + 1
+
+        # # pick id of selected project
+        # project = session.get("selected_project")
+        # project_id = project.get("id") if project else None
+        #
+        # if not project_id:
+        #     return "No project selected", 400
 
         # Save Activity Request
         activity_id = ActivityRequest.insert_into_trn_activity_request(
             current_request_id=current_request_id,
             user_id=current_user.id,
-            status=1,
-            project_id=project_id,
+            status=status,
+            project_id=overview.get("project_id")
         )
         Audit.log_audit_trail(
             user_id=current_user.id,
@@ -515,6 +416,29 @@ def save_activity_request():
         )
         if not activity_id:
             return jsonify({"error": "Database error while saving activity request", "type": "danger"}), 500
+
+        # Save in trn_activity_request_approvals
+        if activity_mode == 2:
+            decision = 1
+            level = 1
+            comment = ""
+
+            last_activity_request_approvals_id = (ActivityRequestApprovals.insert_into_trn_activity_request_approvals
+                                                  (current_request_id, decision, current_user.id, level, comment))
+            if last_activity_request_approvals_id is None:
+                return jsonify(
+                    {"error": "Database error while writing to trn_activity_request_approvals table",
+                     "type": "danger"}), 500
+
+            Audit.log_audit_trail(
+                user_id=current_user.id,
+                action="Insert in table: trn_activity_request_approvals",
+                details=f"Saved Activity Request ID: '{current_request_id}'",
+                ip_address=request.remote_addr
+            )
+            if not activity_id:
+                return jsonify({"error": "Database error while saving activity request in "
+                                         "trn_activity_request_approvals table", "type": "danger"}), 500
 
         # Save Activity Overview
         activity_id = ActivityRequest.insert_into_trn_activity_overview(
@@ -548,7 +472,8 @@ def save_activity_request():
             Audit.log_audit_trail(
                 user_id=current_user.id,
                 action="Insert in table: trn_activity_team_composition",
-                details=f"Saved Activity Request ID: '{current_request_id}', Team Member Num: '{member.get('member_id')}', Role ID: '{member.get('role_id')}'",
+                details=f"Saved Activity Request ID: '{current_request_id}', Team Member Num: "
+                        f"'{member.get('member_id')}', Role ID: '{member.get('role_id')}'",
                 ip_address=request.remote_addr
             )
             if not team_saved:
@@ -613,7 +538,156 @@ def save_activity_request():
 
                 attachment_counter += 1
 
-        return jsonify({"message": "Activity Request saved successfully"}), 200
+        # --- Dynamic message based on status ---
+        if status == 1:
+            message = "Activity Request saved successfully"
+
+        elif status == 2:
+            try:
+                user_fname = current_user.fname
+                user_id = current_user.id
+
+                activity_request_status = ActivityRequestApprovals.get_status_of_activity_request(current_request_id)
+
+                activity_request_details_for_email_table = (
+                    ActivityRequest.get_saved_activity_request_details_3(current_request_id))
+
+                # Get next approver(s)
+                next_approvers = (ActivityRequestApprovals.get_next_approver_fname_email
+                                  (user_id, activity_request_status))
+
+                if not next_approvers:
+                    return jsonify({"error": "No next approver found"}), 500
+
+                # Send emails in the background with app context
+                def send_emails():
+                    with app.app_context():  # Ensure Flask app context is available in the thread
+                        for approver in next_approvers:
+                            EmailHelper.send_submitted_activity_request_email(
+                                user_fname, approver["Email"], approver["Fname"],
+                                activity_request_details_for_email_table)
+
+                email_thread = threading.Thread(target=send_emails)
+                email_thread.start()
+
+                message = "Activity Request submitted successfully"
+
+            except Exception as e:
+                return jsonify({"error": str(e), "type": "danger"}), 500
+
+        else:
+            message = "Activity Request processed successfully"
+
+        return jsonify({"message": message}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e), "type": "danger"}), 500
+
+
+@app.route('/save_activity_request_log', methods=['POST'])
+@login_required
+@role_required(1, 25)
+def save_activity_request_log():
+    try:
+        data = json.loads(request.form.get("data", "{}"))
+
+        overview = data.get("overview", {})
+        activity_id = overview.get("activity_task_id")
+        key_process_id = overview.get("key_process_id")
+        task_id = overview.get("task_id")
+        user_id = current_user.id
+
+        # Save Activity Request
+        activity_id = ActivityRequestLog.insert_into_trn_activity_log_overview(
+            activity_id, key_process_id, task_id, user_id
+        )
+        Audit.log_audit_trail(
+            user_id=current_user.id,
+            action="Insert in table: trn_activity_log_overview",
+            details=f"Saved Activity Request ID: '{activity_id}'; Key Process ID: '{key_process_id}'; Task ID: '{task_id}'",
+            ip_address=request.remote_addr
+        )
+
+        if not activity_id:
+            return jsonify({"error": "Database error while saving activity request log", "type": "danger"}), 500
+
+        # Pick id of insert_into_trn_activity_log_overview row
+        trn_activity_log_id = ActivityRequestLog.get_id_of_insert_into_trn_activity_log_overview_row(
+            activity_id, key_process_id, task_id, user_id
+        )
+
+        # Save activity breakdown details into trn_activity_log_activity_breakdown
+        activity_breakdown = data.get("activityBreakdown", [])
+
+        activity_breakdown_count = 1
+
+        for breakdown in activity_breakdown:
+            start_date = breakdown.get("start_date")
+            end_date = breakdown.get("end_date")
+            activity_breakdown_detail = breakdown.get("activityBreakdownDetail")
+
+            activity_breakdown_saved = ActivityRequestLog.insert_into_trn_activity_log_activity_breakdown(
+                activity_breakdown_count=activity_breakdown_count,
+                trn_activity_log_id=trn_activity_log_id,
+                start_date=start_date,
+                end_Date=end_date,
+                activity_breakdown_detail=activity_breakdown_detail
+            )
+
+            Audit.log_audit_trail(
+                user_id=current_user.id,
+                action="Insert in table: trn_activity_log_activity_breakdown",
+                details=f"Saved Activity Log ID: '{trn_activity_log_id}', "
+                        f"Activity Breakdown Count: '{activity_breakdown_count}'",
+                ip_address=request.remote_addr
+            )
+
+            if not activity_breakdown_saved:
+                return jsonify({
+                    "error": "Error saving activity breakdown",
+                    "type": "danger"
+                }), 500
+
+            activity_breakdown_count += 1
+
+        # Save attachments
+        files = request.files.getlist("wip_attachments")  # <-- from request.files
+        descriptions = request.form.getlist("wip_attachment_descriptions")  # <-- from form fields
+
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        attachment_counter = 1
+
+        upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], 'activity_log_docs')
+        os.makedirs(upload_folder, exist_ok=True)
+
+        for file, desc in zip(files, descriptions):
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                new_filename = f"{timestamp}_{current_user.id}_{attachment_counter}_{filename}"
+                file.save(os.path.join(upload_folder, new_filename))
+
+                attachment_saved = ActivityRequestLog.insert_into_trn_activity_log_attachment(
+                    attachment_counter=attachment_counter,
+                    trn_activity_log_id=trn_activity_log_id,
+                    file=new_filename,
+                    description=desc
+                )
+
+                Audit.log_audit_trail(
+                    user_id=current_user.id,
+                    action="Insert in table: trn_activity_attachment",
+                    details=f"Saved file '{new_filename}' for Activity Log ID: '{trn_activity_log_id}'",
+                    ip_address=request.remote_addr
+                )
+                if not attachment_saved:
+                    return jsonify({"error": "Error saving attachment", "type": "danger"}), 500
+
+                attachment_counter += 1
+
+        else:
+            message = "Activity Request Log processed successfully"
+
+        return jsonify({"message": message}), 200
 
     except Exception as e:
         return jsonify({"error": str(e), "type": "danger"}), 500
@@ -627,6 +701,35 @@ def update_activity_request():
         data = json.loads(request.form.get("data", "{}"))
         activity_request_id = data.get("activity_request_id")
 
+        # Get mode (1 = Save, 2 = Submit)
+        activity_mode = data.get("activity_mode", 1)
+
+        # Determine status based on mode
+        status = 1 if activity_mode == 1 else 2
+
+        # Save in trn_activity_request_approvals
+        if activity_mode == 2:
+            decision = 1
+            level = 1
+            comment = ""
+
+            last_activity_request_approvals_id = (ActivityRequestApprovals.insert_into_trn_activity_request_approvals
+                                                  (activity_request_id, decision, current_user.id, level, comment))
+            if last_activity_request_approvals_id is None:
+                return jsonify(
+                    {"error": "Database error while writing to trn_activity_request_approvals table",
+                     "type": "danger"}), 500
+
+            Audit.log_audit_trail(
+                user_id=current_user.id,
+                action="Insert in table: trn_activity_request_approvals",
+                details=f"Saved Activity Request ID: '{activity_request_id}'",
+                ip_address=request.remote_addr
+            )
+            if not activity_request_id:
+                return jsonify({"error": "Database error while saving activity request in "
+                                         "trn_activity_request_approvals table", "type": "danger"}), 500
+
         if not activity_request_id:
             return jsonify({"error": "Missing activity_request_id"}), 400
 
@@ -634,8 +737,12 @@ def update_activity_request():
         team = data.get("team", [])
         tasks = data.get("tasks", [])
 
+        # Update request status
+        ActivityRequest.update_activity_request_status(status, activity_request_id)
         # Delete overview
         ActivityRequest.delete_activity_overview(activity_request_id)
+        # Update project_id of trn_activity_request table
+        ActivityRequest.update_trn_activity_request_project_id(activity_request_id, overview.get("project_id"))
         # Update overview
         ActivityRequest.insert_into_trn_activity_overview(
             current_request_id=activity_request_id,
@@ -708,7 +815,44 @@ def update_activity_request():
                 )
                 next_id += 1
 
-        return jsonify({"message": "Activity Request updated successfully"}), 200
+        # --- Dynamic message based on status ---
+        if status == 1:
+            message = "Activity Request updated successfully"
+
+        elif status == 2:
+            try:
+                user_fname = current_user.fname
+                user_id = current_user.id
+
+                activity_request_status = ActivityRequestApprovals.get_status_of_activity_request(activity_request_id)
+
+                activity_request_details_for_email_table = ActivityRequest.get_saved_activity_request_details_3(activity_request_id)
+
+                # Get next approver(s)
+                next_approvers = (ActivityRequestApprovals.get_next_approver_fname_email
+                                  (user_id, activity_request_status))
+
+                if not next_approvers:
+                    return jsonify({"error": "No next approver found"}), 500
+
+                # Send emails in the background with app context
+                def send_emails():
+                    with app.app_context():  # Ensure Flask app context is available in the thread
+                        for approver in next_approvers:
+                            EmailHelper.send_submitted_activity_request_email(user_fname, approver["Email"],
+                                                                             approver["Fname"], activity_request_details_for_email_table)
+
+                email_thread = threading.Thread(target=send_emails)
+                email_thread.start()
+
+                message = "Activity Request submitted successfully"
+
+            except Exception as e:
+                return jsonify({"error": str(e), "type": "danger"}), 500
+        else:
+            message = "Activity Request processed successfully"
+
+        return jsonify({"message": message}), 200
 
     except Exception as e:
         return jsonify({"error": str(e), "type": "danger"}), 500
@@ -727,9 +871,10 @@ def send_email_reminders():
                 # Optionally get their pending reconciliations
                 pending_reconciliation_submission_details = FileUpload.pending_reconciliation_submission_details(
                     initiator_id)
-                EmailHelper.email_reminder_to_initiator_reconciliations_pending_submission(initiator_fname_email["fname"],
-                                                                              initiator_fname_email["email"],
-                                                                              pending_reconciliation_submission_details)
+                EmailHelper.email_reminder_to_initiator_reconciliations_pending_submission(
+                    initiator_fname_email["fname"],
+                    initiator_fname_email["email"],
+                    pending_reconciliation_submission_details)
 
         next_approver_ids = FileUpload.get_next_approver_id(initiators_pending_submission_of_reconciliations)
 
@@ -742,8 +887,8 @@ def send_email_reminders():
                 pending_reconciliation_submission_details_for_approver = FileUpload.pending_reconciliation_submission_details_for_approver(
                     approver_id)
                 EmailHelper.email_reminder_to_approver_reconciliations_pending_submission(approver_fname_email["fname"],
-                                                                              approver_fname_email["email"],
-                                                                              pending_reconciliation_submission_details_for_approver)
+                                                                                          approver_fname_email["email"],
+                                                                                          pending_reconciliation_submission_details_for_approver)
 
         user_ids = FileUpload.get_all_user_ids()
 
@@ -754,25 +899,35 @@ def send_email_reminders():
                 pending_approval_details = FileUpload.get_reconciliations_pending_approval(user_id)
                 if pending_approval_details:
                     EmailHelper.email_reminder_to_approve_submitted_reconciliations(user_fname_email["fname"],
-                                                                                          user_fname_email["email"],
-                                                                                          pending_approval_details)
+                                                                                    user_fname_email["email"],
+                                                                                    pending_approval_details)
 
 
 @app.route('/submitted-reconciliations', methods=['GET', 'POST'])
 @login_required
 @role_required(2, 26)
-def submitted_reconciliations_page():
-    reconciliations = FileUpload.get_submitted_reconciliations(current_user.id)
-    return render_template('submitted_reconciliations.html', reconciliations=reconciliations)
+def submitted_activity_requests_page():
+    activity_request_details = ActivityRequest.get_submitted_activity_request_details(1, current_user.id)
+    return render_template('submitted_activity_requests.html',
+                           activity_request_details=activity_request_details)
 
 
-@app.route('/approve-reconciliations', methods=['GET', 'POST'])
+@app.route('/work-in-progress', methods=['GET', 'POST'])
+@login_required
+@role_required(2, 26)
+def work_in_progress_page():
+    activity_request_details = ActivityRequest.get_wip_activity_request_details(1, current_user.id)
+    return render_template('work_in_progress.html',
+                           activity_request_details=activity_request_details)
+
+
+@app.route('/approve-activity-requests', methods=['GET', 'POST'])
 @login_required
 @role_required(3, 5, 27, 47)
-def approve_reconciliations_page():
-    reconciliations = FileUpload.get_reconciliations_pending_approval(current_user.id)
+def approve_activity_requests_page():
+    activity_requests = ActivityRequestApprovals.get_activity_requests_pending_approval(current_user.id)
     return render_template(
-        'approve_reconciliations.html', reconciliations=reconciliations)
+        'approve_activity_requests.html', activity_requests=activity_requests)
 
 
 @app.route('/approved-reconciliations', methods=['GET', 'POST'])
@@ -783,10 +938,10 @@ def approved_reconciliations_page():
     return render_template('approved_reconciliations.html', reconciliations=reconciliations)
 
 
-@app.route('/approve-reconciliations-update', methods=['POST'])
+@app.route('/approve-activity-requests-update', methods=['POST'])
 @login_required
 @role_required(3, 4, 5, 6, 47)
-def approve_reconciliations_update():
+def approve_activity_requests_update():
 
     try:
         data = request.get_json()
@@ -795,106 +950,110 @@ def approve_reconciliations_update():
         files = data.get("files", [])
         decision = 2 if action == "approve" else 3
         action_for_email = "approved" if action == "approve" else "rejected"
-        initiator_approvals = defaultdict(list)
-        max_submission_status = None
+        max_approval_level = 0
+        activity_request_status = 0
+        initiator_id = None
 
         if not files:
-            return jsonify({"error": "No files provided"}), 400
+            return jsonify({"error": "No requests provided"}), 400
 
         if action not in ["approve", "reject"]:
             return jsonify({"error": "Invalid action selected"}), 400
 
+        max_approval_level = ActivityRequestApprovals.get_max_approval_level(1)
+
+        if max_approval_level is None:
+            return jsonify({"error": "Could not determine max approval level", "type": "danger"}), 500
+
         for file in files:
-            bank_account_id = file.get("bank_account_id")
-            year = file.get("year")
-            month = file.get("month")
-            file_name = file.get("file_name")
+            activity_request_id = file.get("activity_request_id")
 
             # Update file status
-            updated_reconciliation_record = FileUpload.update_file_approval_status(bank_account_id, year, month,
-                                                                                   file_name, action)
+            updated_activity_request_record = (ActivityRequestApprovals.update_activity_request_approval_status
+                                               (activity_request_id, action, 1))
             # update audit trail
             user_id = current_user.id
             Audit.log_audit_trail(
                 user_id=user_id,
-                action="Update table: file_upload",
-                details=f"Update submission_status of Reconciliation Request, Bank Account Id: '{bank_account_id}', "
-                        f"Year '{year}', Month '{month}', File Name '{file_name}', Action '{action}'",
+                action="Update table: trn_activity_request",
+                details=f"Update status of Activity Request, Id: '{activity_request_id}'",
                 ip_address=request.remote_addr
             )
-            if updated_reconciliation_record is None:
-                return jsonify({"error": "Database error while updating status of file_upload table"}), 500
-
-            # Pick id of file in file upload table
-            id_of_file_upload = FileUploadBatch.get_id_of_file_upload(bank_account_id, year, month, file_name)
-            if id_of_file_upload is None:
-                return jsonify({"error": "Database error while picking id of uploaded file"}), 500
+            if updated_activity_request_record is False:
+                return jsonify({"error": "Database error while updating status of trn_activity_request table"}), 500
 
             # Pick latest level of reconciliation file from reconciliation_approvals table
-            latest_approval_level = (ReconciliationApprovals.get_latest_reconciliation_approval_level
-                                           (id_of_file_upload))
+            latest_approval_level = (ActivityRequestApprovals.get_latest_activity_request_approval_level
+                                     (activity_request_id))
             if latest_approval_level is None:
                 return jsonify({"error": "Database error while getting latest_approval_level from "
-                                         "reconciliation_approvals table"}), 500
+                                         "trn_activity_request_approvals table"}), 500
 
             # reconciliation_approvals table
             level = latest_approval_level + 1
 
-            last_reconciliation_approvals_id = (ReconciliationApprovals.insert_into_reconciliation_approvals
-                                                (id_of_file_upload, decision, current_user.id, level, comment))
-            if last_reconciliation_approvals_id is None:
+            last_activity_request_approvals_id = (ActivityRequestApprovals.insert_into_trn_activity_request_approvals
+                                                  (activity_request_id, decision, current_user.id, level, comment))
+
+            if last_activity_request_approvals_id is None:
                 return jsonify({"error": "Database error while writing to reconciliation_approvals table"}), 500
 
             if decision == 0:
-                file_upload_id = FileUpload.update_file_approval_status_following_a_rejected_approval(id_of_file_upload)
+                activity_request_id_rejected = (
+                    ActivityRequestApprovals.update_activity_request_approval_status_following_a_rejected_approval
+                    (activity_request_id))
                 # update audit trail
                 user_id = current_user.id
                 Audit.log_audit_trail(
                     user_id=user_id,
-                    action="Update table: file_upload",
-                    details=f"Reconciliation Request Rejection, file_upload_id: '{id_of_file_upload}'",
+                    action="Update table: trn_activity_request",
+                    details=f"Activity Request Rejection, Id: '{activity_request_id}'",
                     ip_address=request.remote_addr
                 )
-                if file_upload_id is None:
-                    return jsonify({"error": "Database error while updating status of file in file_upload table "
-                                             "following a rejected request"}), 500
+                if activity_request_id_rejected is None:
+                    return jsonify({"error": "Database error while updating status of activity request in "
+                                             "trn_activity_request table following a rejected request"}), 500
 
             # get the user id of the initiator of the bank reconciliation
-            initiator_id = FileUploadBatch.get_reconciliation_initiator_user_id(bank_account_id, year, month, file_name)
+            initiator_id = ActivityRequestApprovals.get_activity_request_initiator_user_id(activity_request_id)
             if not initiator_id:
                 continue  # Skip if no initiator found
 
-            initiator_approvals[initiator_id].append({
-                "bank_account": bank_account_id,
-                "year": year,
-                "month": month,
-                "file_name": file_name
-            })
-
-            submission_status = FileUpload.get_submission_status_of_reconciliation(id_of_file_upload)
-            if max_submission_status is None or submission_status > max_submission_status:
-                max_submission_status = submission_status
-
-        if max_submission_status is None:
-            return jsonify({"error": "Could not determine max submission status", "type": "danger"}), 500
+            activity_request_status = ActivityRequestApprovals.get_status_of_activity_request(activity_request_id)
 
         # Store user details before threading
         user_fname = current_user.fname
         user_id = current_user.id
 
         # Get initiator's email and first name
-        reconciliation_initiator_email_and_fname = FileUploadBatch.get_reconciliation_initiator_email_and_fname(initiator_id)
+        activity_requester_email_and_fname = (
+            ActivityRequestApprovals.get_activity_request_initiator_email_and_fname(initiator_id))
 
-        if not reconciliation_initiator_email_and_fname:
-            return jsonify({"error": "No initiator of reconciliation found"}), 500
+        if not activity_requester_email_and_fname:
+            return jsonify({"error": "No requestor of activity found"}), 500
 
         # Send emails in the background with app context
         def send_emails():
             try:
                 with app.app_context():
-                    for initiator in reconciliation_initiator_email_and_fname:
-                        EmailHelper.send_approval_summary_emails(user_fname, initiator["Email"], initiator["Fname"],
-                                                                 files, action_for_email)
+                    for initiator in activity_requester_email_and_fname:
+                        # Enrich each file with project and subject details
+                        for f in files:
+                            details = ActivityRequest.get_saved_activity_request_details_3(f["activity_request_id"])
+                            if details:
+                                d = details[0]
+                                f["project_code"] = d["project_code"]
+                                f["project_name"] = d["project_name"]
+                                f["subject"] = d["subject"]
+
+                        EmailHelper.send_approval_summary_emails(
+                            user_fname,
+                            initiator["Email"],
+                            initiator["Fname"],
+                            files,
+                            action_for_email
+                        )
+
             except Exception as e:
                 app.logger.error(f"Error in email thread 1: {e}")
 
@@ -902,16 +1061,31 @@ def approve_reconciliations_update():
         email_thread.start()
 
         # Get next approver(s)
-        if action == "approve":
-            next_approvers = FileUpload.get_next_approver_fname_email(user_id, max_submission_status)
+        if action == "approve" and (activity_request_status <= max_approval_level):
+
+            next_approvers = ActivityRequestApprovals.get_next_approver_fname_email(user_id, activity_request_status)
 
             if next_approvers:
                 def send_emails2():
                     try:
                         with app.app_context():  # Ensure Flask app context is available in the thread
                             for approver in next_approvers:
-                                EmailHelper.send_email_notification_to_next_approver(user_fname, approver["Email"],
-                                                                                     approver["Fname"], files)
+                                # Enrich each file with project and subject details
+                                for f in files:
+                                    details = ActivityRequest.get_saved_activity_request_details_3(
+                                        f["activity_request_id"])
+                                    if details:
+                                        d = details[0]
+                                        f["project_code"] = d["project_code"]
+                                        f["project_name"] = d["project_name"]
+                                        f["subject"] = d["subject"]
+
+                                EmailHelper.send_email_notification_to_next_approver(
+                                    user_fname,
+                                    approver["Email"],
+                                    approver["Fname"],
+                                    files
+                                )
                     except Exception as e:
                         app.logger.error(f"Error in email thread 2: {e}")
 
@@ -923,39 +1097,27 @@ def approve_reconciliations_update():
                 # return jsonify({"error": "No next approver found"}), 500
                 pass
 
-        return jsonify({"message": "Reconciliation(s) approved successfully"}), 200
+        return jsonify({"message": "Activity Request(s) approved successfully"}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/get-reconciliation-workflow", methods=["GET"])
+@app.route("/get-activity-request-approval-workflow", methods=["GET"])
 def get_reconciliation_workflow():
-    bank_account = request.args.get("bank_account")
-    reconciliation_year = request.args.get("year")
-    reconciliation_month = request.args.get("month")
-    file_name = request.args.get("file_name")
+    activity_request_id = request.args.get("activity_Request_ID")
+    workflow_id = request.args.get("workflow_ID")
 
-    # Pick id of file in file upload table
-    id_of_file_upload = FileUploadBatch.get_id_of_file_upload(bank_account, reconciliation_year, reconciliation_month, file_name)
-    if id_of_file_upload is None:
-        return jsonify({"error": "Database error while picking id of uploaded file", "type": "danger"}), 500
-
-    file_upload_id = id_of_file_upload
-    if file_upload_id is None:
-        return jsonify({"error": "No matching file found", "type": "danger"}), 500
-
-    # Get the latest approval level for this file
-    approvals = ReconciliationApprovals.get_reconciliation_approval_levels_of_given_file(file_upload_id)
+    # Get the latest approval level of given activity request
+    approvals = ActivityRequestApprovals.get_activity_request_approval_levels(activity_request_id)
     if approvals is None:
-        return jsonify({"error": "Database error while picking latest reconciliation approval level of given file",
+        return jsonify({"error": "Database error while picking latest approval level of given activity request",
                         "type": "danger"}), 500
 
     approval_dict = {a[0]: {"decision": a[1], "approver": a[2], "date": a[3], "comment": a[4]} for a in approvals}
 
-    workflow_id = 1
-    # Get workflow breakdown for "Reconciliation Approval" (id=1)
-    workflow_steps = WorkflowBreakdown.get_workflow_breakdown_for_reconciliation_approval(workflow_id)
+    # Get workflow breakdown for "Activity Request Approval"
+    workflow_steps = WorkflowBreakdown.get_workflow_breakdown_for_reconciliation_approval(workflow_id, 1)
     if workflow_steps is None:
         return jsonify({"error": "Database error while picking workflow breakdown for Reconciliation Approval workflow",
                         "type": "danger"}), 500
@@ -973,7 +1135,37 @@ def get_reconciliation_workflow():
             "comment": approval["comment"] if approval else " "
         })
 
-    return jsonify({"workflow_steps": workflow_list})
+    # Get Activity Request details"
+    saved_activity_request_details_2 = ActivityRequest.get_saved_activity_request_details_2(activity_request_id)
+    if not saved_activity_request_details_2:
+        return jsonify({"error": "Activity Request ID not found"}), 404
+
+    saved_activity_request_detail = saved_activity_request_details_2[0]
+
+    # Serialize manually
+    saved_activity_request_data = {
+        "id": saved_activity_request_detail.id,
+        "subject": saved_activity_request_detail.subject,
+        "objectives": saved_activity_request_detail.objectives,
+        "scope": saved_activity_request_detail.scope,
+        "stakeholders": saved_activity_request_detail.stakeholders,
+        "deliverables": saved_activity_request_detail.deliverables,
+        "assumptions": saved_activity_request_detail.assumptions
+    }
+
+    team = ActivityRequest.get_team_composition_details_2(activity_request_id)
+
+    tasks = ActivityRequest.get_activity_tasks_details_2(activity_request_id)
+
+    attachments = ActivityRequest.get_activity_attachments(activity_request_id)
+
+    return jsonify({
+        "workflow_steps": workflow_list,
+        "saved_activity_request_details_2": saved_activity_request_data,
+        "team": team or [],
+        "tasks": tasks or [],
+        "attachments": attachments or []
+    })
 
 
 @app.route("/download/<filename>")
@@ -1002,7 +1194,7 @@ def report_reconciliations_pending_submission_page():
 @role_required(8, 12, 16, 31, 49)
 def report_all_submitted_reconciliations_page():
     reconciliations = FileUpload.get_all_submitted_reconciliations()
-    return render_template('report_all_submitted_reconciliations.html', reconciliations=reconciliations)
+    return render_template('report_all_submitted_activity_requests.html', reconciliations=reconciliations)
 
 
 @app.route('/report-audit-trail', methods=['GET', 'POST'])
@@ -1052,6 +1244,26 @@ def admin_users_page():
 def get_organisation_units_by_tier(org_unit_tier_id):
     org_unit = UserSummary.get_organisation_units_by_tier(org_unit_tier_id)
     return jsonify([{'id': u.id, 'name': u.name} for u in org_unit])
+
+
+@app.route('/get-tasks-by-key-process/<int:key_process_id>/<int:activity_id>', methods=['GET'])
+@login_required
+def get_tasks_by_key_process(key_process_id, activity_id):
+    tasks = ActivityRequest.get_tasks_by_key_process(key_process_id, activity_id)
+    return jsonify([
+        {'id': task.id, 'task': task.task}
+        for task in tasks
+    ])
+
+
+@app.route('/get-process-by-activity-request-id/<int:activity_id>', methods=['GET'])
+@login_required
+def get_process_by_activity_request_id(activity_id):
+    key_processes = ActivityRequest.get_process_by_activity_request_id(activity_id)
+    return jsonify([
+        {'id': key_process.id, 'name': key_process.name}
+        for key_process in key_processes
+    ])
 
 
 @app.route('/admin-register-new-user', methods=['POST'])
@@ -1838,7 +2050,8 @@ def admin_register_new_bank_account_responsibility():
 def get_bank_account_responsibility_details():
     bank_account_name = request.args.get("bank_account_name")
     username = request.args.get("username")
-    bank_acc_responsibility_details = BankAccountResponsibleUser.get_bank_account_responsibility_details(bank_account_name, username)
+    bank_acc_responsibility_details = BankAccountResponsibleUser.get_bank_account_responsibility_details(
+        bank_account_name, username)
 
     if not bank_acc_responsibility_details:
         return jsonify({"error": "Bank Account responsibility not found"}), 404
@@ -1926,7 +2139,8 @@ def admin_register_org_unit_tier():
             return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
 
         # Insert user into DB (pseudo-function: implement in your model)
-        result = OrganisationUnitTier.insert_new_org_unit_tier(unit_tier_name=unit_tier_name, parent_unit_tier=parent_unit_tier)
+        result = OrganisationUnitTier.insert_new_org_unit_tier(unit_tier_name=unit_tier_name,
+                                                               parent_unit_tier=parent_unit_tier)
         if result:
             # update audit trail
             user_id = current_user.id
@@ -1950,7 +2164,6 @@ def admin_register_org_unit_tier():
 @login_required
 @role_required(40)
 def admin_update_org_unit_tier():
-
     data = request.get_json()
 
     try:
@@ -1964,7 +2177,8 @@ def admin_update_org_unit_tier():
             return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
 
         # Insert user into DB (pseudo-function: implement in your model)
-        result = OrganisationUnitTier.update_org_unit_tier(org_unit_tier_id, org_unit_tier_name, parent_org_unit_tier_id)
+        result = OrganisationUnitTier.update_org_unit_tier(org_unit_tier_id, org_unit_tier_name,
+                                                           parent_org_unit_tier_id)
         if result:
             # update audit trail
             user_id = current_user.id
@@ -2049,7 +2263,6 @@ def admin_register_org_unit():
 @login_required
 @role_required(39)
 def admin_update_org_unit():
-
     data = request.get_json()
 
     try:
@@ -2278,10 +2491,14 @@ def admin_workflow_breakdown():
                            workflow_breakdown_details=workflow_breakdown_details, workflow_details=workflow_details)
 
 
-@app.route('/check-workflow-breakdown/<string:workflowBreakdownName>/<int:workflow_id>/<int:level_id>/<int:item_menu_id>/<int:is_responsibility_global>/<int:is_workflow_level>', methods=['GET'])
+@app.route(
+    '/check-workflow-breakdown/<string:workflowBreakdownName>/<int:workflow_id>/<int:level_id>/<int:item_menu_id>/<int:is_responsibility_global>/<int:is_workflow_level>',
+    methods=['GET'])
 @login_required
-def check_workflow_breakdown_exists(workflowBreakdownName, workflow_id, level_id, item_menu_id, is_responsibility_global, is_workflow_level):
-    exists = WorkflowBreakdown.workflow_breakdown_exists(workflowBreakdownName, workflow_id, level_id, item_menu_id, is_responsibility_global, is_workflow_level)
+def check_workflow_breakdown_exists(workflowBreakdownName, workflow_id, level_id, item_menu_id,
+                                    is_responsibility_global, is_workflow_level):
+    exists = WorkflowBreakdown.workflow_breakdown_exists(workflowBreakdownName, workflow_id, level_id, item_menu_id,
+                                                         is_responsibility_global, is_workflow_level)
     return jsonify({"exists": exists})
 
 
@@ -2306,7 +2523,9 @@ def admin_register_new_workflow_breakdown():
             return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
 
         # Insert user into DB (pseudo-function: implement in your model)
-        result = WorkflowBreakdown.insert_new_workflow_breakdown(workflowBreakdownName, workflow_id, level_id, item_menu_id, is_responsibility_global, is_workflow_level)
+        result = WorkflowBreakdown.insert_new_workflow_breakdown(workflowBreakdownName, workflow_id, level_id,
+                                                                 item_menu_id, is_responsibility_global,
+                                                                 is_workflow_level)
         if result:
             # update audit trail
             user_id = current_user.id
@@ -2349,7 +2568,9 @@ def admin_update_workflow_breakdown():
             return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
 
         # Insert user into DB (pseudo-function: implement in your model)
-        result = WorkflowBreakdown.update_workflow_breakdown(workflowBreakdownIdEdit, workflowBreakdownNameEdit, workflowEdit, levelEdit, item_menu_id_edit, is_responsibility_global_edit, is_workflow_level_edit)
+        result = WorkflowBreakdown.update_workflow_breakdown(workflowBreakdownIdEdit, workflowBreakdownNameEdit,
+                                                             workflowEdit, levelEdit, item_menu_id_edit,
+                                                             is_responsibility_global_edit, is_workflow_level_edit)
         if result:
             # update audit trail
             user_id = current_user.id
@@ -2425,7 +2646,6 @@ def admin_register_new_menu_item():
 @login_required
 @role_required(7, 8, 9, 10)
 def admin_update_menu_item():
-
     data = request.get_json()
 
     try:

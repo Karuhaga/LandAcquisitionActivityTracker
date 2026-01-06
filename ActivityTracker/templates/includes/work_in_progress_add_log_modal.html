@@ -9,7 +9,7 @@
                     <button type="button" class="btn btn-sm btn-outline-custom me-2" id="resetPageBtn" onclick="printPage()">
                         <i class="fas fa-print"></i> Print
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-custom2" data-bs-dismiss="modal">
+                    <button type="button" class="btn btn-sm btn-outline-custom2" data-dismiss="modal">
                         <i class="fas fa-times"></i> Close
                     </button>
                 </div>
@@ -75,7 +75,7 @@
                                     </td>
                                     <td class="days-diff text-center">1</td>
                                     <td>
-                                        <textarea class="form-control" name="task[]" rows="2" placeholder="Enter task name" maxlength="150"></textarea>
+                                        <textarea class="form-control" name="activityBreakdownDetails[]" rows="2" placeholder="Enter activity details" maxlength="150"></textarea>
                                     </td>
                                     <td class="text-center">
                                         <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">
@@ -115,14 +115,14 @@
                                     <th class="text-center">Delete</th>
                                 </tr>
                             </thead>
-                            <tbody id="attachmentsTable">
+                            <tbody id="wipAttachmentsTable">
                                 <tr>
                                     <td class="text-end">1</td>
                                     <td>
-                                        <input type="file" class="form-control" name="attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
+                                        <input type="file" class="form-control" name="wip_attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
                                     </td>
                                     <td>
-                                        <textarea class="form-control" name="attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea>
+                                        <textarea class="form-control" name="wip_attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea>
                                     </td>
                                     <td class="text-center">
                                         <button type="button" class="btn btn-sm btn-secondary">
@@ -137,7 +137,7 @@
                                 </tr>
                                 <tr>
                                     <td colspan="5" class="text-end">
-                                        <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRow()">
+                                        <button type="button" class="btn-outline-custom float-end" onclick="wipAddAttachmentRow()">
                                             <i class="fa fa-plus"></i> Add File
                                         </button>
                                     </td>
@@ -316,7 +316,7 @@
                 </td>
                 <td class="days-diff text-center">1</td>
                 <td>
-                    <textarea class="form-control" name="task[]" rows="2" placeholder="Enter task name" maxlength="150"></textarea>
+                    <textarea class="form-control" name="activityBreakdownDetails[]" rows="2" placeholder="Enter task name" maxlength="150"></textarea>
                 </td>
                 <td class="text-center">
                     <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">
@@ -382,6 +382,13 @@
     });
 
     function handleAction(actionType, buttonElem = null) {
+
+        if (actionType === "save activity log") {
+            if (!validateForm()) {
+                return; // Stop here if validation fails
+            }
+        }
+
         // Show confirmation modal for the action
         showConfirmation(actionType);
     }
@@ -389,91 +396,62 @@
     function validateForm() {
         let isValid = true;
 
-        // Clear old errors
-        $(".text-danger.validation-error").remove();
+        // Clear previous validation errors
+        $(".validation-error").remove();
 
-        // Track which accordions need to open
-        let invalidSections = new Set();
-
-        // --- Check Activity Overview ---
-        const subjectVal = $("#subject").val()?.trim() || "";
-        if (subjectVal === "") {
+        /* ============================
+           1. Key Process validation
+           ============================ */
+        const keyProcessVal = $("#key_process_drop_down_WIP").val();
+        if (!keyProcessVal) {
             isValid = false;
-            $("#subject").after('<div class="text-danger validation-error small">Subject is required.</div>');
-            invalidSections.add("#collapseOverview");
+            $("#key_process_drop_down_WIP")
+                .after('<div class="text-danger validation-error small">Please select a Key Process.</div>');
         }
 
-        const objectivesVal = $("#objectives").val()?.trim() || "";
-        if (objectivesVal === "") {
+        /* ============================
+           2. Task validation
+           ============================ */
+        const taskVal = $("#activity_task_WIP").val();
+        if (!taskVal) {
             isValid = false;
-            $("#objectives").after('<div class="text-danger validation-error small">Objectives are required.</div>');
-            invalidSections.add("#collapseOverview");
+            $("#activity_task_WIP")
+                .after('<div class="text-danger validation-error small">Please select a Task.</div>');
         }
 
-        // --- Check Team Members ---
-        let teamRows = $("#teamCompositionInputs tr");
-        let hasValidTeamMember = false;
+        /* =====================================
+           3. Activity Breakdown validation
+           ===================================== */
+        let hasValidRow = false;
 
-        teamRows.each(function() {
+        $("#activityTaskInputs tr").each(function () {
             const $row = $(this);
-            const member = $row.find("select[name='team_member_names']").val();
-            const role = $row.find("select[name='team_member_role']").val();
 
-            // Remove previous row-level errors
-            $row.find(".text-danger.validation-error").remove();
+            const startDate = $row.find(".start-date").val()?.trim();
+            const endDate   = $row.find(".end-date").val()?.trim();
+            const details   = $row.find("textarea[name='activityBreakdownDetails[]']").val()?.trim();
 
-            if (!member || !role) {
-                isValid = false;
-                $row.find("td:last").append('<div class="text-danger validation-error small">Select both member and role.</div>');
-                invalidSections.add("#collapseTeam");
-            } else {
-                hasValidTeamMember = true;
+            // Remove old row-level errors
+            $row.find(".validation-error").remove();
+
+            // If ANY field is filled, require ALL fields
+            if (startDate || endDate || details) {
+                if (!startDate || !endDate || !details) {
+                    isValid = false;
+                    $row.find("td:last").append(
+                        '<div class="text-danger validation-error small">Complete all fields in this row.</div>'
+                    );
+                } else {
+                    hasValidRow = true;
+                }
             }
         });
 
-        if (!hasValidTeamMember) {
+        if (!hasValidRow) {
             isValid = false;
-            if (!$("#teamCompositionInputs").find(".text-danger.validation-error").length) {
-                $("#teamCompositionInputs").after('<div class="text-danger validation-error small">At least one team member with a role is required.</div>');
-            }
-            invalidSections.add("#collapseTeam");
+            $("#activityBreakdownContainer")
+                .append('<div class="text-danger validation-error small mt-2">At least one Activity Breakdown row must be fully completed.</div>');
         }
-
-        // --- Check Task Rows ---
-        let taskRows = $("#taskInputs tr").filter(function() {
-            // Only include rows that have a task textarea (ignore empty template rows)
-            return $(this).find("textarea[name='task[]']").length > 0;
-        });
-        let hasValidTask = false;
-
-        taskRows.each(function() {
-            const $row = $(this);
-            const taskName = $row.find("textarea[name='task[]']").val()?.trim() || "";
-            const keyProcess = $row.find("select[name='key_process_names']").val() || "";
-            const startDate = $row.find("input.start-date").val()?.trim() || "";
-            const endDate = $row.find("input.end-date").val()?.trim() || "";
-
-            $row.find(".text-danger.validation-error").remove();
-
-            if (!taskName || !keyProcess || !startDate || !endDate) {
-                isValid = false;
-                $row.find("td:last").append('<div class="text-danger validation-error small">Fill all fields in this row.</div>');
-                invalidSections.add("#collapseBreakdown");
-            } else {
-                hasValidTask = true;
-            }
-        });
-
-        if (!hasValidTask) {
-            isValid = false;
-            if (!$("#taskInputs").find(".text-danger.validation-error").length) {
-                $("#taskInputs").after('<div class="text-danger validation-error small">At least one task row must be fully filled.</div>');
-            }
-            invalidSections.add("#collapseBreakdown");
-        }
-
-        // --- Expand invalid accordions ---
-        invalidSections.forEach(id => $(id).collapse("show"));
 
         return isValid;
     }
@@ -485,9 +463,18 @@
         if (actionType === "save activity log") {
             modalTitle = "Save Confirmation";
             modalMessage = "Are you sure you want to save this activity log?";
+
+            // Remove old handlers safely
+            $("#confirmAction").off("click.confirm");
+
             $("#confirmAction").off("click").on("click", function() {
+                // Close confirmation FIRST
                 $("#confirmationModal").modal("hide");
-                saveActivityLog(false, null);
+
+                // Then close parent modal
+                $("#workInProgressAddLogModal").modal("hide");
+
+                saveActivityLog();
             });
         }
         // Set modal text
@@ -496,17 +483,150 @@
 
         // Show modal
         $("#confirmationModal").modal({
-            backdrop: true,
+            backdrop: "static",
             keyboard: false
         });
 
-        // Optional: Adjust z-index
-        setTimeout(function() {
-            $(".modal-backdrop").last().addClass("confirmation-backdrop");
+        function saveActivityLog() {
+
+            // --- Overview fields ---
+            const overview = {
+                activity_task_id: $("#activityTaskId").val(),
+                key_process_id: $("#key_process_drop_down_WIP").val(),
+                task_id: $("#activity_task_WIP").val()
+            };
+
+            // --- Activity Breakdown ---
+            const activityBreakdown = [];
+            $("#activityTaskInputs tr").each(function() {
+                const startDate = $(this).find("input.start-date").val();
+                const endDate = $(this).find("input.end-date").val();
+                const activityBreakdownDetail = $(this).find("textarea[name='activityBreakdownDetails[]']").val();
+
+                if (activityBreakdownDetail && startDate && endDate) {
+                    activityBreakdown.push({
+                        activityBreakdownDetail,
+                        start_date: startDate,
+                        end_date: endDate
+                    });
+                }
+            });
+
+            const formData = new FormData();
+
+            const payload = {
+                overview,
+                activityBreakdown
+            };
+
+            formData.append("data", JSON.stringify(payload));
+
+            // --- Attachments ---
+            const retainedAttachmentIds = [];
+            $("#wipAttachmentsTable tr").each(function() {
+                const fileInput = $(this).find("input[type='file']")[0];
+                const desc = $(this).find("textarea[name='wip_attachment_description[]']").val();
+                const attachmentId = $(this).data("attachment-id");
+
+                if (attachmentId) {
+                    retainedAttachmentIds.push(attachmentId);
+                }
+
+                if (fileInput && fileInput.files.length > 0) {
+                    formData.append("wip_attachments", fileInput.files[0]);
+                    formData.append("wip_attachment_descriptions", desc || "");
+                }
+            });
+
+            const url = "/save_activity_request_log";
+
+            $.ajax({
+                url: url,
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (response) {
+                    showFlashMessage(response.message, "success");
+
+                    $("#flashMessageModal")
+                        .off("hidden.bs.modal")
+                        .on("hidden.bs.modal", function () {
+                            location.reload();
+                        });
+                },
+                error: function (xhr) {
+                    let errorMessage =
+                        (xhr.responseJSON && xhr.responseJSON.error) ||
+                        "An unexpected error occurred.";
+                    let messageType =
+                        (xhr.responseJSON && xhr.responseJSON.type) || "danger";
+
+                    showFlashMessage(errorMessage, messageType);
+                }
+            });
+        }
+
+        // Ensure correct stacking
+        setTimeout(() => {
+            const zIndex = 1055;
+            $("#confirmationModal").css("z-index", zIndex);
+            $(".modal-backdrop").last().css("z-index", zIndex - 1);
         }, 10);
     }
-</script>
 
+    $('#confirmationModal').on('hidden.bs.modal', function () {
+
+        setTimeout(() => {
+            const $parentModal = $('#workInProgressAddLogModal');
+
+            if ($parentModal.hasClass('show')) {
+                $('body').addClass('modal-open');
+                $parentModal[0].scrollTop = $parentModal[0].scrollTop; // force reflow
+            }
+        }, 10);
+    });
+
+    $('#workInProgressAddLogModal').on('hidden.bs.modal', function () {
+
+        // Reset task dropdown
+        $('#activity_task_WIP')
+            .val('')
+            .prop('selectedIndex', 0)
+            .trigger('change');
+
+    });
+
+    function wipAddAttachmentRow() {
+        const table = document.getElementById("wipAttachmentsTable");
+        const rowCount = table.rows.length - 1; // exclude last "Add File" row
+        const newRow = table.insertRow(rowCount);
+
+        // No data-attachment-id for new uploads
+        newRow.dataset.attachmentId = "";
+
+        newRow.innerHTML = `
+        <td class="text-end">${rowCount + 1}</td>
+        <td>
+            <input type="file" class="form-control" name="wip_attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
+        </td>
+        <td>
+            <textarea class="form-control" name="wip_attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-secondary">
+                <i class="fa fa-download"></i>
+            </button>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+                <i class="fa fa-trash"></i>
+            </button>
+        </td>
+    `;
+    }
+
+</script>
 
 <style>
     .wrap-text {
@@ -517,4 +637,13 @@
     .modal-header .btn {
         margin-left: 6px;
     }
+
+    #saveConfirmationModal {
+        z-index: 1060;
+    }
+
+    .modal-backdrop.show:nth-of-type(2) {
+        z-index: 1055;
+    }
+
 </style>

@@ -86,8 +86,8 @@ def inject_menu_items():
 @app.context_processor
 def inject_pending_approvals_count():
     if current_user.is_authenticated:
-        from ActivityTracker.models import FileUpload  # Import here to avoid circular imports
-        count = FileUpload.get_reconciliations_pending_approval_count(current_user.id)
+        from ActivityTracker.models import ActivityRequest  # Import here to avoid circular imports
+        count = ActivityRequest.get_activity_requests_pending_approval_count(current_user.id)
     else:
         count = 0
     return {'pending_approvals_count': count}
@@ -97,8 +97,8 @@ def inject_pending_approvals_count():
 @app.context_processor
 def inject_pending_submissions_count():
     if current_user.is_authenticated:
-        from ActivityTracker.models import FileUpload  # Moved inside the function
-        count = FileUpload.get_reconciliations_pending_submission_by_user(current_user.id)
+        from ActivityTracker.models import ActivityRequest  # Moved inside the function
+        count = ActivityRequest.get_activity_requests_pending_submission(1, current_user.id)
     else:
         count = 0
     return dict(pending_submissions_count=count)
@@ -127,19 +127,19 @@ def check_session_expiry():
             return redirect(url_for('login_page'))
 
 
-@app.context_processor
-def inject_selected_project():
-    project = session.get('selected_project')
-    if project:
-        return {
-            'project_id': project.get('id'),
-            'project_name': project.get('name'),
-            'project_code': project.get('code'),
-            'project_display': f"{project.get('code')} - {project.get('name')}"
-        }
-    return {
-        'project_id': None,
-        'project_name': None,
-        'project_code': None,
-        'project_display': ""
-    }
+# @app.context_processor
+# def inject_selected_project():
+#     project = session.get('selected_project')
+#     if project:
+#         return {
+#             'project_id': project.get('id'),
+#             'project_name': project.get('name'),
+#             'project_code': project.get('code'),
+#             'project_display': f"{project.get('code')} - {project.get('name')}"
+#         }
+#     return {
+#         'project_id': None,
+#         'project_name': None,
+#         'project_code': None,
+#         'project_display': ""
+#     }

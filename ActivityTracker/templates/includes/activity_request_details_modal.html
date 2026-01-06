@@ -1,37 +1,124 @@
-<!-- Reconciliation Details Modal -->
-<!-- Reconciliation Details Modal -->
+<!-- Activity Request Details Modal -->
 <div class="modal fade" id="viewRequestModal" tabindex="-1" aria-labelledby="viewRequestModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="viewRequestModalLabel">Activity Request Details</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+            <div class="modal-header d-flex justify-content-between align-items-center">
+                <h5 class="modal-title mb-0" id="viewRequestModalLabel">Activity Request Details</h5>
+
+                <div class="d-flex">
+                    <button type="button" class="btn btn-sm btn-outline-custom me-2" id="resetPageBtn" onclick="printPage()">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-custom2" data-dismiss="modal">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
             </div>
+
             <div class="modal-body">
                 <table class="table table-sm table-bordered">
                     <tbody>
                         <tr>
-                            <th>Project Code</th>
-                            <td id="viewBankAccount"></td>
-                            <th>Project Name</th>
-                            <td id="viewYear"></td>
-                        </tr>
-                        <tr>
-                            <th>Subject</th>
-                            <td id="viewMonth"></td>
+                            <th>Requester</th>
+                            <td id="viewRequester"></td>
+
                             <th>Last Modified</th>
                             <td id="viewLastModified"></td>
                         </tr>
                         <tr>
+                            <th>Project Code</th>
+                            <td id="viewProjectCode"></td>
                             <th>Approved As</th>
                             <td id="viewApproveAs"></td>
-                            <th></th>
-                            <td</td>
+                        </tr>
+                        <tr>
+                            <th>Project Name</th>
+                            <td id="viewProjectName"></td>
                         </tr>
                     </tbody>
                 </table>
+
+                <!-- Activity Overview -->
+                <div id="activityOverviewContainer">
+                    <h5>Activity Overview</h5>
+                    <table class="table table-sm table-bordered">
+                        <tbody>
+                            <tr>
+                                <th style="width: 20%">Subject</th>
+                                <td id="viewSubject"></td>
+                            </tr>
+                            <tr>
+                                <th>Objectives</th>
+                                <td id="viewObjectives"></td>
+                            </tr>
+                            <tr>
+                                <th>Scope</th>
+                                <td id="viewScope"></td>
+                            </tr>
+                            <tr>
+                                <th>Stakeholders</th>
+                                <td id="viewStakeholders"></td>
+                            </tr>
+                            <tr>
+                                <th>Deliverables</th>
+                                <td id="viewDeliverables"></td>
+                            </tr>
+                            <tr>
+                                <th>Assumptions</th>
+                                <td id="viewAssumptions"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Team Composition -->
+                <div id="teamCompositionContainer">
+                    <h5>Team Composition</h5>
+                    <table class="table table-sm table-bordered" style="table-layout: fixed; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">#</th>
+                                <th style="width: 50%;">Member</th>
+                                <th style="width: 45%;">Role</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teamCompositionInputs2"></tbody>
+                    </table>
+                </div>
+
+                <!-- Activity BreakDown -->
+                <div id="activityBreakdownContainer">
+                    <h5>Activity Breakdown</h5>
+                    <table class="table table-sm table-bordered" style="table-layout: fixed; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th class="text-end" style="width: 5%;">#</th>
+                                <th style="width: 25%;">Task</th>
+                                <th style="width: 20%;">Key Process</th>
+                                <th style="width: 15%;">Start Date</th>
+                                <th style="width: 15%;">End Date</th>
+                                <th style="width: 10%;">No. of Days</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activityBreakdownInputs"></tbody>
+                    </table>
+                </div>
+
+                <!-- Attachments -->
+                <div id="attachmentsContainer">
+                    <h5>Attachments</h5>
+                    <table class="table table-sm table-bordered" style="table-layout: fixed; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th class="text-end" style="width: 5%;">#</th>
+                                <th style="width: 41%;">File</th>
+                                <th style="width: 42%;">Description</th>
+                                <th style="width: 12%;">Download</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attachmentsInputs"></tbody>
+                    </table>
+                </div>
 
                 <!-- Workflow Visualization -->
                 <div id="workflowMapContainer">
@@ -48,20 +135,25 @@
 </div>
 
 <style>
-    /* Reduce table spacing */
+    /* ---------- Table Spacing & Wrapping ---------- */
     .table-sm th, .table-sm td {
-    padding: 4px 8px !important;
-    font-size: 14px;
-    vertical-align: middle;
+        padding: 4px 8px !important;
+        font-size: 14px;
+        vertical-align: middle;
+        white-space: normal !important;   /* allow wrapping */
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere;
     }
 
-    #workflowMapContainer{
+    /* ---------- Workflow Container ---------- */
+    #workflowMapContainer {
         padding-top: 25px;
     }
 
     .workflow-divider {
         border: 0;
-        height: .4px;
+        height: 0.4px;
         background: #dfdfe0;
         margin-bottom: 10px;
     }
@@ -80,6 +172,8 @@
         flex: 1;
         max-width: 300px;
         text-align: center;
+        word-wrap: break-word;
+        word-break: break-word;
     }
 
     .text-right {
@@ -140,35 +234,115 @@
         width: 4px;
         background-color: #007bff;
         position: absolute;
-        top: 70px; /* Position the arrow directly below the circular icon */
-        height: 30px; /* Adjust the height to make sure the arrow touches both steps */
-        transform: translateY(5px); /* Adjust to align the arrow properly */
+        top: 70px;
+        height: 30px;
+        transform: translateY(5px);
     }
 
     /* Create arrow pointer at the bottom */
     .workflow-arrow:after {
         content: '';
         position: absolute;
-        bottom: -8px; /* Move pointer below the arrow */
+        bottom: -8px;
         left: 50%;
-        margin-left: -6px; /* Center the pointer */
+        margin-left: -6px;
         width: 0;
         height: 0;
         border-left: 6px solid transparent;
         border-right: 6px solid transparent;
-        border-top: 8px solid #007bff; /* Color of the arrow pointer */
+        border-top: 8px solid #007bff;
     }
 
     /* Fix for last item (no arrow) */
     .workflow-item:last-child .workflow-arrow {
         display: none;
     }
+
+    /* Section Headers */
+    .modal-body h5 {
+        padding-left: 10px;
+        margin-top: 1.8rem;
+        margin-bottom: 0.8rem;
+    }
+
+    /* ---------- Table Styling ---------- */
+    .table-sm.table-bordered {
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.4rem;
+        overflow: hidden;
+        box-shadow: 0 0 4px rgba(0,0,0,0.05);
+        margin-bottom: 1.2rem;
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    .table-sm th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #484a52;
+        vertical-align: middle;
+        width: 25%;
+    }
+
+    .table-sm td {
+        background-color: #fff;
+        color: #484a52;
+        vertical-align: top;
+    }
+
+    /* Compact spacing */
+    .table-sm th, .table-sm td {
+        padding: 0.5rem 0.75rem;
+        line-height: 1.4;
+    }
+
+    /* ---------- Print Formatting ---------- */
+    @media print {
+        table {
+            table-layout: fixed !important;
+            width: 100% !important;
+        }
+
+        th, td {
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
+        }
+
+        .modal-body {
+            padding: 1rem !important;
+            background: #fff !important;
+        }
+
+        .table-bordered th, .table-bordered td {
+            border: 1px solid #444 !important;
+        }
+
+        /* Preserve workflow colors */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+    }
 </style>
 
 <script>
-    function loadReconciliationWorkflow(bankAccount, year, month, fileName) {
-        $.get("/get-reconciliation-workflow", { bank_account: bankAccount, year: year, month: month, file_name: fileName })
+    function loadActivityRequestApprovalWorkflow(activityRequestId) {
+        $.get("/get-activity-request-approval-workflow", { activity_Request_ID: activityRequestId, workflow_ID: workFlowId })
         .done(function(response) {
+            // ======== 1. Populate Activity Overview ========
+            const overview = response.saved_activity_request_details_2 || {};
+
+            $("#viewRequester").text(overview.requester);
+            $("#viewSubject").text(overview.subject);
+            $("#viewObjectives").text(overview.objectives);
+            $("#viewScope").text(overview.scope);
+            $("#viewStakeholders").text(overview.stakeholders);
+            $("#viewDeliverables").text(overview.deliverables);
+            $("#viewAssumptions").text(overview.assumptions);
+
+            // ======== 2. Populate Workflow Visualization ========
             $("#workflowMap").empty();
 
             response.workflow_steps.forEach((step, index) => {
@@ -217,10 +391,351 @@
 
                 $("#workflowMap").append(stepHTML);
             });
+
+            // ======== 3. Populate Team Composition ========
+            const $teamBody = $("#teamCompositionInputs2");
+            $teamBody.empty();
+
+            if (response.team && response.team.length > 0) {
+                response.team.forEach((member, index) => {
+                    const newRow = $(`
+                        <tr>
+                            <td class="text-end">${index + 1}</td>
+                            <td>${member.member_name}</td>
+                            <td>${member.member_role}</td>
+                        </tr>
+                    `);
+
+                    $teamBody.append(newRow);
+                });
+            } else {
+                showFlashMessage("No team members found for this request.", "warning");
+            }
+
+            // ======== 4. Populate Tasks ========
+            const $taskBody = $("#activityBreakdownInputs");
+            $taskBody.empty();
+
+            if (response.tasks && response.tasks.length > 0) {
+                response.tasks.forEach((task, index) => {
+                    // Calculate days for this row
+                    const diffDays = daysBetween(task.start_date, task.end_date);
+
+                    const newRow = $(`
+                        <tr>
+                            <td class="text-end">${index + 1}</td>
+                            <td>${task.task}</td>
+                            <td>${task.process_name}</td>
+                            <td class="start-date">${task.start_date}</td>
+                            <td class="end-date">${task.end_date}</td>
+                            <td class="text-center days-between">${diffDays}</td>
+                        </tr>
+                    `);
+                    $taskBody.append(newRow);
+                });
+
+                //Calculate total across all rows after they’re rendered
+                calculateTotalDays();
+
+            } else {
+                showFlashMessage("No tasks found for this request.", "warning");
+            }
+
+            // ======== 5. Populate Attachments ========
+            const $attachmentBody = $("#attachmentsInputs");
+            $attachmentBody.empty();
+
+            if (response.attachments && response.attachments.length > 0) {
+                response.attachments.forEach((attachment, index) => {
+
+                    const newRow = $(`
+                        <tr>
+                            <td class="text-end">${index + 1}</td>
+                            <td class="wrap-text">${attachment.file}</td>
+                            <td class="wrap-text">${attachment.description}</td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-secondary download-btn" data-filename="${attachment.file}">
+                                    <i class="fa fa-download"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `);
+                    $attachmentBody.append(newRow);
+                });
+            } else {
+                showFlashMessage("No tasks found for this request.", "warning");
+            }
         })
         .fail(function(error) {
             console.error("Error loading workflow:", error);
         });
     }
 
+    function daysBetween(start, end) {
+        const s = new Date(start).setHours(0, 0, 0, 0);
+        const e = new Date(end).setHours(0, 0, 0, 0);
+        return ((e - s) / (1000 * 60 * 60 * 24)) + 1; // inclusive
+    }
+
+    function calculateTotalDays() {
+        let earliest = null;
+        let latest = null;
+
+        // Use your table ID (#activityBreakdownInputs)
+        $("#activityBreakdownInputs tr").each(function() {
+            const startText = $(this).find(".start-date").text().trim();
+            const endText = $(this).find(".end-date").text().trim();
+
+            if (startText && endText) {
+                const start = new Date(startText);
+                const end = new Date(endText);
+
+                if (!earliest || start < earliest) earliest = start;
+                if (!latest || end > latest) latest = end;
+            }
+        });
+
+        // Remove any existing total row to avoid duplicates
+        $("#activityBreakdownInputs tr.total-row").remove();
+
+        // Append the new total row
+        if (earliest && latest) {
+            const diff = daysBetween(earliest, latest);
+            const totalRow = $(`
+                <tr class="fw-bold">
+                    <td></td>
+                    <td colspan="4" class="text-end">Total No. of Days (All Tasks):</td>
+                    <td class="text-center total-days">${diff >= 0 ? diff : 0}</td>
+                </tr>
+            `);
+            $("#activityBreakdownInputs").append(totalRow);
+        } else {
+            const totalRow = $(`
+                <tr class="fw-bold">
+                    <td></td>
+                    <td colspan="4" class="text-end">Total No. of Days (All Tasks):</td>
+                    <td class="text-center total-days">0</td>
+                </tr>
+            `);
+            $("#activityBreakdownInputs").append(totalRow);
+        }
+    }
+
+    // Handler for download button
+    $(document).on("click", ".download-btn", function() {
+        const fileName = $(this).data("filename");
+
+        if (!fileName) {
+            showFlashMessage("File not available for download.", "warning");
+            return;
+        }
+
+        const fileUrl = `/download/${encodeURIComponent(fileName)}`;
+        const ext = fileName.split('.').pop().toLowerCase();
+
+        if (["pdf", "png", "jpg", "jpeg"].includes(ext)) {
+            // Open inline for viewable files
+            window.open(fileUrl, "_blank");
+        } else {
+            // Force download for other types
+            const a = document.createElement("a");
+            a.href = fileUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    });
+
+    function printPage() {
+        const modal = document.querySelector('#viewRequestModal .modal-content');
+        if (!modal) return;
+
+        const printContents = modal.cloneNode(true);
+        const buttons = printContents.querySelectorAll('button');
+        buttons.forEach(btn => btn.remove());
+
+        const printWindow = window.open('', '', 'height=900,width=1100');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Activity Request Details</title>
+
+                <!-- Include your icon library here -->
+                <!-- If using Font Awesome -->
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+                <!-- Or if using Bootstrap Icons -->
+                <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"> -->
+
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        padding: 20px;
+                        color: #000;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        background-color: #fff;
+                    }
+
+                    h5 {
+                        margin-top: 24px;
+                        font-size: 18px;
+                        border-bottom: 1px solid #ccc;
+                        padding-bottom: 4px;
+                    }
+
+                    table {
+                        border-collapse: collapse;
+                        width: 100%;
+                        margin-bottom: 15px;
+                    }
+
+                    th, td {
+                        border: 1px solid #ccc;
+                        padding: 6px 8px;
+                        font-size: 13px;
+                        vertical-align: top;
+                    }
+
+                    th {
+                        background-color: #f8f9fa !important;
+                        text-align: left;
+                    }
+
+                    /* ---------- Table Spacing & Wrapping ---------- */
+                    .table-sm th, .table-sm td {
+                        padding: 4px 8px !important;
+                        font-size: 14px;
+                        vertical-align: middle;
+                        white-space: normal !important;
+                        word-wrap: break-word !important;
+                        word-break: break-word !important;
+                        overflow-wrap: anywhere;
+                    }
+
+                    .wrap-text {
+                        white-space: normal !important;
+                        word-wrap: break-word !important;
+                        word-break: break-word !important;
+                        overflow-wrap: anywhere !important;
+                    }
+
+                    /* ===== WORKFLOW PRINT STYLES ===== */
+                    #workflowMapContainer {
+                        page-break-inside: avoid;
+                        margin-top: 30px;
+                    }
+
+                    .workflow-item {
+                        display: grid;
+                        grid-template-columns: 1fr 100px 1fr;
+                        align-items: center;
+                        justify-content: center;
+                        text-align: center;
+                        margin-bottom: 40px;
+                        position: relative;
+                    }
+
+                    .workflow-text {
+                        font-size: 13px;
+                        line-height: 1.4;
+                        padding: 0 10px;
+                        word-wrap: break-word;
+                    }
+
+                    .workflow-center {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        position: relative;
+                    }
+
+                    .workflow-step {
+                        width: 55px;
+                        height: 55px;
+                        border-radius: 50%;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        font-size: 20px;
+                        color: white !important;
+                        font-weight: bold;
+                        text-align: center;
+                        z-index: 2;
+                        position: relative;
+                        box-shadow: 0 0 4px rgba(0,0,0,0.2);
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+
+                    .workflow-step.approved { background-color: #28a745 !important; }
+                    .workflow-step.submitted { background-color: #28a745 !important; }
+                    .workflow-step.pending { background-color: #74787d !important; }
+                    .workflow-step.rejected { background-color: #dc3545 !important; }
+
+                    .workflow-arrow {
+                        width: 4px;
+                        background-color: #007bff !important;
+                        position: absolute;
+                        top: 65px;
+                        height: 35px;
+                    }
+
+                    .workflow-arrow:after {
+                        content: '';
+                        position: absolute;
+                        bottom: -8px;
+                        left: 50%;
+                        margin-left: -6px;
+                        border-left: 6px solid transparent;
+                        border-right: 6px solid transparent;
+                        border-top: 8px solid #007bff !important;
+                    }
+
+                    .workflow-item:last-child .workflow-arrow { display: none; }
+
+                    hr.workflow-divider {
+                        border: 0;
+                        height: 1px;
+                        background: #ccc;
+                    }
+
+                    @media print {
+                        * {
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                ${printContents.innerHTML}
+                <div style="margin-top:40px; text-align:center; font-size:12px; color:#666;">
+                    Printed on: ${new Date().toLocaleString()}
+                </div>
+            </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+        printWindow.onload = function() {
+            printWindow.focus();
+            printWindow.print();
+            printWindow.close();
+        };
+    }
+
 </script>
+
+<style>
+    .wrap-text {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        overflow-wrap: anywhere !important;
+    }
+    .modal-header .btn {
+        margin-left: 6px;
+    }
+</style>
