@@ -1,0 +1,520 @@
+<!-- Activity Request Details Modal -->
+<div class="modal fade" id="workInProgressAddLogModal" tabindex="-1" aria-labelledby="viewRequestModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header d-flex justify-content-between align-items-center">
+                <h5 class="modal-title mb-0" id="viewRequestModalLabel">Add Activity Log</h5>
+
+                <div class="d-flex">
+                    <button type="button" class="btn btn-sm btn-outline-custom me-2" id="resetPageBtn" onclick="printPage()">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-custom2" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="activityTaskId">
+
+                <table class="table table-sm table-bordered">
+                    <tbody>
+                        <tr>
+                            <th>Requester</th>
+                            <td id="viewRequesterWIP"></td>
+
+                            <th style="width: 20%">Subject</th>
+                            <td id="viewSubjectWIP"></td>
+                        </tr>
+                        <tr>
+                            <th>Project Code</th>
+                            <td id="viewProjectCodeWIP"></td>
+
+                            <th>Project Name</th>
+                            <td id="viewProjectNameWIP"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div id="">
+                    <h5>Key Process</h5>
+                    <select class="form-control w-100" id="key_process_drop_down_WIP" required>
+                        {{ key_process_options | safe }}
+                    </select>
+
+                    <h5>Task</h5>
+                    <select class="form-control" id="activity_task_WIP" disabled>
+                        <option value="">Select Task</option>
+                    </select>
+                </div>
+
+                <!-- Team Composition -->
+                <div id="activityBreakdownContainer">
+                    <h5>Activity Breakdown</h5>
+                        <table class="table table-sm table-striped table-bordered table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-end" style="width: 5%;">#</th>
+                                    <th style="width: 15%;">Start Date</th>
+                                    <th style="width: 15%;">End Date</th>
+                                    <th style="width: 10%;">No. of Days</th>
+                                    <th style="width: 35%;">Details</th>
+                                    <th class="text-center" style="width: 10%;">Action</th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="activityTaskInputs">
+                                <tr>
+                                    <td class="text-end">1</td>
+                                    <td>
+                                        <input type="text" class="form-control start-date" name="start_date[]" placeholder="Start Date" autocomplete="off">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control end-date" name="end_date[]" placeholder="End Date" autocomplete="off">
+                                    </td>
+                                    <td class="days-diff text-center">1</td>
+                                    <td>
+                                        <textarea class="form-control" name="task[]" rows="2" placeholder="Enter task name" maxlength="150"></textarea>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+
+                            <tfoot>
+                                <tr>
+                                    <td colspan="5" class="text-end fw-bold">Total No. of Days:</td>
+                                    <td class="total-days text-center">1</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="6" class="text-end">
+                                        <button type="button" class="btn-outline-custom float-end" onclick="addTaskActivity()">
+                                            <i class="fa fa-plus"></i> Add Activity
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                </div>
+
+                <!-- Attachments -->
+                <div id="attachmentsContainer">
+                    <h5>Attachments</h5>
+                        <table class="table table-striped table-bordered table-hover">
+                            <thead>
+                                <tr>
+                                    <th class="text-end">#</th>
+                                    <th>File</th>
+                                    <th>Description</th>
+                                    <th>Download</th>
+                                    <th class="text-center">Delete</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attachmentsTable">
+                                <tr>
+                                    <td class="text-end">1</td>
+                                    <td>
+                                        <input type="file" class="form-control" name="attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
+                                    </td>
+                                    <td>
+                                        <textarea class="form-control" name="attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-secondary">
+                                            <i class="fa fa-download"></i>
+                                        </button>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="5" class="text-end">
+                                        <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRow()">
+                                            <i class="fa fa-plus"></i> Add File
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                </div>
+            </div>
+            <div class="modal-footer mt-3 d-flex justify-content-center gap-5">
+                <button type="button" class="btn btn-sm btn-outline-custom"
+                        style="margin: 0 1rem;"
+                        onclick="handleAction('save activity log');">
+                    <i class="fa fa-save"></i> Save
+                </button>
+
+                <button type="button" class="btn btn-sm btn-outline-custom2" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    function removeRow(button) {
+        const $row = $(button).closest("tr");
+        const $tbody = $row.closest("tbody");
+        $row.remove();
+
+        // Re-number rows
+        $tbody.find("tr").each(function(index) {
+            const $cells = $(this).find("td");
+            if ($cells.length > 1) {
+                $cells.eq(0).text(index + 1);
+            }
+        });
+
+        // Recalculate task totals if applicable
+        if ($tbody.attr("id") === "activityTaskInputs") {
+            calculateTotalDays();
+        }
+    }
+
+    // --- Date validation helpers ---
+    function showDateError($row, message) {
+        let $err = $row.find('.date-error');
+        if (!$err.length) {
+            $err = $('<div class="date-error text-danger small mt-1"></div>');
+            $row.find('.end-date').closest('td').append($err);
+        }
+        $err.text(message);
+    }
+
+    function clearDateError($row) {
+        $row.find('.date-error').remove();
+    }
+
+    function daysBetween(start, end) {
+        const s = new Date(start).setHours(0, 0, 0, 0);
+        const e = new Date(end).setHours(0, 0, 0, 0);
+        return ((e - s) / (1000 * 60 * 60 * 24)) + 1; // inclusive
+    }
+
+    function calculateDays($row) {
+        const startPicker = $row.find('.start-date')[0]?._flatpickr;
+        const endPicker = $row.find('.end-date')[0]?._flatpickr;
+        if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
+            const start = startPicker.selectedDates[0];
+            const end = endPicker.selectedDates[0];
+            const diff = daysBetween(start, end);
+            $row.find('.days-diff').text(diff >= 0 ? diff : 0);
+        }
+        calculateTotalDays();
+    }
+
+    function calculateTotalDays() {
+        let earliest = null;
+        let latest = null;
+
+        $("#activityTaskInputs tr").each(function() {
+            const startPicker = $(this).find('.start-date')[0]?._flatpickr;
+            const endPicker = $(this).find('.end-date')[0]?._flatpickr;
+
+            if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
+                const start = startPicker.selectedDates[0];
+                const end = endPicker.selectedDates[0];
+
+                if (!earliest || start < earliest) earliest = start;
+                if (!latest || end > latest) latest = end;
+            }
+        });
+
+        if (earliest && latest) {
+            const diff = daysBetween(earliest, latest);
+            $(".total-days").text(diff >= 0 ? diff : 0);
+        } else {
+            $(".total-days").text(0);
+        }
+    }
+    
+    function initDatePickers(context) {
+        context = (context instanceof jQuery) ? context : $(context);
+        let rows = context.is("tr") ? context : context.find("tr");
+
+        const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+        rows.each(function() {
+            const $row = $(this);
+            const startElem = $row.find(".start-date")[0];
+            const endElem = $row.find(".end-date")[0];
+            if (!startElem || !endElem) return;
+
+            // --- Start date ---
+            if (!startElem._flatpickr) {
+                flatpickr(startElem, {
+                    enableTime: false,
+                    dateFormat: "Y-m-d",
+                    allowInput: true,
+                    defaultDate: startElem.value ? startElem.value : today, // use today if empty
+                    onChange: function(selectedDates) {
+                        const startDate = selectedDates[0];
+                        const endPicker = endElem._flatpickr;
+
+                        if (startDate && endPicker && endPicker.selectedDates[0]) {
+                            if (endPicker.selectedDates[0] < startDate) {
+                                endPicker.setDate(startDate, false);
+                                showDateError($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
+                            } else {
+                                clearDateError($row);
+                            }
+                        }
+                        calculateDays($row);
+                    }
+                });
+            }
+
+            // --- End date ---
+            if (!endElem._flatpickr) {
+                flatpickr(endElem, {
+                    enableTime: false,
+                    dateFormat: "Y-m-d",
+                    allowInput: true,
+                    defaultDate: endElem.value ? endElem.value : today, // use today if empty
+                    onChange: function(selectedDates) {
+                        const endDate = selectedDates[0];
+                        const startPicker = startElem._flatpickr;
+
+                        if (endDate && startPicker && startPicker.selectedDates[0]) {
+                            if (endDate < startPicker.selectedDates[0]) {
+                                this.setDate(startPicker.selectedDates[0], false);
+                                showDateError($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
+                            } else {
+                                clearDateError($row);
+                            }
+                        }
+                        calculateDays($row);
+                    }
+                });
+            }
+        });
+    }
+
+    function addTaskActivity() {
+        const $tbody = $("#activityTaskInputs");
+        const newRowIndex = $tbody.find("tr").length + 1; // count existing rows + 1
+
+        const newRow = $(`
+            <tr>
+                <td class="text-end">${newRowIndex}</td>
+                <td>
+                    <input type="text" class="form-control start-date" name="start_date[]" placeholder="Start Date" autocomplete="off">
+                </td>
+                <td>
+                    <input type="text" class="form-control end-date" name="end_date[]" placeholder="End Date" autocomplete="off">
+                </td>
+                <td class="days-diff text-center">1</td>
+                <td>
+                    <textarea class="form-control" name="task[]" rows="2" placeholder="Enter task name" maxlength="150"></textarea>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+      `);
+
+        $tbody.append(newRow);
+
+        // re-init datepickers for new row
+        initDatePickers(newRow);
+
+        // recalc totals
+        calculateTotalDays();
+    }
+    
+    $(document).ready(function() {
+        initDatePickers($('#activityTaskInputs'));
+
+        $("#key_process_drop_down_WIP").on("change", function () {
+            const keyProcessId = $(this).val();
+            const activityId = $("#activityTaskId").val();
+            const $taskDropdown = $("#activity_task_WIP");
+
+            // Reset dropdown
+            $taskDropdown
+                .empty()
+                .append('<option value="">Select Task</option>')
+                .prop("disabled", true);
+
+            // Safety checks
+            if (!keyProcessId || !activityId) {
+                return;
+            }
+
+            $.ajax({
+                url: `/get-tasks-by-key-process/${keyProcessId}/${activityId}`,
+                type: "GET",
+                success: function (tasks) {
+
+                    if (tasks.length === 0) {
+                        $taskDropdown.append(
+                            '<option value="">No tasks available</option>'
+                        );
+                        return;
+                    }
+
+                    tasks.forEach(task => {
+                        $taskDropdown.append(
+                            `<option value="${task.id}">${task.task}</option>`
+                        );
+                    });
+
+                    $taskDropdown.prop("disabled", false);
+                },
+                error: function () {
+                    alert("Failed to load tasks for the selected key process.");
+                }
+            });
+        });
+    });
+
+    function handleAction(actionType, buttonElem = null) {
+        // Show confirmation modal for the action
+        showConfirmation(actionType);
+    }
+
+    function validateForm() {
+        let isValid = true;
+
+        // Clear old errors
+        $(".text-danger.validation-error").remove();
+
+        // Track which accordions need to open
+        let invalidSections = new Set();
+
+        // --- Check Activity Overview ---
+        const subjectVal = $("#subject").val()?.trim() || "";
+        if (subjectVal === "") {
+            isValid = false;
+            $("#subject").after('<div class="text-danger validation-error small">Subject is required.</div>');
+            invalidSections.add("#collapseOverview");
+        }
+
+        const objectivesVal = $("#objectives").val()?.trim() || "";
+        if (objectivesVal === "") {
+            isValid = false;
+            $("#objectives").after('<div class="text-danger validation-error small">Objectives are required.</div>');
+            invalidSections.add("#collapseOverview");
+        }
+
+        // --- Check Team Members ---
+        let teamRows = $("#teamCompositionInputs tr");
+        let hasValidTeamMember = false;
+
+        teamRows.each(function() {
+            const $row = $(this);
+            const member = $row.find("select[name='team_member_names']").val();
+            const role = $row.find("select[name='team_member_role']").val();
+
+            // Remove previous row-level errors
+            $row.find(".text-danger.validation-error").remove();
+
+            if (!member || !role) {
+                isValid = false;
+                $row.find("td:last").append('<div class="text-danger validation-error small">Select both member and role.</div>');
+                invalidSections.add("#collapseTeam");
+            } else {
+                hasValidTeamMember = true;
+            }
+        });
+
+        if (!hasValidTeamMember) {
+            isValid = false;
+            if (!$("#teamCompositionInputs").find(".text-danger.validation-error").length) {
+                $("#teamCompositionInputs").after('<div class="text-danger validation-error small">At least one team member with a role is required.</div>');
+            }
+            invalidSections.add("#collapseTeam");
+        }
+
+        // --- Check Task Rows ---
+        let taskRows = $("#taskInputs tr").filter(function() {
+            // Only include rows that have a task textarea (ignore empty template rows)
+            return $(this).find("textarea[name='task[]']").length > 0;
+        });
+        let hasValidTask = false;
+
+        taskRows.each(function() {
+            const $row = $(this);
+            const taskName = $row.find("textarea[name='task[]']").val()?.trim() || "";
+            const keyProcess = $row.find("select[name='key_process_names']").val() || "";
+            const startDate = $row.find("input.start-date").val()?.trim() || "";
+            const endDate = $row.find("input.end-date").val()?.trim() || "";
+
+            $row.find(".text-danger.validation-error").remove();
+
+            if (!taskName || !keyProcess || !startDate || !endDate) {
+                isValid = false;
+                $row.find("td:last").append('<div class="text-danger validation-error small">Fill all fields in this row.</div>');
+                invalidSections.add("#collapseBreakdown");
+            } else {
+                hasValidTask = true;
+            }
+        });
+
+        if (!hasValidTask) {
+            isValid = false;
+            if (!$("#taskInputs").find(".text-danger.validation-error").length) {
+                $("#taskInputs").after('<div class="text-danger validation-error small">At least one task row must be fully filled.</div>');
+            }
+            invalidSections.add("#collapseBreakdown");
+        }
+
+        // --- Expand invalid accordions ---
+        invalidSections.forEach(id => $(id).collapse("show"));
+
+        return isValid;
+    }
+
+    function showConfirmation(actionType) {
+        let modalTitle = "";
+        let modalMessage = "";
+
+        if (actionType === "save activity log") {
+            modalTitle = "Save Confirmation";
+            modalMessage = "Are you sure you want to save this activity log?";
+            $("#confirmAction").off("click").on("click", function() {
+                $("#confirmationModal").modal("hide");
+                saveActivityLog(false, null);
+            });
+        }
+        // Set modal text
+        $("#confirmationModalLabel").text(modalTitle);
+        $("#confirmationMessage").text(modalMessage);
+
+        // Show modal
+        $("#confirmationModal").modal({
+            backdrop: true,
+            keyboard: false
+        });
+
+        // Optional: Adjust z-index
+        setTimeout(function() {
+            $(".modal-backdrop").last().addClass("confirmation-backdrop");
+        }, 10);
+    }
+</script>
+
+
+<style>
+    .wrap-text {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        overflow-wrap: anywhere !important;
+    }
+    .modal-header .btn {
+        margin-left: 6px;
+    }
+</style>
