@@ -1,0 +1,648 @@
+<!-- Activity Request Details Modal -->
+<div class="modal fade" id="workInProgressViewEditLogModal" tabindex="-1" aria-labelledby="viewRequestModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header d-flex justify-content-between align-items-center">
+                <h5 class="modal-title mb-0" id="viewEditLogModalLabel">View/ Edit Activity Log</h5>
+
+                <div class="d-flex">
+                    <button type="button" class="btn btn-sm btn-outline-custom me-2" id="resetPageBtn" onclick="printPage()">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-custom2" data-dismiss="modal">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="trnActivityLogOverviewIdViewEditLogModal">
+
+                <table class="table table-sm table-bordered">
+                    <tbody>
+                        <tr>
+                            <th>Requester</th>
+                            <td id="viewEditRequesterWIP"></td>
+
+                            <th style="width: 20%">Subject</th>
+                            <td id="viewEditSubjectWIP"></td>
+                        </tr>
+                        <tr>
+                            <th>Project Code</th>
+                            <td id="viewEditProjectCodeWIP"></td>
+
+                            <th>Project Name</th>
+                            <td id="viewEditProjectNameWIP"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div id="">
+                    <h5>Key Process</h5>
+                    <select class="form-control w-100" id="key_process_drop_down_view_edit_wip" required>
+                    </select>
+
+                    <h5>Task</h5>
+                    <select class="form-control" id="activity_task_wip_view_edit" disabled>
+                        <option value="">Select Task</option>
+                    </select>
+                </div>
+
+                <!-- Team Composition -->
+                <div id="activityBreakdownContainer">
+                    <h5>Activity Breakdown</h5>
+                        <table class="table table-sm table-striped table-bordered table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-end" style="width: 5%;">#</th>
+                                    <th style="width: 15%;">Start Date</th>
+                                    <th style="width: 15%;">End Date</th>
+                                    <th style="width: 10%;">No. of Days</th>
+                                    <th style="width: 35%;">Details</th>
+                                    <th class="text-center" style="width: 10%;">Action</th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="activityTaskInputsViewEditWip">
+                                <tr>
+                                    <td class="text-end">1</td>
+                                    <td>
+                                        <input type="text" class="form-control start-date" name="start_date[]" placeholder="Start Date" autocomplete="off">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control end-date" name="end_date[]" placeholder="End Date" autocomplete="off">
+                                    </td>
+                                    <td class="days-diff text-center">1</td>
+                                    <td>
+                                        <textarea class="form-control" name="activityBreakdownDetails[]" rows="2" placeholder="Enter activity details" maxlength="150"></textarea>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+
+                            <tfoot>
+                                <tr>
+                                    <td colspan="5" class="text-end fw-bold">Total No. of Days:</td>
+                                    <td class="total-days text-center">1</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="6" class="text-end">
+                                        <button type="button" class="btn-outline-custom float-end" onclick="addTaskActivityViewEditWip()">
+                                            <i class="fa fa-plus"></i> Add Activity
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                </div>
+
+                <!-- Attachments -->
+                <div id="attachmentsContainer">
+                    <h5>Attachments</h5>
+                        <table class="table table-striped table-bordered table-hover">
+                            <thead>
+                                <tr>
+                                    <th class="text-end">#</th>
+                                    <th>File</th>
+                                    <th>Description</th>
+                                    <th>Download</th>
+                                    <th class="text-center">Delete</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attachmentsTableViewEditWip">
+                                <tr>
+                                    <td class="text-end">1</td>
+                                    <td>
+                                        <input type="file" class="form-control" name="wip_attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
+                                    </td>
+                                    <td>
+                                        <textarea class="form-control" name="wip_attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-secondary">
+                                            <i class="fa fa-download"></i>
+                                        </button>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="5" class="text-end">
+                                        <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRowViewEditWip()">
+                                            <i class="fa fa-plus"></i> Add File
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                </div>
+            </div>
+            <div class="modal-footer mt-3 d-flex justify-content-center gap-5">
+                <button type="button" class="btn btn-sm btn-outline-custom"
+                        style="margin: 0 1rem;"
+                        onclick="handleAction('save activity log');">
+                    <i class="fa fa-save"></i> Save
+                </button>
+
+                <button type="button" class="btn btn-sm btn-outline-custom2" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    function removeRow(button) {
+        const $row = $(button).closest("tr");
+        const $tbody = $row.closest("tbody");
+        $row.remove();
+
+        // Re-number rows
+        $tbody.find("tr").each(function(index) {
+            const $cells = $(this).find("td");
+            if ($cells.length > 1) {
+                $cells.eq(0).text(index + 1);
+            }
+        });
+
+        // Recalculate task totals if applicable
+        if ($tbody.attr("id") === "activityTaskInputsViewEditWip") {
+            calculateTotalDays();
+        }
+    }
+
+    // --- Date validation helpers ---
+    function showDateError($row, message) {
+        let $err = $row.find('.date-error');
+        if (!$err.length) {
+            $err = $('<div class="date-error text-danger small mt-1"></div>');
+            $row.find('.end-date').closest('td').append($err);
+        }
+        $err.text(message);
+    }
+
+    function clearDateError($row) {
+        $row.find('.date-error').remove();
+    }
+
+    function daysBetween(start, end) {
+        const s = new Date(start).setHours(0, 0, 0, 0);
+        const e = new Date(end).setHours(0, 0, 0, 0);
+        return ((e - s) / (1000 * 60 * 60 * 24)) + 1; // inclusive
+    }
+
+    function calculateDays($row) {
+        const startPicker = $row.find('.start-date')[0]?._flatpickr;
+        const endPicker = $row.find('.end-date')[0]?._flatpickr;
+        if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
+            const start = startPicker.selectedDates[0];
+            const end = endPicker.selectedDates[0];
+            const diff = daysBetween(start, end);
+            $row.find('.days-diff').text(diff >= 0 ? diff : 0);
+        }
+        calculateTotalDays();
+    }
+
+    function calculateTotalDays() {
+        let earliest = null;
+        let latest = null;
+
+        $("#activityTaskInputsViewEditWip tr").each(function() {
+            const startPicker = $(this).find('.start-date')[0]?._flatpickr;
+            const endPicker = $(this).find('.end-date')[0]?._flatpickr;
+
+            if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
+                const start = startPicker.selectedDates[0];
+                const end = endPicker.selectedDates[0];
+
+                if (!earliest || start < earliest) earliest = start;
+                if (!latest || end > latest) latest = end;
+            }
+        });
+
+        if (earliest && latest) {
+            const diff = daysBetween(earliest, latest);
+            $(".total-days").text(diff >= 0 ? diff : 0);
+        } else {
+            $(".total-days").text(0);
+        }
+    }
+
+    function initDatePickers(context) {
+        context = (context instanceof jQuery) ? context : $(context);
+        let rows = context.is("tr") ? context : context.find("tr");
+
+        const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+        rows.each(function() {
+            const $row = $(this);
+            const startElem = $row.find(".start-date")[0];
+            const endElem = $row.find(".end-date")[0];
+            if (!startElem || !endElem) return;
+
+            // --- Start date ---
+            if (!startElem._flatpickr) {
+                flatpickr(startElem, {
+                    enableTime: false,
+                    dateFormat: "Y-m-d",
+                    allowInput: true,
+                    defaultDate: startElem.value ? startElem.value : today, // use today if empty
+                    onChange: function(selectedDates) {
+                        const startDate = selectedDates[0];
+                        const endPicker = endElem._flatpickr;
+
+                        if (startDate && endPicker && endPicker.selectedDates[0]) {
+                            if (endPicker.selectedDates[0] < startDate) {
+                                endPicker.setDate(startDate, false);
+                                showDateError($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
+                            } else {
+                                clearDateError($row);
+                            }
+                        }
+                        calculateDays($row);
+                    }
+                });
+            }
+
+            // --- End date ---
+            if (!endElem._flatpickr) {
+                flatpickr(endElem, {
+                    enableTime: false,
+                    dateFormat: "Y-m-d",
+                    allowInput: true,
+                    defaultDate: endElem.value ? endElem.value : today, // use today if empty
+                    onChange: function(selectedDates) {
+                        const endDate = selectedDates[0];
+                        const startPicker = startElem._flatpickr;
+
+                        if (endDate && startPicker && startPicker.selectedDates[0]) {
+                            if (endDate < startPicker.selectedDates[0]) {
+                                this.setDate(startPicker.selectedDates[0], false);
+                                showDateError($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
+                            } else {
+                                clearDateError($row);
+                            }
+                        }
+                        calculateDays($row);
+                    }
+                });
+            }
+        });
+    }
+
+    function addTaskActivityViewEditWip() {
+        const $tbody = $("#activityTaskInputsViewEditWip");
+        const newRowIndex = $tbody.find("tr").length + 1; // count existing rows + 1
+
+        const newRow = $(`
+            <tr>
+                <td class="text-end">${newRowIndex}</td>
+                <td>
+                    <input type="text" class="form-control start-date" name="start_date[]" placeholder="Start Date" autocomplete="off">
+                </td>
+                <td>
+                    <input type="text" class="form-control end-date" name="end_date[]" placeholder="End Date" autocomplete="off">
+                </td>
+                <td class="days-diff text-center">1</td>
+                <td>
+                    <textarea class="form-control" name="activityBreakdownDetails[]" rows="2" placeholder="Enter task name" maxlength="150"></textarea>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+      `);
+
+        $tbody.append(newRow);
+
+        // re-init datepickers for new row
+        initDatePickers(newRow);
+
+        // recalc totals
+        calculateTotalDays();
+    }
+
+    $(document).ready(function() {
+        initDatePickers($('#activityTaskInputsViewEditWip'));
+
+        $("#key_process_drop_down_view_edit_wip").on("change", function () {
+            const keyProcessId = $(this).val();
+            const activityId = $("#activityTaskIdWIPLog").val();
+            const $taskDropdown = $("#activity_task_wip_view_edit");
+
+            // Reset dropdown
+            $taskDropdown
+                .empty()
+                .append('<option value="">Select Task</option>')
+                .prop("disabled", true);
+
+            // Safety checks
+            if (!keyProcessId || !activityId) {
+                return;
+            }
+
+            $.ajax({
+                url: `/get-tasks-by-key-process/${keyProcessId}/${activityId}`,
+                type: "GET",
+                success: function (tasks) {
+
+                    if (tasks.length === 0) {
+                        $taskDropdown.append(
+                            '<option value="">No tasks available</option>'
+                        );
+                        return;
+                    }
+
+                    tasks.forEach(task => {
+                        $taskDropdown.append(
+                            `<option value="${task.id}">${task.task}</option>`
+                        );
+                    });
+
+                    $taskDropdown.prop("disabled", false);
+                },
+                error: function () {
+                    alert("Failed to load tasks for the selected key process.");
+                }
+            });
+        });
+    });
+
+    function handleAction(actionType, buttonElem = null) {
+
+        if (actionType === "save activity log") {
+            if (!validateForm()) {
+                return; // Stop here if validation fails
+            }
+        }
+
+        // Show confirmation modal for the action
+        showConfirmation(actionType);
+    }
+
+    function validateForm() {
+        let isValid = true;
+
+        // Clear previous validation errors
+        $(".validation-error").remove();
+
+        /* ============================
+           1. Key Process validation
+           ============================ */
+        const keyProcessVal = $("#key_process_drop_down_WIP").val();
+        if (!keyProcessVal) {
+            isValid = false;
+            $("#key_process_drop_down_WIP")
+                .after('<div class="text-danger validation-error small">Please select a Key Process.</div>');
+        }
+
+        /* ============================
+           2. Task validation
+           ============================ */
+        const taskVal = $("#activity_task_WIP").val();
+        if (!taskVal) {
+            isValid = false;
+            $("#activity_task_WIP")
+                .after('<div class="text-danger validation-error small">Please select a Task.</div>');
+        }
+
+        /* =====================================
+           3. Activity Breakdown validation
+           ===================================== */
+        let hasValidRow = false;
+
+        $("#activityTaskInputsViewEditWip tr").each(function () {
+            const $row = $(this);
+
+            const startDate = $row.find(".start-date").val()?.trim();
+            const endDate   = $row.find(".end-date").val()?.trim();
+            const details   = $row.find("textarea[name='activityBreakdownDetails[]']").val()?.trim();
+
+            // Remove old row-level errors
+            $row.find(".validation-error").remove();
+
+            // If ANY field is filled, require ALL fields
+            if (startDate || endDate || details) {
+                if (!startDate || !endDate || !details) {
+                    isValid = false;
+                    $row.find("td:last").append(
+                        '<div class="text-danger validation-error small">Complete all fields in this row.</div>'
+                    );
+                } else {
+                    hasValidRow = true;
+                }
+            }
+        });
+
+        if (!hasValidRow) {
+            isValid = false;
+            $("#activityBreakdownContainer")
+                .append('<div class="text-danger validation-error small mt-2">At least one Activity Breakdown row must be fully completed.</div>');
+        }
+
+        return isValid;
+    }
+
+    function showConfirmation(actionType) {
+        let modalTitle = "";
+        let modalMessage = "";
+
+        if (actionType === "save activity log") {
+            modalTitle = "Save Confirmation";
+            modalMessage = "Are you sure you want to save this activity log?";
+
+            // Remove old handlers safely
+            $("#confirmAction").off("click.confirm");
+
+            $("#confirmAction").off("click").on("click", function() {
+                // Close confirmation FIRST
+                $("#confirmationModal").modal("hide");
+
+                // Then close parent modal
+                $("#workInProgressAddLogModal").modal("hide");
+
+                saveActivityLog();
+            });
+        }
+        // Set modal text
+        $("#confirmationModalLabel").text(modalTitle);
+        $("#confirmationMessage").text(modalMessage);
+
+        // Show modal
+        $("#confirmationModal").modal({
+            backdrop: "static",
+            keyboard: false
+        });
+
+        function saveActivityLog() {
+
+            // --- Overview fields ---
+            const overview = {
+                activity_task_id: $("#activityTaskId").val(),
+                key_process_id: $("#key_process_drop_down_WIP").val(),
+                task_id: $("#activity_task_WIP").val()
+            };
+
+            // --- Activity Breakdown ---
+            const activityBreakdown = [];
+            $("#activityTaskInputsViewEditWip tr").each(function() {
+                const startDate = $(this).find("input.start-date").val();
+                const endDate = $(this).find("input.end-date").val();
+                const activityBreakdownDetail = $(this).find("textarea[name='activityBreakdownDetails[]']").val();
+
+                if (activityBreakdownDetail && startDate && endDate) {
+                    activityBreakdown.push({
+                        activityBreakdownDetail,
+                        start_date: startDate,
+                        end_date: endDate
+                    });
+                }
+            });
+
+            const formData = new FormData();
+
+            const payload = {
+                overview,
+                activityBreakdown
+            };
+
+            formData.append("data", JSON.stringify(payload));
+
+            // --- Attachments ---
+            const retainedAttachmentIds = [];
+            $("#attachmentsTableViewEditWip tr").each(function() {
+                const fileInput = $(this).find("input[type='file']")[0];
+                const desc = $(this).find("textarea[name='wip_attachment_description[]']").val();
+                const attachmentId = $(this).data("attachment-id");
+
+                if (attachmentId) {
+                    retainedAttachmentIds.push(attachmentId);
+                }
+
+                if (fileInput && fileInput.files.length > 0) {
+                    formData.append("wip_attachments", fileInput.files[0]);
+                    formData.append("wip_attachment_descriptions", desc || "");
+                }
+            });
+
+            const url = "/save_activity_request_log";
+
+            $.ajax({
+                url: url,
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (response) {
+                    showFlashMessage(response.message, "success");
+
+                    $("#flashMessageModal")
+                        .off("hidden.bs.modal")
+                        .on("hidden.bs.modal", function () {
+                            location.reload();
+                        });
+                },
+                error: function (xhr) {
+                    let errorMessage =
+                        (xhr.responseJSON && xhr.responseJSON.error) ||
+                        "An unexpected error occurred.";
+                    let messageType =
+                        (xhr.responseJSON && xhr.responseJSON.type) || "danger";
+
+                    showFlashMessage(errorMessage, messageType);
+                }
+            });
+        }
+
+        // Ensure correct stacking
+        setTimeout(() => {
+            const zIndex = 1055;
+            $("#confirmationModal").css("z-index", zIndex);
+            $(".modal-backdrop").last().css("z-index", zIndex - 1);
+        }, 10);
+    }
+
+    $('#confirmationModal').on('hidden.bs.modal', function () {
+
+        setTimeout(() => {
+            const $parentModal = $('#workInProgressAddLogModal');
+
+            if ($parentModal.hasClass('show')) {
+                $('body').addClass('modal-open');
+                $parentModal[0].scrollTop = $parentModal[0].scrollTop; // force reflow
+            }
+        }, 10);
+    });
+
+    $('#workInProgressAddLogModal').on('hidden.bs.modal', function () {
+
+        // Reset task dropdown
+        $('#activity_task_WIP')
+            .val('')
+            .prop('selectedIndex', 0)
+            .trigger('change');
+
+    });
+
+    function addAttachmentRowViewEditWip() {
+        const table = document.getElementById("attachmentsTableViewEditWip");
+        const rowCount = table.rows.length - 1; // exclude last "Add File" row
+        const newRow = table.insertRow(rowCount);
+
+        // No data-attachment-id for new uploads
+        newRow.dataset.attachmentId = "";
+
+        newRow.innerHTML = `
+        <td class="text-end">${rowCount + 1}</td>
+        <td>
+            <input type="file" class="form-control" name="wip_attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
+        </td>
+        <td>
+            <textarea class="form-control" name="wip_attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-secondary">
+                <i class="fa fa-download"></i>
+            </button>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+                <i class="fa fa-trash"></i>
+            </button>
+        </td>
+    `;
+    }
+
+</script>
+
+<style>
+    .wrap-text {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        overflow-wrap: anywhere !important;
+    }
+    .modal-header .btn {
+        margin-left: 6px;
+    }
+
+    #saveConfirmationModal {
+        z-index: 1060;
+    }
+
+    .modal-backdrop.show:nth-of-type(2) {
+        z-index: 1055;
+    }
+
+</style>

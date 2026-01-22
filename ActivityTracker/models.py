@@ -6326,12 +6326,17 @@ class ActivityRequestApprovals:
 
 
 class ActivityRequestLog:
-    def __init__(self, id=None, activity_id=None, key_process_id=None, task_id=None, user_id=None):
+    def __init__(self, id=None, activity_id=None, key_process_id=None, task_id=None, user_id=None, key_process_name=None,
+                 user_name=None, task=None, creation_date=None):
         self.id = id
         self.activity_id = activity_id
         self.key_process_id = key_process_id
         self.task_id = task_id
         self.user_id = user_id
+        self.key_process_name = key_process_name
+        self.user_name = user_name
+        self.task = task
+        self.creation_date = creation_date
 
     @staticmethod
     def get_id_of_insert_into_trn_activity_log_overview_row(activity_id, key_process_id, task_id, user_id):
@@ -6353,6 +6358,100 @@ class ActivityRequestLog:
         except Exception as e:
             print("Database error:", e)
             return None  # Return None to indicate an error occurred
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_logs_list_by_activity_request_id(activity_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT talo.id, mkp.name AS key_process_name, tab.task AS task, 
+                        CONCAT(u.Fname, ' ', u.Mname, ' ', u.Sname) AS user_name, talo.creation_date
+                        FROM trn_activity_log_overview talo
+                        LEFT OUTER JOIN mst_key_process mkp ON talo.key_process_id = mkp.id
+                        LEFT OUTER JOIN trn_activity_breakdown tab ON talo.activity_id = tab.activity_id 
+                        AND talo.key_process_id = tab.key_process_id
+                        AND talo.task_id = tab.id
+                        LEFT OUTER JOIN users u ON u.ID = talo.user_id
+                        WHERE talo.activity_id = ?
+                        ORDER BY talo.creation_date DESC;
+                    """
+            cursor.execute(query, (activity_id,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                ActivityRequestLog(id=row.id, key_process_name=row.key_process_name, task=row.task,
+                                   user_name=row.user_name, creation_date=row.creation_date)
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_view_edit_activity_log_key_process_task(log_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                SELECT key_process_id, task_id FROM trn_activity_log_overview WHERE id = ?
+                """,
+                (log_id,)
+            )
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            return {
+                "key_process_id": row[0],
+                "task_id": row[1]
+            }
+
+        except Exception as e:
+            print("Failed to get key_process_id, task_id from trn_activity_log_overview table", e)
+            return None
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_activity_breakdown_details(log_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        try:
+            query = """
+                        SELECT start_date, end_date, detail 
+                        FROM trn_activity_log_activity_breakdown 
+                        WHERE trn_activity_log_id = ?
+                        ORDER BY trn_activity_log_id
+                    """
+            cursor.execute(query, (log_id,))
+            columns = [col[0] for col in cursor.description]
+            result = cursor.fetchall()
+            return [dict(zip(columns, row)) for row in result]
+
+        except Exception as e:
+            print("Database error:", e)
+            return []
         finally:
             cursor.close()
             conn.close()

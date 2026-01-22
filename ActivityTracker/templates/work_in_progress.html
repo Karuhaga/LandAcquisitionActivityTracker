@@ -12,14 +12,14 @@
 {% block content %}
 
     {% set key_process_options %}
-        <option value="">Select Role</option>
+        <option value="">Select Key Process</option>
         {% for key_process_detail in key_process_details %}
             <option value="{{ key_process_detail.id }}">{{ key_process_detail.name }}</option>
         {% endfor %}
     {% endset %}
 
     <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header d-flex justify-content-between align-items-center">
            <span>Work In Progress</span>
             <div class="d-flex align-items-center flex-wrap gap-2 py-2">
                 <div class="input-group input-group-sm" style="max-width: 200px;">
@@ -54,7 +54,6 @@
                     <thead>
                         <tr>
                             <th>#</th>
-                            <!-- Row number column -->
                             <th>Project Code</th>
                             <th>Project Name</th>
                             <th>Subject</th>
@@ -81,10 +80,10 @@
                                 </button>
                             </td>
                             <td class="text-center" data-orderable="false" data-ordering="false">
-                                <button class="btn btn-sm btn-secondary edit-saved-activity-request-btn" style="float: center;"
-                                        type="button" saved-activity-request-id="{{ activity_request_detail.id }}">
+                                <button class="btn btn-sm btn-secondary view-activity-logs-list-btn" style="float: center;"
+                                        type="button"
+                                        data-saved-activity-request-id="{{ activity_request_detail.id }}">
                                             <i class="fa fa-book"></i>
-
                                 </button>
                             </td>
                             <td class="text-center">
@@ -122,15 +121,21 @@
 
     $(document).ready(function() {
         // Custom filter for DataTables
-        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+        $.fn.dataTable.ext.search.push(function (settings, data) {
+
+            // ONLY apply to savedActivityRequestsTable
+            if (settings.nTable.id !== 'savedActivityRequestsTable') {
+                return true;
+            }
+
             let min = $('#minDate').val();
             let max = $('#maxDate').val();
-            let dateStr = data[4]; // Adjust index if "Last Modified" is not at index 6
+            let dateStr = data[4];
 
-            if (!dateStr) return true; // Include rows without a date
+            if (!dateStr) return true;
 
             let rowDate = flatpickr.parseDate(dateStr, "Y-m-d H:i");
-            if (!rowDate) return true; // Include if unable to parse
+            if (!rowDate) return true;
 
             min = min ? flatpickr.parseDate(min, "Y-m-d H:i") : null;
             max = max ? flatpickr.parseDate(max, "Y-m-d H:i") : null;
@@ -143,8 +148,10 @@
             ) {
                 return true;
             }
+
             return false;
         });
+
         // Calculate default date range (last 30 days)
         let now = new Date();
         let thirtyDaysAgo = new Date();
@@ -334,6 +341,7 @@
         $('#minDate, #maxDate').on('change', function () {
             table.draw();
         });
+
         //add a request key lock to prevent below function from being triggered multiple times
         let loadingKeyProcesses = false;
 
@@ -406,6 +414,95 @@
             $("#workInProgressAddLogModal").modal("show");
         });
 
+        //add a request key lock to prevent below function from being triggered multiple times
+        let loadingKeyProcessesWIPLog = false;
+
+        // Calling the work_in_progress_list_logs_modal.html
+        $(document).off("click", ".view-activity-logs-list-btn").on("click", ".view-activity-logs-list-btn", function () {
+
+            if (loadingKeyProcessesWIPLog) {
+                loadingKeyProcessesWIPLog = false;
+                return; // STOP duplicate execution
+            }
+            loadingKeyProcessesWIPLog = true;
+
+            let rowWIPLog = $(this).closest("tr");
+
+            let activityTaskRequestId = $(this).data("saved-activity-request-id");
+            let requester = {{ (
+                                    " ".join([current_user.fname, current_user.mname, current_user.sname]
+                                    | select("string") | list)
+                                ) | tojson | safe }};
+            let projectCode = rowWIPLog.find("td:nth-child(2)").text().trim();
+            let projectName = rowWIPLog.find("td:nth-child(3)").text().trim();
+            let subject = rowWIPLog.find("td:nth-child(4)").text().trim();
+
+            // Populate the modal fields
+            $("#viewRequesterWipLog").text(requester);
+            $("#viewProjectCodeWipLog").text(projectCode);
+            $("#viewProjectNameWipLog").text(projectName);
+            $("#viewSubjectWIPLog").text(subject);
+            $("#activityTaskIdWIPLog").val(activityTaskRequestId);
+
+            const wipActivityTaskId = $("#activityTaskIdWIPLog").val();
+            const $processDropdownWipListLog = $("#key_process_dropdown_wip_list_logs_modal");
+
+            // Reset dropdown
+            $processDropdownWipListLog
+                .empty()
+                .append('<option value="">Select Key Process</option>')
+                .prop("disabled", true);
+
+            // Safety checks
+            if (!wipActivityTaskId || !$processDropdownWipListLog) {
+                return;
+            }
+
+            $.ajax({
+                url: `/get-process-by-activity-request-id/${wipActivityTaskId}`,
+                type: "GET",
+                success: function (keyProcesses) {
+
+                    if (keyProcesses.length === 0) {
+                        $processDropdownWipListLog.append(
+                            '<option value="">No key processes available</option>'
+                        );
+                        return;
+                    }
+
+                    keyProcesses.forEach(key_process => {
+                        $processDropdownWipListLog.append(
+                            `<option value="${key_process.id}">${key_process.name}</option>`
+                        );
+                    });
+
+                    $processDropdownWipListLog.prop("disabled", false);
+                },
+                error: function () {
+                    alert("Failed to load key processes for the selected activity request.");
+                }
+            });
+
+            $.ajax({
+                url: `/get-logs-list-by-activity-request-id/${wipActivityTaskId}`,
+                type: "GET",
+                success: function (logs) {
+
+                    console.log(logs);
+
+                    initWipLogsTable();
+
+                    wipLogsTable.clear().rows.add(logs).draw();
+                },
+                error: function (xhr) {
+                    console.error("Failed to load logs:", xhr.responseText);
+                }
+            });
+
+            // Show the modal after data is populated
+            $("#workInProgressListLogsModal").modal("show");
+        });
+
         // Handle toggle switch change
         $(document).on("change", ".toggle-switch", function () {
             let isChecked = $(this).is(":checked");
@@ -421,6 +518,19 @@
         // Reset the flag when the modal is fully closed.
         $('#workInProgressAddLogModal').on('hidden.bs.modal', function () {
             loadingKeyProcesses = false;
+        });
+
+        $('#workInProgressListLogsModal')
+        .off('shown.bs.modal')
+        .on('shown.bs.modal', function () {
+            if (wipLogsTable) {
+                wipLogsTable.columns.adjust().draw(false);
+            }
+        });
+
+        // Reset the flag when the modal is fully closed.
+        $('#workInProgressListLogsModal').on('hidden.bs.modal', function () {
+            loadingKeyProcessesWIPLog = false;
         });
     });
 

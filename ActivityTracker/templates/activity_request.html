@@ -43,7 +43,7 @@
 {% endset %}
 
 {% set key_process_options %}
-    <option value="">Select Role</option>
+    <option value="">Select Key Process</option>
     {% for key_process_detail in key_process_details %}
         <option value="{{ key_process_detail.id }}">{{ key_process_detail.name }}</option>
     {% endfor %}
@@ -186,7 +186,6 @@
                         </thead>
 
                         <tbody id="taskInputs">
-                            <!-- Example Row -->
                             <tr>
                                 <td class="text-end">1</td>
                                 <td>
@@ -318,7 +317,6 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <!-- Row number column -->
                     <th>Project Code</th>
                     <th>Project Name</th>
                     <th>Subject</th>

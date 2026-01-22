@@ -178,6 +178,17 @@ def get_activity_team_composition_details():
     return jsonify({"team": team})
 
 
+@app.route("/get-view-edit-activity-log-key-process-task/<int:log_id>", methods=["GET"])
+def get_view_edit_activity_log_key_process_task(log_id):
+
+    result = ActivityRequestLog.get_view_edit_activity_log_key_process_task(log_id)
+
+    if not result:
+        return jsonify({"error": "Activity log not found"}), 404
+
+    return jsonify(result), 200
+
+
 @app.route("/get-activity-tasks-details", methods=["GET"])
 def get_activity_tasks_details():
     activity_request_id = request.args.get("activity_request_id", type=int)
@@ -188,6 +199,18 @@ def get_activity_tasks_details():
     tasks = ActivityRequest.get_activity_tasks_details(activity_request_id)
 
     return jsonify({"tasks": tasks})
+
+
+@app.route("/get-activity-breakdown-details", methods=["GET"])
+def get_activity_breakdown_details():
+    log_id = request.args.get("log_id", type=int)
+
+    if not log_id:
+        return jsonify({"error": "Missing log_id"}), 400
+
+    activity_breakdown_details = ActivityRequestLog.get_activity_breakdown_details(log_id)
+
+    return jsonify({"activity_breakdown_details": activity_breakdown_details})
 
 
 @app.route('/get-activity-attachments', methods=['GET'])
@@ -1263,6 +1286,17 @@ def get_process_by_activity_request_id(activity_id):
     return jsonify([
         {'id': key_process.id, 'name': key_process.name}
         for key_process in key_processes
+    ])
+
+
+@app.route('/get-logs-list-by-activity-request-id/<int:activity_id>', methods=['GET'])
+@login_required
+def get_logs_list_by_activity_request_id(activity_id):
+    activity_logs = ActivityRequestLog.get_logs_list_by_activity_request_id(activity_id)
+    return jsonify([
+        {'id': activity_log.id, 'key_process_name': activity_log.key_process_name, 'task': activity_log.task,
+         'user_name': activity_log.user_name, 'creation_date': activity_log.creation_date}
+        for activity_log in activity_logs
     ])
 
 

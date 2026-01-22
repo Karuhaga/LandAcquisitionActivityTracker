@@ -1,0 +1,317 @@
+<!-- Activity Request Details Modal -->
+<div class="modal fade" id="workInProgressListLogsModal" tabindex="-1" aria-labelledby="viewRequestModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header d-flex justify-content-between align-items-center">
+                <h5 class="modal-title mb-0" id="viewRequestModalLabel">Activity Logs List</h5>
+
+                <div class="d-flex">
+                    <button type="button" class="btn btn-sm btn-outline-custom me-2" id="resetPageBtn" onclick="printPage()">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-custom2" data-dismiss="modal">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="activityTaskIdWIPLog">
+
+                <select id="key_process_dropdown_wip_list_logs_modal" class="d-none">
+                    {{ key_process_options | safe }}
+                </select>
+
+                <table class="table table-sm table-bordered">
+                    <tbody>
+                        <tr>
+                            <th>Requester</th>
+                            <td id="viewRequesterWipLog"></td>
+
+                            <th style="width: 20%">Subject</th>
+                            <td id="viewSubjectWIPLog"></td>
+                        </tr>
+                        <tr>
+                            <th>Project Code</th>
+                            <td id="viewProjectCodeWipLog"></td>
+
+                            <th>Project Name</th>
+                            <td id="viewProjectNameWipLog"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- wipListLogsTable-->
+                <div id="">
+                    <table id="wipListLogsTable" class="table table-striped table-bordered table-hover paginated">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Key Process</th>
+                                <th>Task</th>
+                                <th>Created By</th>
+                                <th>Creation Date</th>
+                                <th>View Log</th>
+                                <th>Edit Log</th>
+                                <th>Delete Log</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.wipViewEditLogModalMode = window.wipViewEditLogModalMode || 1; // 1 = View Mode, 2 = Edit Mode
+
+    let wipLogsTable;
+
+    function initWipLogsTable() {
+        if ($.fn.DataTable.isDataTable('#wipListLogsTable')) {
+            return;
+        }
+
+        wipLogsTable = $('#wipListLogsTable').DataTable({
+            paging: true,
+            searching: true,
+            ordering: true,
+            pageLength: 10,
+            autoWidth: false,
+            columns: [
+                { data: null }, // Row number
+                { data: 'key_process_name' },
+                { data: 'task' },
+                { data: 'user_name' },
+                { data: 'creation_date' },
+                { data: null },
+                { data: null },
+                { data: null }
+            ],
+            columnDefs: [
+                {
+                    targets: 0,
+                    render: (data, type, row, meta) => meta.row + 1
+                },
+                {
+                    targets: 4,
+                    render: data => new Date(data).toLocaleString()
+                },
+                {
+                    targets: 5,
+                    orderable: false,
+                    render: (d, t, row) => `
+                        <button class="btn btn-sm btn-outline-secondary view-log" data-log-id="${row.id}">
+                            <i class="fa fa-eye"></i>
+                        </button>`
+                },
+                {
+                    targets: 6,
+                    orderable: false,
+                    render: (d, t, row) => `
+                        <button class="btn btn-sm btn-outline-primary edit-log" data-log-id="${row.id}">
+                            <i class="fa fa-edit"></i>
+                        </button>`
+                },
+                {
+                    targets: 7,
+                    orderable: false,
+                    render: (d, t, row) => `
+                        <button class="btn btn-sm btn-outline-danger delete-log" data-log-id="${row.id}">
+                            <i class="fa fa-trash"></i>
+                        </button>`
+                }
+            ]
+        });
+    }
+
+    $(document).off("click", ".view-log").on("click", ".view-log", function () {
+
+        const logId = $(this).data("log-id");
+
+        $("#trnActivityLogOverviewIdViewEditLogModal").val(logId);
+        $("#viewEditRequesterWIP").text($("#viewRequesterWipLog").text());
+        $("#viewEditSubjectWIP").text($("#viewSubjectWIPLog").text());
+        $("#viewEditProjectCodeWIP").text($("#viewProjectCodeWipLog").text());
+        $("#viewEditProjectNameWIP").text($("#viewProjectNameWipLog").text());
+
+        // Populate Key Process Options
+        const keyProcessOptions = $("#key_process_dropdown_wip_list_logs_modal").html();
+        $("#key_process_drop_down_view_edit_wip").html(keyProcessOptions);
+
+        // Populate Tasks Options
+        const $taskDropdown = $("#activity_task_wip_view_edit");
+
+        $.ajax({
+            url: `/get-view-edit-activity-log-key-process-task/${logId}`,
+            type: "GET",
+            success: function (response) {
+
+                const savedKeyProcessId = response.key_process_id;
+                const savedTaskId = response.task_id;
+                $taskDropdown.empty().prop("disabled", true);
+
+                //Preselect Key Process
+                $("#key_process_drop_down_view_edit_wip").val(savedKeyProcessId);
+
+                //Load tasks for selected key process
+                $.ajax({
+                    url: `/get-tasks-by-key-process/${savedKeyProcessId}/${$("#activityTaskIdWIPLog").val()}`,
+                    type: "GET",
+                    success: function (tasks) {
+
+                        if (!tasks || tasks.length === 0) {
+                            $taskDropdown.append('<option value="">No tasks available</option>');
+                            return;
+                        }
+
+                        tasks.forEach(task => {
+                            $taskDropdown.append(
+                                `<option value="${task.id}">${task.task}</option>`
+                            );
+                        });
+
+                        // Preselect Task
+                        $taskDropdown.val(savedTaskId).prop("disabled", false);
+                    },
+                    error: function () {
+                        alert("Failed to load tasks.");
+                    }
+                });
+            },
+            error: function () {
+                alert("Failed to load tasks for the selected key process.");
+            }
+        });
+
+        // Load Activity Breakdowns
+        $.ajax({
+            url: "/get-activity-breakdown-details",
+            type: "GET",
+            data: { log_id: logId },
+            success: function (response) {
+
+                const breakdowns = response.activity_breakdown_details;
+
+                if (!breakdowns || breakdowns.length === 0) {
+                    showFlashMessage("No Activity Breakdown found for this request.", "warning");
+                    return;
+                }
+
+                const $tbody = $("#activityTaskInputsViewEditWip");
+                $tbody.empty();
+
+                breakdowns.forEach((item, index) => {
+
+                    const startDate = item.start_date
+                        ? new Date(item.start_date).toISOString().split("T")[0]
+                        : "";
+
+                    const endDate = item.end_date
+                        ? new Date(item.end_date).toISOString().split("T")[0]
+                        : "";
+
+                    const newRow = $(`
+                        <tr>
+                            <td class="text-end">${index + 1}</td>
+                            <td>
+                                <input type="text"
+                                       class="form-control start-date"
+                                       name="start_date[]"
+                                       value="${startDate}"
+                                       autocomplete="off">
+                            </td>
+                            <td>
+                                <input type="text"
+                                       class="form-control end-date"
+                                       name="end_date[]"
+                                       value="${endDate}"
+                                       autocomplete="off">
+                            </td>
+                            <td class="days-diff text-center">0</td>
+                            <td>
+                                <textarea class="form-control"
+                                          name="activityBreakdownDetails[]"
+                                          rows="2"
+                                          maxlength="150">${item.detail || ""}</textarea>
+                            </td>
+                            <td class="text-center">
+                                <button type="button"
+                                        class="btn btn-sm btn-danger"
+                                        onclick="removeRow(this)">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `);
+
+                    $tbody.append(newRow);
+                });
+
+                // Reinitialize date pickers
+                initDatePickers($tbody);
+
+                // Recalculate days per row
+                $tbody.find("tr").each(function () {
+                    calculateDays($(this));
+                });
+
+                // Recalculate total days
+                calculateTotalDays();
+
+                // Call secondary modal
+                showWorkInProgressViewEditLogModal();
+            },
+            error: function (xhr) {
+                showFlashMessage(
+                    xhr.responseJSON?.error || "Failed to load activity breakdown.",
+                    "danger"
+                );
+            }
+        });
+    });
+
+    function showWorkInProgressViewEditLogModal() {
+
+        $("#workInProgressViewEditLogModal").modal({
+            backdrop: "static",
+            keyboard: false
+        });
+
+        setTimeout(() => {
+            $("#workInProgressViewEditLogModal").css("z-index", 1065);
+            $(".modal-backdrop").last().css("z-index", 1064);
+        }, 10);
+    }
+
+    $(document).on('hidden.bs.modal', function () {
+        if ($('.modal.show').length) {
+            $('body').addClass('modal-open');
+        }
+    });
+</script>
+
+<style>
+    .wrap-text {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        overflow-wrap: anywhere !important;
+    }
+    .modal-header .btn {
+        margin-left: 6px;
+    }
+
+    #saveConfirmationModal {
+        z-index: 1060;
+    }
+
+    #workInProgressAddLogModal {
+        z-index: 1060;
+    }
+
+    .modal-backdrop.show:nth-of-type(2) {
+        z-index: 1055;
+    }
+
+</style>
