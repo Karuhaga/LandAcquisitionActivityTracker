@@ -68,17 +68,17 @@
                                 <tr>
                                     <td class="text-end">1</td>
                                     <td>
-                                        <input type="text" class="form-control start-date" name="start_date[]" placeholder="Start Date" autocomplete="off">
+                                        <input type="text" class="form-control start-date-add-log" name="start_date[]" placeholder="Start Date" autocomplete="off">
                                     </td>
                                     <td>
-                                        <input type="text" class="form-control end-date" name="end_date[]" placeholder="End Date" autocomplete="off">
+                                        <input type="text" class="form-control end-date-add-log" name="end_date[]" placeholder="End Date" autocomplete="off">
                                     </td>
                                     <td class="days-diff text-center">1</td>
                                     <td>
                                         <textarea class="form-control" name="activityBreakdownDetails[]" rows="2" placeholder="Enter activity details" maxlength="150"></textarea>
                                     </td>
                                     <td class="text-center">
-                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeRowaddlog(this)">
                                             <i class="fa fa-trash"></i>
                                         </button>
                                     </td>
@@ -92,7 +92,7 @@
                                 </tr>
                                 <tr>
                                     <td colspan="6" class="text-end">
-                                        <button type="button" class="btn-outline-custom float-end" onclick="addTaskActivity()">
+                                        <button type="button" class="btn-outline-custom float-end" onclick="addTaskActivityAddLog()">
                                             <i class="fa fa-plus"></i> Add Activity
                                         </button>
                                     </td>
@@ -149,7 +149,7 @@
             <div class="modal-footer mt-3 d-flex justify-content-center gap-5">
                 <button type="button" class="btn btn-sm btn-outline-custom"
                         style="margin: 0 1rem;"
-                        onclick="handleAction('save activity log');">
+                        onclick="handleActionAddLog('save activity log');">
                     <i class="fa fa-save"></i> Save
                 </button>
 
@@ -163,7 +163,7 @@
 
 <script>
 
-    function removeRow(button) {
+    function removeRowaddlog(button) {
         const $row = $(button).closest("tr");
         const $tbody = $row.closest("tbody");
         $row.remove();
@@ -178,49 +178,49 @@
 
         // Recalculate task totals if applicable
         if ($tbody.attr("id") === "activityTaskInputs") {
-            calculateTotalDays();
+            calculateTotalDaysAddLog();
         }
     }
 
     // --- Date validation helpers ---
-    function showDateError($row, message) {
+    function showDateErrorAddLog($row, message) {
         let $err = $row.find('.date-error');
         if (!$err.length) {
             $err = $('<div class="date-error text-danger small mt-1"></div>');
-            $row.find('.end-date').closest('td').append($err);
+            $row.find('.end-date-add-log').closest('td').append($err);
         }
         $err.text(message);
     }
 
-    function clearDateError($row) {
+    function clearDateErrorAddLog($row) {
         $row.find('.date-error').remove();
     }
 
-    function daysBetween(start, end) {
+    function daysBetweenAddLog(start, end) {
         const s = new Date(start).setHours(0, 0, 0, 0);
         const e = new Date(end).setHours(0, 0, 0, 0);
         return ((e - s) / (1000 * 60 * 60 * 24)) + 1; // inclusive
     }
 
-    function calculateDays($row) {
-        const startPicker = $row.find('.start-date')[0]?._flatpickr;
-        const endPicker = $row.find('.end-date')[0]?._flatpickr;
+    function calculateDaysAddLog($row) {
+        const startPicker = $row.find('.start-date-add-log')[0]?._flatpickr;
+        const endPicker = $row.find('.end-date-add-log')[0]?._flatpickr;
         if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
             const start = startPicker.selectedDates[0];
             const end = endPicker.selectedDates[0];
-            const diff = daysBetween(start, end);
+            const diff = daysBetweenAddLog(start, end);
             $row.find('.days-diff').text(diff >= 0 ? diff : 0);
         }
-        calculateTotalDays();
+        calculateTotalDaysAddLog();
     }
 
-    function calculateTotalDays() {
+    function calculateTotalDaysAddLog() {
         let earliest = null;
         let latest = null;
 
         $("#activityTaskInputs tr").each(function() {
-            const startPicker = $(this).find('.start-date')[0]?._flatpickr;
-            const endPicker = $(this).find('.end-date')[0]?._flatpickr;
+            const startPicker = $(this).find('.start-date-add-log')[0]?._flatpickr;
+            const endPicker = $(this).find('.end-date-add-log')[0]?._flatpickr;
 
             if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
                 const start = startPicker.selectedDates[0];
@@ -232,14 +232,14 @@
         });
 
         if (earliest && latest) {
-            const diff = daysBetween(earliest, latest);
+            const diff = daysBetweenAddLog(earliest, latest);
             $(".total-days").text(diff >= 0 ? diff : 0);
         } else {
             $(".total-days").text(0);
         }
     }
     
-    function initDatePickers(context) {
+    function initDatePickersAddLog(context) {
         context = (context instanceof jQuery) ? context : $(context);
         let rows = context.is("tr") ? context : context.find("tr");
 
@@ -247,8 +247,8 @@
 
         rows.each(function() {
             const $row = $(this);
-            const startElem = $row.find(".start-date")[0];
-            const endElem = $row.find(".end-date")[0];
+            const startElem = $row.find(".start-date-add-log")[0];
+            const endElem = $row.find(".end-date-add-log")[0];
             if (!startElem || !endElem) return;
 
             // --- Start date ---
@@ -265,12 +265,12 @@
                         if (startDate && endPicker && endPicker.selectedDates[0]) {
                             if (endPicker.selectedDates[0] < startDate) {
                                 endPicker.setDate(startDate, false);
-                                showDateError($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
+                                showDateErrorAddLog($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
                             } else {
-                                clearDateError($row);
+                                clearDateErrorAddLog($row);
                             }
                         }
-                        calculateDays($row);
+                        calculateDaysAddLog($row);
                     }
                 });
             }
@@ -289,19 +289,19 @@
                         if (endDate && startPicker && startPicker.selectedDates[0]) {
                             if (endDate < startPicker.selectedDates[0]) {
                                 this.setDate(startPicker.selectedDates[0], false);
-                                showDateError($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
+                                showDateErrorAddLog($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
                             } else {
-                                clearDateError($row);
+                                clearDateErrorAddLog($row);
                             }
                         }
-                        calculateDays($row);
+                        calculateDaysAddLog($row);
                     }
                 });
             }
         });
     }
 
-    function addTaskActivity() {
+    function addTaskActivityAddLog() {
         const $tbody = $("#activityTaskInputs");
         const newRowIndex = $tbody.find("tr").length + 1; // count existing rows + 1
 
@@ -309,17 +309,17 @@
             <tr>
                 <td class="text-end">${newRowIndex}</td>
                 <td>
-                    <input type="text" class="form-control start-date" name="start_date[]" placeholder="Start Date" autocomplete="off">
+                    <input type="text" class="form-control start-date-add-log" name="start_date[]" placeholder="Start Date" autocomplete="off">
                 </td>
                 <td>
-                    <input type="text" class="form-control end-date" name="end_date[]" placeholder="End Date" autocomplete="off">
+                    <input type="text" class="form-control end-date-add-log" name="end_date[]" placeholder="End Date" autocomplete="off">
                 </td>
                 <td class="days-diff text-center">1</td>
                 <td>
-                    <textarea class="form-control" name="activityBreakdownDetails[]" rows="2" placeholder="Enter task name" maxlength="150"></textarea>
+                    <textarea class="form-control" name="activityBreakdownDetails[]" rows="2" placeholder="Enter activity details" maxlength="150"></textarea>
                 </td>
                 <td class="text-center">
-                    <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeRowaddlog(this)">
                         <i class="fa fa-trash"></i>
                     </button>
                 </td>
@@ -329,14 +329,14 @@
         $tbody.append(newRow);
 
         // re-init datepickers for new row
-        initDatePickers(newRow);
+        initDatePickersAddLog(newRow);
 
         // recalc totals
-        calculateTotalDays();
+        calculateTotalDaysAddLog();
     }
     
     $(document).ready(function() {
-        initDatePickers($('#activityTaskInputs'));
+        initDatePickersAddLog($('#activityTaskInputs'));
 
         $("#key_process_drop_down_WIP").on("change", function () {
             const keyProcessId = $(this).val();
@@ -381,19 +381,19 @@
         });
     });
 
-    function handleAction(actionType, buttonElem = null) {
+    function handleActionAddLog(actionType, buttonElem = null) {
 
         if (actionType === "save activity log") {
-            if (!validateForm()) {
+            if (!validateFormAddLog()) {
                 return; // Stop here if validation fails
             }
         }
 
         // Show confirmation modal for the action
-        showConfirmation(actionType);
+        showConfirmationAddLog(actionType);
     }
 
-    function validateForm() {
+    function validateFormAddLog() {
         let isValid = true;
 
         // Clear previous validation errors
@@ -427,8 +427,8 @@
         $("#activityTaskInputs tr").each(function () {
             const $row = $(this);
 
-            const startDate = $row.find(".start-date").val()?.trim();
-            const endDate   = $row.find(".end-date").val()?.trim();
+            const startDate = $row.find(".start-date-add-log").val()?.trim();
+            const endDate   = $row.find(".end-date-add-log").val()?.trim();
             const details   = $row.find("textarea[name='activityBreakdownDetails[]']").val()?.trim();
 
             // Remove old row-level errors
@@ -456,7 +456,7 @@
         return isValid;
     }
 
-    function showConfirmation(actionType) {
+    function showConfirmationAddLog(actionType) {
         let modalTitle = "";
         let modalMessage = "";
 
@@ -487,86 +487,6 @@
             keyboard: false
         });
 
-        function saveActivityLog() {
-
-            // --- Overview fields ---
-            const overview = {
-                activity_task_id: $("#activityTaskId").val(),
-                key_process_id: $("#key_process_drop_down_WIP").val(),
-                task_id: $("#activity_task_WIP").val()
-            };
-
-            // --- Activity Breakdown ---
-            const activityBreakdown = [];
-            $("#activityTaskInputs tr").each(function() {
-                const startDate = $(this).find("input.start-date").val();
-                const endDate = $(this).find("input.end-date").val();
-                const activityBreakdownDetail = $(this).find("textarea[name='activityBreakdownDetails[]']").val();
-
-                if (activityBreakdownDetail && startDate && endDate) {
-                    activityBreakdown.push({
-                        activityBreakdownDetail,
-                        start_date: startDate,
-                        end_date: endDate
-                    });
-                }
-            });
-
-            const formData = new FormData();
-
-            const payload = {
-                overview,
-                activityBreakdown
-            };
-
-            formData.append("data", JSON.stringify(payload));
-
-            // --- Attachments ---
-            const retainedAttachmentIds = [];
-            $("#wipAttachmentsTable tr").each(function() {
-                const fileInput = $(this).find("input[type='file']")[0];
-                const desc = $(this).find("textarea[name='wip_attachment_description[]']").val();
-                const attachmentId = $(this).data("attachment-id");
-
-                if (attachmentId) {
-                    retainedAttachmentIds.push(attachmentId);
-                }
-
-                if (fileInput && fileInput.files.length > 0) {
-                    formData.append("wip_attachments", fileInput.files[0]);
-                    formData.append("wip_attachment_descriptions", desc || "");
-                }
-            });
-
-            const url = "/save_activity_request_log";
-
-            $.ajax({
-                url: url,
-                type: "POST",
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function (response) {
-                    showFlashMessage(response.message, "success");
-
-                    $("#flashMessageModal")
-                        .off("hidden.bs.modal")
-                        .on("hidden.bs.modal", function () {
-                            location.reload();
-                        });
-                },
-                error: function (xhr) {
-                    let errorMessage =
-                        (xhr.responseJSON && xhr.responseJSON.error) ||
-                        "An unexpected error occurred.";
-                    let messageType =
-                        (xhr.responseJSON && xhr.responseJSON.type) || "danger";
-
-                    showFlashMessage(errorMessage, messageType);
-                }
-            });
-        }
-
         // Ensure correct stacking
         setTimeout(() => {
             const zIndex = 1055;
@@ -574,6 +494,87 @@
             $(".modal-backdrop").last().css("z-index", zIndex - 1);
         }, 10);
     }
+
+    function saveActivityLog() {
+
+        // --- Overview fields ---
+        const overview = {
+            activity_task_id: $("#activityTaskId").val(),
+            key_process_id: $("#key_process_drop_down_WIP").val(),
+            task_id: $("#activity_task_WIP").val()
+        };
+
+        // --- Activity Breakdown ---
+        const activityBreakdown = [];
+        $("#activityTaskInputs tr").each(function() {
+            const startDate = $(this).find("input.start-date-add-log").val();
+            const endDate = $(this).find("input.end-date-add-log").val();
+            const activityBreakdownDetail = $(this).find("textarea[name='activityBreakdownDetails[]']").val();
+
+            if (activityBreakdownDetail && startDate && endDate) {
+                activityBreakdown.push({
+                    activityBreakdownDetail,
+                    start_date: startDate,
+                    end_date: endDate
+                });
+            }
+        });
+
+        const formData = new FormData();
+
+        const payload = {
+            overview,
+            activityBreakdown
+        };
+
+        formData.append("data", JSON.stringify(payload));
+
+        // --- Attachments ---
+        const retainedAttachmentIds = [];
+        $("#wipAttachmentsTable tr").each(function() {
+            const fileInput = $(this).find("input[type='file']")[0];
+            const desc = $(this).find("textarea[name='wip_attachment_description[]']").val();
+            const attachmentId = $(this).data("attachment-id");
+
+            if (attachmentId) {
+                retainedAttachmentIds.push(attachmentId);
+            }
+
+            if (fileInput && fileInput.files.length > 0) {
+                formData.append("wip_attachments", fileInput.files[0]);
+                formData.append("wip_attachment_descriptions", desc || "");
+            }
+        });
+
+        const url = "/save_activity_request_log";
+
+        $.ajax({
+            url: url,
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                showFlashMessage(response.message, "success");
+
+                $("#flashMessageModal")
+                    .off("hidden.bs.modal")
+                    .on("hidden.bs.modal", function () {
+                        location.reload();
+                    });
+            },
+            error: function (xhr) {
+                let errorMessage =
+                    (xhr.responseJSON && xhr.responseJSON.error) ||
+                    "An unexpected error occurred.";
+                let messageType =
+                    (xhr.responseJSON && xhr.responseJSON.type) || "danger";
+
+                showFlashMessage(errorMessage, messageType);
+            }
+        });
+    }
+
 
     $('#confirmationModal').on('hidden.bs.modal', function () {
 
@@ -624,6 +625,17 @@
             </button>
         </td>
     `;
+    }
+
+    function removeAttachmentRow(btn) {
+        let row = btn.closest("tr");
+        row.parentNode.removeChild(row);
+
+        // Re-number rows
+        let table = document.getElementById("attachmentsTable");
+        for (let i = 0; i < table.rows.length - 1; i++) {
+            table.rows[i].cells[0].innerText = i + 1;
+        }
     }
 
 </script>

@@ -66,7 +66,7 @@
 <script>
     window.wipViewEditLogModalMode = window.wipViewEditLogModalMode || 1; // 1 = View Mode, 2 = Edit Mode
 
-    let wipLogsTable;
+    window.wipLogsTable = window.wipLogsTable || null;
 
     function initWipLogsTable() {
         if ($.fn.DataTable.isDataTable('#wipListLogsTable')) {
@@ -126,10 +126,49 @@
         });
     }
 
-    $(document).off("click", ".view-log").on("click", ".view-log", function () {
+    $(document).off("click", ".view-log, .edit-log").on("click", ".view-log, .edit-log", function () {
+
+        const isView = $(this).hasClass("view-log");
+        const logId = $(this).data("log-id");
+
+        window.wipViewEditLogModalMode = isView ? 1 : 2;
+
+        loadWipLog(logId, window.wipViewEditLogModalMode);
+    });
+
+    $(document).off("click", ".delete-log").on("click", ".delete-log", function () {
 
         const logId = $(this).data("log-id");
 
+        let modalTitle = "";
+        let modalMessage = "";
+
+        modalTitle = "Delete Confirmation";
+        modalMessage = "Are you sure you want to delete this activity log?";
+
+        // Remove old handlers safely
+        $("#confirmAction").off("click.confirm");
+
+        $("#confirmAction").off("click").on("click", function() {
+            // Close confirmation FIRST
+            $("#confirmationModal").modal("hide");
+
+            deleteActivityLog(logId);
+        });
+
+        // Set modal text
+        $("#confirmationModalLabel").text(modalTitle);
+        $("#confirmationMessage").text(modalMessage);
+
+        // Show modal
+        $("#confirmationModal").modal({
+            backdrop: "static",
+            keyboard: false
+        });
+
+    });
+
+    function loadWipLog(logId, mode) {
         $("#trnActivityLogOverviewIdViewEditLogModal").val(logId);
         $("#viewEditRequesterWIP").text($("#viewRequesterWipLog").text());
         $("#viewEditSubjectWIP").text($("#viewSubjectWIPLog").text());
@@ -232,7 +271,7 @@
                             <td class="days-diff text-center">0</td>
                             <td>
                                 <textarea class="form-control"
-                                          name="activityBreakdownDetails[]"
+                                          name="activityBreakdownDetailsViewEdit[]"
                                           rows="2"
                                           maxlength="150">${item.detail || ""}</textarea>
                             </td>
@@ -270,9 +309,143 @@
                 );
             }
         });
-    });
+
+        // Load attachments
+        $.ajax({
+            url: "/get-activity-log-attachments",
+            type: "GET",
+            data: { log_id: logId },
+            success: function(response) {
+                const attachments = response.attachments || [];
+                const $tbody = $("#attachmentsTableViewEditWip");
+                $tbody.empty(); // clear any existing rows
+
+                if (attachments.length > 0) {
+                    attachments.forEach((att, index) => {
+                        const fileUrl = `/download/activity-log/${att.file}`; // adjust if uploads folder is elsewhere
+                        const newRow = $(`
+                            <tr data-attachment-id="${att.id}">
+                                <td class="text-end">${index + 1}</td>
+                                <td>
+                                    <div class="filename-cell" title="${att.file}">
+                                        ${att.file}
+                                    </div>
+                                </td>
+                                <td>
+                                    <textarea class="form-control" name="attachment_description[]" rows="2"
+                                        placeholder="Enter description (optional)" maxlength="500" disabled>${att.description || ''}</textarea>
+                                </td>
+                                <td class="text-center">
+                                    <a href="${fileUrl}" class="btn btn-sm btn-secondary"
+                                       ${att.file.toLowerCase().match(/\.(pdf|png|jpg|jpeg)$/) ? 'target="_blank"' : 'download'}>
+                                        <i class="fa fa-download"></i>
+                                    </a>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRowViewEditWip(this)">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `);
+                        $tbody.append(newRow);
+                    });
+                } else {
+                    // If no attachments exist, show an empty file input row
+                    const emptyRow = $(`
+                        <tr>
+                            <td class="text-end">1</td>
+                            <td><input type="file" class="form-control" name="attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"></td>
+                            <td><textarea class="form-control" name="attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea></td>
+                            <td class="text-center"><button type="button" class="btn btn-sm btn-secondary"><i class="fa fa-download"></i></button></td>
+                            <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRowViewEditWip(this)"><i class="fa fa-trash"></i></button></td>
+                        </tr>
+                    `);
+                    $tbody.append(emptyRow);
+                }
+
+                // Always append the "Add File" row at the end
+                $tbody.append(`
+                    <tr>
+                        <td colspan="5" class="text-end">
+                            <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRowViewEditWip()">
+                                <i class="fa fa-plus"></i> Add File
+                            </button>
+                        </td>
+                    </tr>
+                `);
+            },
+            error: function(xhr) {
+                showFlashMessage(xhr.responseJSON?.error || "Failed to load attachments.", "danger");
+            }
+        });
+    }
 
     function showWorkInProgressViewEditLogModal() {
+    
+        /* ===============================
+           Key Process & Task
+           =============================== */
+        $("#key_process_drop_down_view_edit_wip").prop("disabled", false);
+        $("#activity_task_wip_view_edit").prop("disabled", false);
+
+        /* ===============================
+           Activity Breakdown section
+           =============================== */
+        $("#tableActivityTaskInputsViewEditWip")
+            .find("input, textarea, button")
+            .prop("disabled", false);
+
+        /* ===============================
+           Attachments section
+           =============================== */
+        $("#attachmentsTableViewEditWip")
+            .find("input, textarea, button")
+            .prop("disabled", false);
+
+        /* Add File button (important!) */
+        $(".add-attachment-btn").prop("disabled", false);
+
+        /* ===============================
+           Footer buttons
+           =============================== */
+        // Disable Save in View mode
+        $("#workInProgressViewEditLogModal")
+            .find("button:contains('Save')")
+            .prop("disabled", false);    
+
+        if (window.wipViewEditLogModalMode === 1){
+            /* ===============================
+               Key Process & Task
+               =============================== */
+            $("#key_process_drop_down_view_edit_wip").prop("disabled", true);
+            $("#activity_task_wip_view_edit").prop("disabled", true);
+
+            /* ===============================
+               Activity Breakdown section
+               =============================== */
+            $("#tableActivityTaskInputsViewEditWip")
+                .find("input, textarea, button")
+                .prop("disabled", true);
+
+            /* ===============================
+               Attachments section
+               =============================== */
+            $("#attachmentsTableViewEditWip")
+                .find("input, textarea, button")
+                .prop("disabled", true);
+
+            /* Add File button (important!) */
+            $(".add-attachment-btn").prop("disabled", true);
+
+            /* ===============================
+               Footer buttons
+               =============================== */
+            // Disable Save in View mode
+            $("#workInProgressViewEditLogModal")
+                .find("button:contains('Save')")
+                .prop("disabled", true);
+        }
 
         $("#workInProgressViewEditLogModal").modal({
             backdrop: "static",
@@ -290,6 +463,59 @@
             $('body').addClass('modal-open');
         }
     });
+
+    function deleteActivityLog(activityLogId) {
+
+        if (!activityLogId) {
+            showFlashMessage("Invalid activity log ID.", "danger");
+            return;
+        }
+
+        $.ajax({
+            url: "/delete-saved-activity-wip-log-details",
+            type: "POST",
+            data: {
+                activity_log_id: activityLogId
+            },
+            success: function(response) {
+                showFlashMessage(response.message || "Activity log deleted successfully.", "success");
+
+                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function() {
+                    location.reload();
+                });
+            },
+            error: function() {
+                showFlashMessage("Failed to delete saved activity log details. Please try again.", "danger");
+            }
+        });
+    }
+
+    function deleteActivityLogForEditing(activityLogId) {
+
+        if (!activityLogId) {
+            showFlashMessage("Invalid activity log ID.", "danger");
+            return;
+        }
+
+        $.ajax({
+            url: "/delete-saved-activity-wip-log-details-for-editing",
+            type: "POST",
+            data: {
+                activity_log_id: activityLogId
+            },
+            success: function(response) {
+                showFlashMessage(response.message || "Activity log deleted successfully.", "success");
+
+                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function() {
+                    location.reload();
+                });
+            },
+            error: function() {
+                showFlashMessage("Failed to delete saved activity log details. Please try again.", "danger");
+            }
+        });
+    }
+
 </script>
 
 <style>

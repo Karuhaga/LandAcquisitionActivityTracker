@@ -137,7 +137,7 @@
                                     </select>
                                 </td>
                                 <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeFieldActivityRequest(this)">
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 </td>
@@ -204,7 +204,7 @@
                                 </td>
                                 <td class="days-diff text-center">1</td>
                                 <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeFieldActivityRequest(this)">
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 </td>
@@ -270,14 +270,14 @@
                                         </button>
                                     </td>
                                     <td class="text-center">
-                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRowActivityRequest(this)">
                                             <i class="fa fa-trash"></i>
                                         </button>
                                     </td>
                                 </tr>
                                 <tr>
                                     <td colspan="5" class="text-end">
-                                        <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRow()">
+                                        <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRowActivityRequest()">
                                             <i class="fa fa-plus"></i> Add File
                                         </button>
                                     </td>
@@ -293,13 +293,13 @@
         <div class="mt-3 d-flex justify-content-center gap-5">
             <button type="button" class="btn-outline-custom"
                     style="margin: 0 1rem;"
-                    onclick="setActivityMode(1); handleAction('save request');">
+                    onclick="setActivityMode(1); handleActionActivityRequest('save request');">
                 Save Request
             </button>
 
             <button type="button" class="btn-outline-custom"
                     style="margin: 0 1rem;"
-                    onclick="setActivityMode(2); handleAction('submit request');">
+                    onclick="setActivityMode(2); handleActionActivityRequest('submit request');">
                 Submit Request
             </button>
         </div>
@@ -355,7 +355,7 @@
                             class="btn btn-sm btn-danger delete-saved-activity-request-btn"
                             type="button"
                             data-activity-id="{{ activity_request_detail.id }}"
-                            onclick="handleAction('delete request', this)">
+                            onclick="handleActionActivityRequest('delete request', this)">
                             <i class="fa fa-trash"></i>
                         </button>
                     </td>
@@ -377,9 +377,9 @@
         console.log("Activity mode set to:", mode === 1 ? "Save" : "Submit");
     }
 
-    function handleAction(actionType, buttonElem = null) {
+    function handleActionActivityRequest(actionType, buttonElem = null) {
         // Skip validation for delete requests
-        if (actionType !== "delete request" && !validateForm()) {
+        if (actionType !== "delete request" && !validateFormActivityRequest()) {
             return; // Stop if form is invalid
         }
 
@@ -389,10 +389,10 @@
         }
 
         // Show confirmation modal for the action
-        showConfirmation(actionType);
+        showConfirmationActivityRequest(actionType);
     }
 
-    function validateForm() {
+    function validateFormActivityRequest() {
         let isValid = true;
 
         // Clear old errors
@@ -484,7 +484,7 @@
         return isValid;
     }
 
-    function showConfirmation(actionType) {
+    function showConfirmationActivityRequest(actionType) {
         let modalTitle = "";
         let modalMessage = "";
 
@@ -551,7 +551,7 @@
               <td><select class="form-control" name="team_member_names">{{ user_options | safe }}</select></td>
               <td><select class="form-control" name="team_member_role">{{ team_role_options | safe }}</select></td>
               <td class="text-center">
-                <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeFieldActivityRequest(this)">
                   <i class="fa fa-trash"></i>
                 </button>
               </td>
@@ -587,7 +587,7 @@
               </td>
               <td class="days-diff text-center">1</td>
               <td class="text-center">
-                  <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                  <button type="button" class="btn btn-sm btn-danger" onclick="removeFieldActivityRequest(this)">
                       <i class="fa fa-trash"></i>
                   </button>
               </td>
@@ -597,13 +597,13 @@
         $tbody.append(newRow);
 
         // re-init datepickers for new row
-        initDatePickers(newRow);
+        initDatePickersActivityRequest(newRow);
 
         // recalc totals
-        calculateTotalDaysFunction();
+        calculateTotalDaysFunctionActivityRequest();
     }
 
-    function removeField(button) {
+    function removeFieldActivityRequest(button) {
         const $row = $(button).closest("tr");
         const $tbody = $row.closest("tbody");
         $row.remove();
@@ -618,12 +618,12 @@
 
         // Recalculate task totals if applicable
         if ($tbody.attr("id") === "taskInputs") {
-            calculateTotalDaysFunction();
+            calculateTotalDaysFunctionActivityRequest();
         }
     }
 
     // --- Date validation helpers ---
-    function showDateError($row, message) {
+    function showDateErrorActivityRequest($row, message) {
         let $err = $row.find('.date-error');
         if (!$err.length) {
             $err = $('<div class="date-error text-danger small mt-1"></div>');
@@ -636,25 +636,25 @@
         $row.find('.date-error').remove();
     }
 
-    function daysBetween(start, end) {
+    function daysBetweenActivityRequest(start, end) {
         const s = new Date(start).setHours(0, 0, 0, 0);
         const e = new Date(end).setHours(0, 0, 0, 0);
         return ((e - s) / (1000 * 60 * 60 * 24)) + 1; // inclusive
     }
 
-    function calculateDays($row) {
+    function calculateDaysActivityRequest($row) {
         const startPicker = $row.find('.start-date')[0]?._flatpickr;
         const endPicker = $row.find('.end-date')[0]?._flatpickr;
         if (startPicker && endPicker && startPicker.selectedDates[0] && endPicker.selectedDates[0]) {
             const start = startPicker.selectedDates[0];
             const end = endPicker.selectedDates[0];
-            const diff = daysBetween(start, end);
+            const diff = daysBetweenActivityRequest(start, end);
             $row.find('.days-diff').text(diff >= 0 ? diff : 0);
         }
-        calculateTotalDaysFunction();
+        calculateTotalDaysFunctionActivityRequest();
     }
 
-    function calculateTotalDaysFunction() {
+    function calculateTotalDaysFunctionActivityRequest() {
         let earliest = null;
         let latest = null;
 
@@ -672,14 +672,14 @@
         });
 
         if (earliest && latest) {
-            const diff = daysBetween(earliest, latest);
+            const diff = daysBetweenActivityRequest(earliest, latest);
             $(".total-days").text(diff >= 0 ? diff : 0);
         } else {
             $(".total-days").text(0);
         }
     }
 
-    function addAttachmentRow() {
+    function addAttachmentRowActivityRequest() {
         const table = document.getElementById("attachmentsTable");
         const rowCount = table.rows.length - 1; // exclude last "Add File" row
         const newRow = table.insertRow(rowCount);
@@ -696,12 +696,12 @@
             <textarea class="form-control" name="attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea>
         </td>
         <td class="text-center">
-            <button type="button" class="btn btn-sm btn-secondary" onclick="handleDownload(this)">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="handleDownloadActivityRequest(this)">
                 <i class="fa fa-download"></i>
             </button>
         </td>
         <td class="text-center">
-            <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRowActivityRequest(this)">
                 <i class="fa fa-trash"></i>
             </button>
         </td>
@@ -709,7 +709,7 @@
     }
 
     // Handler for download button
-    function handleDownload(button) {
+    function handleDownloadActivityRequest(button) {
         const row = button.closest("tr");
         const attachmentId = row.dataset.attachmentId;
         const fileName = row.cells[1].innerText.trim();
@@ -734,7 +734,7 @@
         }
     }
 
-    function removeAttachmentRow(btn) {
+    function removeAttachmentRowActivityRequest(btn) {
         let row = btn.closest("tr");
         row.parentNode.removeChild(row);
 
@@ -745,7 +745,7 @@
         }
     }
 
-    function initDatePickers(context) {
+    function initDatePickersActivityRequest(context) {
         context = (context instanceof jQuery) ? context : $(context);
         let rows = context.is("tr") ? context : context.find("tr");
 
@@ -771,12 +771,12 @@
                         if (startDate && endPicker && endPicker.selectedDates[0]) {
                             if (endPicker.selectedDates[0] < startDate) {
                                 endPicker.setDate(startDate, false);
-                                showDateError($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
+                                showDateErrorActivityRequest($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
                             } else {
                                 clearDateError($row);
                             }
                         }
-                        calculateDays($row);
+                        calculateDaysActivityRequest($row);
                     }
                 });
             }
@@ -795,12 +795,12 @@
                         if (endDate && startPicker && startPicker.selectedDates[0]) {
                             if (endDate < startPicker.selectedDates[0]) {
                                 this.setDate(startPicker.selectedDates[0], false);
-                                showDateError($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
+                                showDateErrorActivityRequest($row, "End Date cannot be earlier than Start Date. Adjusted automatically.");
                             } else {
                                 clearDateError($row);
                             }
                         }
-                        calculateDays($row);
+                        calculateDaysActivityRequest($row);
                     }
                 });
             }
@@ -846,13 +846,13 @@
         updateTeamMemberDropdowns();
     };
 
-    // Modify removeField to refresh dropdowns after removing a row
-    //const originalRemoveField = window.removeField;
-    var originalRemoveField = window.originalRemoveField || window.removeField;
-    window.originalRemoveField = originalRemoveField;
-    window.removeField = function(button) {
-        if (typeof originalRemoveField === 'function') {
-            originalRemoveField(button);
+    // Modify removeFieldActivityRequest to refresh dropdowns after removing a row
+    //const originalremoveFieldActivityRequest = window.removeFieldActivityRequest;
+    var originalremoveFieldActivityRequest = window.originalremoveFieldActivityRequest || window.removeFieldActivityRequest;
+    window.originalremoveFieldActivityRequest = originalremoveFieldActivityRequest;
+    window.removeFieldActivityRequest = function(button) {
+        if (typeof originalremoveFieldActivityRequest === 'function') {
+            originalremoveFieldActivityRequest(button);
         }
         updateTeamMemberDropdowns();
     };
@@ -1010,7 +1010,7 @@
         // --- Reset all form inputs, selects, and textareas ---
         $("#activityForm")[0].reset();
 
-        initDatePickers($('#taskInputs'));
+        initDatePickersActivityRequest($('#taskInputs'));
 
         // Rotate caret icons on accordion expand/collapse
         $(document).on("show.bs.collapse", "#activityAccordion .collapse", function() {
@@ -1219,7 +1219,7 @@
                                     </select>
                                 </td>
                                 <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeFieldActivityRequest(this)">
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 </td>
@@ -1280,7 +1280,7 @@
                                 </td>
                                 <td class="days-diff text-center">1</td>
                                 <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeFieldActivityRequest(this)">
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 </td>
@@ -1294,15 +1294,15 @@
                     });
 
                     // Reinitialize datepickers on loaded rows
-                    initDatePickers($tbody);
+                    initDatePickersActivityRequest($tbody);
 
                     // Recalculate days per row based on loaded start/end values
                     $tbody.find("tr").each(function() {
-                        calculateDays($(this));
+                        calculateDaysActivityRequest($(this));
                     });
 
                     // Trigger day calculations
-                    calculateTotalDaysFunction();
+                    calculateTotalDaysFunctionActivityRequest();
                 } else {
                     showFlashMessage("No tasks found for this request.", "warning");
                 }
@@ -1330,7 +1330,11 @@
                         const newRow = $(`
                             <tr data-attachment-id="${att.id}">
                                 <td class="text-end">${index + 1}</td>
-                                <td>${att.file}</td>
+                                <td class="file-cell">
+                                    <span class="file-name" title="${att.file}">
+                                        ${att.file}
+                                    </span>
+                                </td>
                                 <td>
                                     <textarea class="form-control" name="attachment_description[]" rows="2"
                                         placeholder="Enter description (optional)" maxlength="500">${att.description || ''}</textarea>
@@ -1342,7 +1346,7 @@
                                     </a>
                                 </td>
                                 <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRowActivityRequest(this)">
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 </td>
@@ -1357,7 +1361,7 @@
                             <td class="text-end">1</td>
                             <td><input type="file" class="form-control" name="attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"></td>
                             <td><textarea class="form-control" name="attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea></td>
-                            <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)"><i class="fa fa-trash"></i></button></td>
+                            <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRowActivityRequest(this)"><i class="fa fa-trash"></i></button></td>
                         </tr>
                     `);
                     $tbody.append(emptyRow);
@@ -1367,7 +1371,7 @@
                 $tbody.append(`
                     <tr>
                         <td colspan="5" class="text-end">
-                            <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRow()">
+                            <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRowActivityRequest()">
                                 <i class="fa fa-plus"></i> Add File
                             </button>
                         </td>
@@ -1414,7 +1418,7 @@
                             </select>
                         </td>
                         <td class="text-center">
-                            <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeFieldActivityRequest(this)">
                                 <i class="fa fa-trash"></i>
                             </button>
                         </td>
@@ -1442,7 +1446,7 @@
                         </td>
                         <td class="days-diff text-center">1</td>
                         <td class="text-center">
-                            <button type="button" class="btn btn-sm btn-danger" onclick="removeField(this)">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeFieldActivityRequest(this)">
                                 <i class="fa fa-trash"></i>
                             </button>
                         </td>
@@ -1453,8 +1457,8 @@
             $(".total-days").text("1");
 
             // Reinitialize Flatpickr on newly inserted date inputs
-            if (typeof initDatePickers === "function") {
-                initDatePickers($taskBody);
+            if (typeof initDatePickersActivityRequest === "function") {
+                initDatePickersActivityRequest($taskBody);
             }
 
             // --- Clear and repopulate Attachments section ---
@@ -1475,14 +1479,14 @@
                             </button>
                         </td>
                         <td class="text-center">
-                            <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRowActivityRequest(this)">
                                 <i class="fa fa-trash"></i>
                             </button>
                         </td>
                     </tr>
                     <tr>
                         <td colspan="5" class="text-end">
-                            <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRow()">
+                            <button type="button" class="btn-outline-custom float-end" onclick="addAttachmentRowActivityRequest()">
                                 <i class="fa fa-plus"></i> Add File
                             </button>
                         </td>

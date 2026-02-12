@@ -228,6 +228,21 @@ def get_activity_attachments():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/get-activity-log-attachments', methods=['GET'])
+@login_required
+def get_activity_log_attachments():
+    log_id = request.args.get('log_id')
+
+    if not log_id:
+        return jsonify({"error": "Missing log_id"}), 400
+
+    try:
+        attachments = ActivityRequestLog.get_activity_log_attachments(log_id)
+        return jsonify({"attachments": attachments})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/upload', methods=['POST'])
 @login_required
 def upload_files():
@@ -716,6 +731,236 @@ def save_activity_request_log():
         return jsonify({"error": str(e), "type": "danger"}), 500
 
 
+@app.route("/edit_activity_request_log", methods=["POST"])
+@login_required
+@role_required(1, 25)
+def edit_activity_request_log():
+
+    try:
+        # ----------------------------------
+        # 1️⃣ Read request data
+        # ----------------------------------
+        activity_log_id = request.form.get("activity_log_id")
+        data = json.loads(request.form.get("data", "{}"))
+
+        retained_ids = json.loads(request.form.get("retained_attachment_ids", "[]"))
+
+        overview = data.get("overview", {})
+        activity_breakdown = data.get("activityBreakdown", [])
+
+        if not activity_log_id or not overview:
+            return jsonify({"error": "Invalid request data.", "type": "danger"}), 400
+
+        activity_id = overview.get("activity_task_id")
+        key_process_id = overview.get("key_process_id")
+        task_id = overview.get("task_id")
+        user_id = current_user.id
+
+        # ----------------------------------
+        # 2️⃣ DELETE + REINSERT (safe tables)
+        # ----------------------------------
+        ActivityRequestLog.delete_trn_activity_log_overview(activity_log_id)
+        ActivityRequestLog.delete_trn_activity_log_activity_breakdown(activity_log_id)
+
+        # ⚠️ OPTION A: attachments
+        ActivityRequestLog.delete_attachments_except(
+            activity_log_id,
+            retained_ids
+        )
+
+        # ----------------------------------
+        # 3️⃣ Re-insert overview
+        # ----------------------------------
+        ActivityRequestLog.insert_into_trn_activity_log_overview(
+            activity_id,
+            key_process_id,
+            task_id,
+            user_id
+        )
+
+        Audit.log_audit_trail(
+            user_id=user_id,
+            action="Edit: trn_activity_log_overview",
+            details=(
+                f"Edited Activity Log ID: '{activity_log_id}'; "
+                f"Key Process ID: '{key_process_id}'; Task ID: '{task_id}'"
+            ),
+            ip_address=request.remote_addr
+        )
+
+        # ----------------------------------
+        # 4️⃣ Get trn_activity_log_id
+        # ----------------------------------
+        trn_activity_log_id = (
+            ActivityRequestLog
+            .get_id_of_insert_into_trn_activity_log_overview_row(
+                activity_id,
+                key_process_id,
+                task_id,
+                user_id
+            )
+        )
+
+        if not trn_activity_log_id:
+            return jsonify({
+                "error": "Failed to resolve activity log ID",
+                "type": "danger"
+            }), 500
+
+        # ----------------------------------
+        # 5️⃣ Re-insert activity breakdown
+        # ----------------------------------
+        activity_breakdown_count = 1
+
+        for breakdown in activity_breakdown:
+
+            start_date = breakdown.get("start_date")
+            end_date = breakdown.get("end_date")
+            detail = breakdown.get("activityBreakdownDetail")
+
+            saved = ActivityRequestLog.insert_into_trn_activity_log_activity_breakdown(
+                activity_breakdown_count=activity_breakdown_count,
+                trn_activity_log_id=trn_activity_log_id,
+                start_date=start_date,
+                end_Date=end_date,
+                activity_breakdown_detail=detail
+            )
+
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Edit: trn_activity_log_activity_breakdown",
+                details=(
+                    f"Activity Log ID: '{trn_activity_log_id}', "
+                    f"Breakdown Count: '{activity_breakdown_count}'"
+                ),
+                ip_address=request.remote_addr
+            )
+
+            if not saved:
+                return jsonify({
+                    "error": "Error saving activity breakdown",
+                    "type": "danger"
+                }), 500
+
+            activity_breakdown_count += 1
+
+        # ----------------------------------
+        # 6️⃣ Save NEW attachments only
+        # ----------------------------------
+
+        updated = ActivityRequestLog.update_activity_log_id_of_trn_activity_log_attachment(
+            old_activity_log_id=activity_log_id,
+            new_activity_log_id=trn_activity_log_id
+        )
+
+        if not updated and retained_ids:
+            return jsonify({
+                "error": "Failed to re-link retained attachments",
+                "type": "danger"
+            }), 500
+
+        files = request.files.getlist("wip_view_edit_attachments[]")
+        descriptions = request.form.getlist("wip_view_edit_attachment_descriptions[]")
+
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        attachment_counter = 1
+
+        upload_folder = os.path.join(app.config["UPLOAD_FOLDER"], "activity_log_docs")
+        os.makedirs(upload_folder, exist_ok=True)
+
+        for idx, file in enumerate(files):
+
+            if not file or not file.filename:
+                continue
+
+            # SAFE description lookup
+            desc = descriptions[idx] if idx < len(descriptions) else None
+
+            filename = secure_filename(file.filename)
+            new_filename = (
+                f"{timestamp}_{current_user.id}_"
+                f"{attachment_counter}_{filename}"
+            )
+
+            file.save(os.path.join(upload_folder, new_filename))
+
+            saved = ActivityRequestLog.insert_into_trn_activity_log_attachment(
+                attachment_counter=attachment_counter,
+                trn_activity_log_id=trn_activity_log_id,
+                file=new_filename,
+                description=desc
+            )
+
+            if not saved:
+                return jsonify({
+                    "error": "Error saving attachment",
+                    "type": "danger"
+                }), 500
+
+            attachment_counter += 1
+
+        # ----------------------------------
+        # 7️⃣ Done
+        # ----------------------------------
+        return jsonify({
+            "message": "Activity log updated successfully."
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "type": "danger"
+        }), 500
+
+
+@app.route("/delete-saved-activity-wip-log-details", methods=["POST"])
+@login_required
+def delete_saved_activity_wip_log_details():
+    activity_log_id = request.form.get("activity_log_id")
+
+    if not activity_log_id:
+        return jsonify({"message": "Invalid activity ID."}), 400
+
+    # Delete related records
+    ActivityRequestLog.delete_trn_activity_log_overview(activity_log_id)
+    ActivityRequestLog.delete_trn_activity_log_activity_breakdown(activity_log_id)
+    ActivityRequestLog.delete_trn_activity_log_attachment(activity_log_id)
+
+    Audit.log_audit_trail(
+        user_id=current_user.id,
+        action="Deleted from tables: trn_activity_log_overview, trn_activity_log_activity_breakdown, "
+               "trn_activity_log_attachment",
+        details=f"Saved Activity Log ID: '{activity_log_id}'",
+        ip_address=request.remote_addr
+    )
+
+    return jsonify({"message": "Activity log deleted successfully."}), 200
+
+
+@app.route("/delete-saved-activity-wip-log-details-for-editing", methods=["POST"])
+@login_required
+def delete_saved_activity_wip_log_details_for_editing():
+    activity_log_id = request.form.get("activity_log_id")
+
+    if not activity_log_id:
+        return jsonify({"message": "Invalid activity ID."}), 400
+
+    # Delete related records
+    ActivityRequestLog.delete_trn_activity_log_overview(activity_log_id)
+    ActivityRequestLog.delete_trn_activity_log_activity_breakdown(activity_log_id)
+    ActivityRequestLog.delete_trn_activity_log_attachment(activity_log_id)
+
+    Audit.log_audit_trail(
+        user_id=current_user.id,
+        action="Deleted from tables due to editing saved logs: trn_activity_log_overview, "
+               "trn_activity_log_activity_breakdown, trn_activity_log_attachment",
+        details=f"Edited Saved Activity Log ID: '{activity_log_id}'",
+        ip_address=request.remote_addr
+    )
+
+    return jsonify({"message": "Activity log deleted successfully."}), 200
+
+
 @app.route('/update_activity_request', methods=['POST'])
 @login_required
 @role_required(1, 25)
@@ -1197,6 +1442,19 @@ def download_file(filename):
     """Serves files from the uploads directory."""
 
     upload_folder = os.path.join(app.config["UPLOAD_FOLDER"], "activity_docs")
+
+    try:
+        return send_from_directory(upload_folder, filename, as_attachment=True)
+    except FileNotFoundError:
+        abort(404)
+
+
+@app.route('/download/activity-log/<filename>')
+@login_required
+def download_log_file(filename):
+    """Serves files from the uploads directory."""
+
+    upload_folder = os.path.join(app.config["UPLOAD_FOLDER"], "activity_log_docs")
 
     try:
         return send_from_directory(upload_folder, filename, as_attachment=True)

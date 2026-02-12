@@ -534,45 +534,7 @@
         });
     });
 
-    function addAttachmentRow() {
-        const table = document.getElementById("attachmentsTable");
-        const rowCount = table.rows.length - 1; // exclude last "Add File" row
-        const newRow = table.insertRow(rowCount);
 
-        // No data-attachment-id for new uploads
-        newRow.dataset.attachmentId = "";
-
-        newRow.innerHTML = `
-        <td class="text-end">${rowCount + 1}</td>
-        <td>
-            <input type="file" class="form-control" name="attachments[]" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
-        </td>
-        <td>
-            <textarea class="form-control" name="attachment_description[]" rows="2" placeholder="Enter description (optional)" maxlength="500"></textarea>
-        </td>
-        <td class="text-center">
-            <button type="button" class="btn btn-sm btn-secondary" onclick="handleDownload(this)">
-                <i class="fa fa-download"></i>
-            </button>
-        </td>
-        <td class="text-center">
-            <button type="button" class="btn btn-sm btn-danger" onclick="removeAttachmentRow(this)">
-                <i class="fa fa-trash"></i>
-            </button>
-        </td>
-    `;
-    }
-
-    function removeAttachmentRow(btn) {
-        let row = btn.closest("tr");
-        row.parentNode.removeChild(row);
-
-        // Re-number rows
-        let table = document.getElementById("attachmentsTable");
-        for (let i = 0; i < table.rows.length - 1; i++) {
-            table.rows[i].cells[0].innerText = i + 1;
-        }
-    }
 
 </script>
 

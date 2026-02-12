@@ -6457,6 +6457,64 @@ class ActivityRequestLog:
             conn.close()
 
     @staticmethod
+    def get_activity_log_attachments(log_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                            SELECT [id], [activity_log_id], [file], [description] 
+                            FROM trn_activity_log_attachment 
+                            WHERE activity_log_id = ? 
+                            ORDER BY attachment_counter;
+            """, (log_id,))
+            rows = cursor.fetchall()
+
+            attachments = []
+            for row in rows:
+                attachments.append({
+                    "id": row.id,
+                    "activity_log_id": row.activity_log_id,
+                    "file": row.file,
+                    "description": row.description
+                })
+            return attachments
+        except Exception as e:
+            print("Error fetching attachments:", e)
+            return []
+        finally:
+            conn.close()
+
+    @staticmethod
+    def update_activity_log_id_of_trn_activity_log_attachment(old_activity_log_id, new_activity_log_id):
+        conn = get_db_connection()
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                UPDATE trn_activity_log_attachment
+                SET activity_log_id = ?
+                WHERE activity_log_id = ?
+            """
+            cursor.execute(query, (new_activity_log_id, old_activity_log_id))
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            print(
+                "Database error; failed to update trn_activity_log_attachment:",
+                e
+            )
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
     def insert_into_trn_activity_log_overview(activity_id, key_process_id, task_id, user_id):
         conn = get_db_connection()
         if conn is None:
@@ -6530,3 +6588,118 @@ class ActivityRequestLog:
         finally:
             conn.close()
 
+    @staticmethod
+    def delete_trn_activity_log_overview(activity_log_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                DELETE FROM trn_activity_log_overview                
+                WHERE id = ?
+            """
+            cursor.execute(query, activity_log_id)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to delete from trn_activity_log_overview: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def delete_trn_activity_log_activity_breakdown(activity_log_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                DELETE FROM trn_activity_log_activity_breakdown                
+                WHERE trn_activity_log_id = ?
+            """
+            cursor.execute(query, activity_log_id)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to delete from trn_activity_log_activity_breakdown: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def delete_trn_activity_log_attachment(activity_log_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                DELETE FROM trn_activity_log_attachment                
+                WHERE activity_log_id = ?
+            """
+            cursor.execute(query, activity_log_id)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to delete from trn_activity_log_attachment: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def delete_attachments_except(activity_log_id, retained_ids):
+
+        conn = get_db_connection()
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+
+        try:
+            # Case 1: No retained attachments → delete all
+            if not retained_ids:
+                query = """
+                    DELETE FROM trn_activity_log_attachment
+                    WHERE activity_log_id = ?
+                """
+                cursor.execute(query, (activity_log_id,))
+                conn.commit()
+                return True
+
+            # Case 2: Delete everything except retained IDs
+            placeholders = ",".join("?" for _ in retained_ids)
+
+            query = f"""
+                DELETE FROM trn_activity_log_attachment
+                WHERE activity_log_id = ?
+                AND id NOT IN ({placeholders})
+            """
+
+            params = [activity_log_id] + list(retained_ids)
+
+            cursor.execute(query, params)
+            conn.commit()
+            return True
+
+        except Exception as e:
+            conn.rollback()
+            print(
+                "Database error; failed to delete from trn_activity_log_attachment:",
+                e
+            )
+            return False
+
+        finally:
+            cursor.close()
+            conn.close()
