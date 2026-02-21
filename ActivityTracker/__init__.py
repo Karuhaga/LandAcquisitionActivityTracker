@@ -93,6 +93,16 @@ def inject_pending_approvals_count():
     return {'pending_approvals_count': count}
 
 
+@app.context_processor
+def inject_completed_wip_requests_pending_approvals_count():
+    if current_user.is_authenticated:
+        from ActivityTracker.models import ActivityRequestLog  # Import here to avoid circular imports
+        count = ActivityRequestLog.get_completed_wip_activity_requests_pending_approval_count(current_user.id)
+    else:
+        count = 0
+    return {'completed_wip_activity_requests_pending_approvals_count': count}
+
+
 # Count of pending submissions displayed on menu badge
 @app.context_processor
 def inject_pending_submissions_count():
@@ -102,6 +112,16 @@ def inject_pending_submissions_count():
     else:
         count = 0
     return dict(pending_submissions_count=count)
+
+
+@app.context_processor
+def inject_completed_wip_requests_pending_submission_count():
+    if current_user.is_authenticated:
+        from ActivityTracker.models import ActivityRequestLog  # Import here to avoid circular imports
+        count = ActivityRequestLog.get_completed_wip_activity_requests_pending_submission(current_user.id)
+    else:
+        count = 0
+    return {'completed_wip_activity_requests_pending_submission_count': count}
 
 
 # Set session timeout duration

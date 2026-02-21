@@ -14,7 +14,6 @@ from ActivityTracker.rbac import role_required
 import json
 import threading
 from ActivityTracker import app
-from collections import defaultdict
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -1126,6 +1125,58 @@ def update_activity_request():
         return jsonify({"error": str(e), "type": "danger"}), 500
 
 
+@app.route('/submit-wip-activity-for-approval/<int:activity_task_request_id>', methods=['POST'])
+@login_required
+@role_required(1, 25)
+def submit_wip_activity_for_approval(activity_task_request_id):
+    try:
+
+        decision = 1
+        level = 1
+        comment = ""
+
+        last_activity_request_approvals_id = (ActivityRequestLog.insert_into_trn_completed_wip_activity_request_approvals(activity_task_request_id, decision, current_user.id, level, comment))
+        if last_activity_request_approvals_id is None:
+            return jsonify(
+                {"error": "Database error while writing to trn_completed_wip_activity_request_approvals table",
+                 "type": "danger"}), 500
+
+        Audit.log_audit_trail(
+            user_id=current_user.id,
+            action="Insert in table: trn_completed_wip_activity_request_approvals",
+            details=f"Saved Activity Request ID: '{activity_task_request_id}'",
+            ip_address=request.remote_addr
+        )
+        if not activity_task_request_id:
+            return jsonify({"error": "Database error while saving activity request in "
+                                     "trn_completed_wip_activity_request_approvals table", "type": "danger"}), 500
+
+        updated = ActivityRequestLog.submit_wip_activity_for_approval(activity_task_request_id)
+
+        if not updated:
+            return jsonify({
+                "error": "Failed to update wip_status in trn_activity_request table.",
+                "type": "danger"
+            }), 500
+
+        Audit.log_audit_trail(
+            user_id=current_user.id,
+            action="Update table: trn_activity_request; wip_status changed to 1",
+            details=f"Activity Request ID: '{activity_task_request_id}'",
+            ip_address=request.remote_addr
+        )
+
+        return jsonify({
+            "message": "Activity successfully submitted for approval."
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "type": "danger"
+        }), 500
+
+
 @app.route('/send_email_reminders', methods=['GET', 'POST'])
 def send_email_reminders():
     with app.app_context():
@@ -1196,6 +1247,15 @@ def approve_activity_requests_page():
     activity_requests = ActivityRequestApprovals.get_activity_requests_pending_approval(current_user.id)
     return render_template(
         'approve_activity_requests.html', activity_requests=activity_requests)
+
+
+@app.route('/approve-completed-wip-activity-requests', methods=['GET', 'POST'])
+@login_required
+@role_required(3, 5, 27, 47)
+def approve_completed_wip_activity_requests_page():
+    activity_requests = ActivityRequestLog.get_completed_wip_activity_requests_pending_approval(current_user.id)
+    return render_template(
+        'approve_completed_wip_activity_requests.html', activity_requests=activity_requests)
 
 
 @app.route('/approved-reconciliations', methods=['GET', 'POST'])
@@ -1371,6 +1431,169 @@ def approve_activity_requests_update():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/approve-completed-wip-activity-requests-update', methods=['POST'])
+@login_required
+@role_required(3, 4, 5, 6, 47)
+def approve_completed_wip_activity_requests_update():
+
+    try:
+        data = request.get_json()
+        action = data.get("action")
+        comment = data.get("comment", "").strip()
+        files = data.get("files", [])
+        decision = 2 if action == "approve" else 3
+        action_for_email = "approved" if action == "approve" else "rejected"
+        activity_request_wip_status = 0
+        initiator_id = None
+
+        if not files:
+            return jsonify({"error": "No requests provided"}), 400
+
+        if action not in ["approve", "reject"]:
+            return jsonify({"error": "Invalid action selected"}), 400
+
+        max_approval_level = ActivityRequestApprovals.get_max_approval_level(3)
+
+        if max_approval_level is None:
+            return jsonify({"error": "Could not determine max approval level", "type": "danger"}), 500
+
+        for file in files:
+            activity_request_id = file.get("activity_request_id")
+
+            # Update file status
+            updated_activity_request_record = (ActivityRequestLog.update_completed_wip_activity_request_approval_wip_status(activity_request_id, action))
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: trn_activity_request",
+                details=f"Update wip_status of Activity Request, Id: '{activity_request_id}'",
+                ip_address=request.remote_addr
+            )
+            if updated_activity_request_record is False:
+                return jsonify({"error": "Database error while updating wip_status of trn_activity_request table"}), 500
+
+            # Pick latest level of reconciliation file from reconciliation_approvals table
+            latest_approval_level = (ActivityRequestLog.get_latest_completed_wip_activity_request_approval_level
+                                     (activity_request_id))
+            if latest_approval_level is None:
+                return jsonify({"error": "Database error while getting latest_approval_level from "
+                                         "trn_completed_wip_activity_request_approvals table"}), 500
+
+            # reconciliation_approvals table
+            level = latest_approval_level + 1
+
+            last_activity_request_approvals_id = (ActivityRequestLog.insert_into_trn_completed_wip_activity_request_approvals
+                                                  (activity_request_id, decision, current_user.id, level, comment))
+
+            if last_activity_request_approvals_id is None:
+                return jsonify({"error": "Database error while writing to "
+                                         "trn_completed_wip_activity_request_approvals table"}), 500
+
+            if decision == 0:
+                activity_request_id_rejected = (
+                    ActivityRequestLog.update_completed_wip_activity_request_approval_status_following_a_rejected_approval(activity_request_id))
+                # update audit trail
+                user_id = current_user.id
+                Audit.log_audit_trail(
+                    user_id=user_id,
+                    action="Update table: trn_activity_request",
+                    details=f"Completed WIP Activity Request Rejection, Id: '{activity_request_id}'",
+                    ip_address=request.remote_addr
+                )
+                if activity_request_id_rejected is None:
+                    return jsonify({"error": "Database error while updating wip_status of completed wip activity "
+                                             "request in trn_activity_request table following a rejected request"}), 500
+
+            # get the user id of the initiator of the bank reconciliation
+            initiator_id = ActivityRequestApprovals.get_activity_request_initiator_user_id(activity_request_id)
+            if not initiator_id:
+                continue  # Skip if no initiator found
+
+            activity_request_wip_status = ActivityRequestLog.get_wip_status_of_activity_request(activity_request_id)
+
+        # Store user details before threading
+        user_fname = current_user.fname
+        user_id = current_user.id
+
+        # Get initiator's email and first name
+        activity_requester_email_and_fname = (
+            ActivityRequestApprovals.get_activity_request_initiator_email_and_fname(initiator_id))
+
+        if not activity_requester_email_and_fname:
+            return jsonify({"error": "No requestor of activity found"}), 500
+
+        # Send emails in the background with app context
+        def send_emails():
+            try:
+                with app.app_context():
+                    for initiator in activity_requester_email_and_fname:
+                        # Enrich each file with project and subject details
+                        for f in files:
+                            details = ActivityRequest.get_saved_activity_request_details_3(f["activity_request_id"])
+                            if details:
+                                d = details[0]
+                                f["project_code"] = d["project_code"]
+                                f["project_name"] = d["project_name"]
+                                f["subject"] = d["subject"]
+
+                        EmailHelper.send_approval_summary_emails(
+                            user_fname,
+                            initiator["Email"],
+                            initiator["Fname"],
+                            files,
+                            action_for_email
+                        )
+
+            except Exception as e:
+                app.logger.error(f"Error in email thread 1: {e}")
+
+        email_thread = threading.Thread(target=send_emails, daemon=True)
+        email_thread.start()
+
+        # Get next approver(s)
+        if action == "approve" and (activity_request_wip_status <= max_approval_level):
+
+            next_approvers = ActivityRequestApprovals.get_next_approver_fname_email(user_id, activity_request_wip_status)
+
+            if next_approvers:
+                def send_emails2():
+                    try:
+                        with app.app_context():  # Ensure Flask app context is available in the thread
+                            for approver in next_approvers:
+                                # Enrich each file with project and subject details
+                                for f in files:
+                                    details = ActivityRequest.get_saved_activity_request_details_3(
+                                        f["activity_request_id"])
+                                    if details:
+                                        d = details[0]
+                                        f["project_code"] = d["project_code"]
+                                        f["project_name"] = d["project_name"]
+                                        f["subject"] = d["subject"]
+
+                                EmailHelper.send_email_notification_to_next_approver(
+                                    user_fname,
+                                    approver["Email"],
+                                    approver["Fname"],
+                                    files
+                                )
+                    except Exception as e:
+                        app.logger.error(f"Error in email thread 2: {e}")
+
+                email_thread2 = threading.Thread(target=send_emails2, daemon=True)
+                email_thread2.daemon = True
+                email_thread2.start()
+
+            if not next_approvers:
+                # return jsonify({"error": "No next approver found"}), 500
+                pass
+
+        return jsonify({"message": "Completed WIP Activity Request(s) approved successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/get-activity-request-approval-workflow", methods=["GET"])
 def get_reconciliation_workflow():
     activity_request_id = request.args.get("activity_Request_ID")
@@ -1433,6 +1656,105 @@ def get_reconciliation_workflow():
         "team": team or [],
         "tasks": tasks or [],
         "attachments": attachments or []
+    })
+
+
+@app.route("/get-completed-wip-activity-approval-request-workflow", methods=["GET"])
+def get_completed_wip_activity_approval_request_workflow():
+    activity_request_id = request.args.get("activity_Request_ID")
+    workflow_id = request.args.get("workflow_ID")
+
+    # Get the latest approval level of given activity request
+    approvals = ActivityRequestLog.get_completed_wip_activity_request_approval_levels(activity_request_id)
+    if approvals is None:
+        return jsonify({"error": "Database error while picking latest approval level of given activity request",
+                        "type": "danger"}), 500
+
+    approval_dict = {a[0]: {"decision": a[1], "approver": a[2], "date": a[3], "comment": a[4]} for a in approvals}
+
+    # Get workflow breakdown for "Activity Request Approval"
+    workflow_steps = WorkflowBreakdown.get_workflow_breakdown_for_reconciliation_approval(workflow_id, 1)
+    if workflow_steps is None:
+        return jsonify({"error": "Database error while picking workflow breakdown for Reconciliation Approval workflow",
+                        "type": "danger"}), 500
+
+    workflow_list = []
+    for step in workflow_steps:
+        approval = approval_dict.get(step.level, None)
+        workflow_list.append({
+            "level": step.level,
+            "name": step.name,
+            "role": step.role_name,
+            "status": approval["decision"] if approval else "Pending",
+            "approver": approval["approver"] if approval else "N/A",
+            "date": approval["date"] if approval else "N/A",
+            "comment": approval["comment"] if approval else " "
+        })
+
+    # Get Activity Request details"
+    saved_activity_request_details_2 = ActivityRequest.get_saved_activity_request_details_2(activity_request_id)
+    if not saved_activity_request_details_2:
+        return jsonify({"error": "Activity Request ID not found"}), 404
+
+    saved_activity_request_detail = saved_activity_request_details_2[0]
+
+    # Serialize manually
+    saved_activity_request_data = {
+        "id": saved_activity_request_detail.id,
+        "subject": saved_activity_request_detail.subject,
+        "objectives": saved_activity_request_detail.objectives,
+        "scope": saved_activity_request_detail.scope,
+        "stakeholders": saved_activity_request_detail.stakeholders,
+        "deliverables": saved_activity_request_detail.deliverables,
+        "assumptions": saved_activity_request_detail.assumptions
+    }
+
+    team = ActivityRequest.get_team_composition_details_2(activity_request_id)
+
+    tasks = ActivityRequest.get_activity_tasks_details_2(activity_request_id)
+
+    attachments = ActivityRequest.get_activity_attachments(activity_request_id)
+
+    return jsonify({
+        "workflow_steps": workflow_list,
+        "saved_activity_request_details_2": saved_activity_request_data,
+        "team": team or [],
+        "tasks": tasks or [],
+        "attachments": attachments or []
+    })
+
+
+@app.route("/get-completed-wip-activity-approval-request-log-details", methods=["GET"])
+def get_completed_wip_activity_approval_request_workflow_log_details():
+    activity_request_id = request.args.get("activity_Request_ID")
+
+    # Get Activity Request details"
+    saved_activity_request_details_2 = ActivityRequest.get_saved_activity_request_details_2(activity_request_id)
+    if not saved_activity_request_details_2:
+        return jsonify({"error": "Activity Request ID not found"}), 404
+
+    saved_activity_request_detail = saved_activity_request_details_2[0]
+
+    # Serialize manually
+    saved_activity_request_data = {
+        "id": saved_activity_request_detail.id,
+        "subject": saved_activity_request_detail.subject,
+        "objectives": saved_activity_request_detail.objectives,
+        "scope": saved_activity_request_detail.scope,
+        "stakeholders": saved_activity_request_detail.stakeholders,
+        "deliverables": saved_activity_request_detail.deliverables,
+        "assumptions": saved_activity_request_detail.assumptions
+    }
+
+    team = ActivityRequest.get_team_composition_details_2(activity_request_id)
+
+    # Log Details
+    logs = ActivityRequestLog.get_completed_wip_logs(activity_request_id)
+
+    return jsonify({
+        "saved_activity_request_details_2": saved_activity_request_data,
+        "team": team or [],
+        "logs": logs or []
     })
 
 

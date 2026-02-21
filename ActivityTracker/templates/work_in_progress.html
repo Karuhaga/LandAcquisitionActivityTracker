@@ -87,10 +87,11 @@
                                 </button>
                             </td>
                             <td class="text-center">
-                                <label class="switch">
-                                    <input type="checkbox" class="toggle-switch" data-row-id="{{ loop.index }}">
-                                    <span class="slider round"></span>
-                                </label>
+                                <button class="btn btn-sm btn-danger close-submit-wip-activity" style="float: center;"
+                                        type="button"
+                                        data-closed-submitted-wip-activity-request-id="{{ activity_request_detail.id }}">
+                                            <i class="fa-solid fa-folder-closed"></i>
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -503,18 +504,6 @@
             $("#workInProgressListLogsModal").modal("show");
         });
 
-        // Handle toggle switch change
-        $(document).on("change", ".toggle-switch", function () {
-            let isChecked = $(this).is(":checked");
-            let rowId = $(this).data("row-id");
-
-            console.log("Toggle changed on row:", rowId, "State:", isChecked);
-
-            // TODO: send AJAX or update status here
-            // Example:
-            // $.post("/update-status", { id: rowId, active: isChecked });
-        });
-
         // Reset the flag when the modal is fully closed.
         $('#workInProgressAddLogModal').on('hidden.bs.modal', function () {
             loadingKeyProcesses = false;
@@ -534,7 +523,52 @@
         });
     });
 
+    $(document).off("click", ".close-submit-wip-activity").on("click", ".close-submit-wip-activity", function () {
 
+        const activityTaskRequestId = $(this).data("closed-submitted-wip-activity-request-id");
+
+        let modalTitle = "";
+        let modalMessage = "";
+
+        modalTitle = "Activity Closure Confirmation";
+        modalMessage = "Are you sure you want to close this activity and submit it for approval?";
+
+        // Remove old handlers safely
+        $("#confirmAction").off("click.confirm");
+
+        $("#confirmAction").off("click").on("click", function() {
+            // Close confirmation FIRST
+            $("#confirmationModal").modal("hide");
+
+            // --- AJAX request ---
+            $.ajax({
+                url: `/submit-wip-activity-for-approval/${activityTaskRequestId}`,
+                type: "POST",
+                success: function(response) {
+                    showFlashMessage(response.message, "success");
+
+                    $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function() {
+                        location.reload();
+                    });
+                },
+                error: function(xhr) {
+                    let errorMessage = xhr.responseJSON?.error || "An unexpected error occurred.";
+                    let messageType = xhr.responseJSON?.type || "danger";
+                    showFlashMessage(errorMessage, messageType);
+                }
+            });
+        });
+
+        // Set modal text
+        $("#confirmationModalLabel").text(modalTitle);
+        $("#confirmationMessage").text(modalMessage);
+
+        // Show modal
+        $("#confirmationModal").modal({
+            backdrop: "static",
+            keyboard: false
+        });
+    });
 
 </script>
 

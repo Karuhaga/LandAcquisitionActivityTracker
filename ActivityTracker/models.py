@@ -8,6 +8,7 @@ from datetime import datetime
 from ActivityTracker.database import get_db_connection
 from ActivityTracker import mail  # Import mail from __init__.py
 from flask_mail import Message
+from collections import defaultdict
 
 bcrypt = Bcrypt(app)  # Initialize bcrypt
 
@@ -6327,7 +6328,8 @@ class ActivityRequestApprovals:
 
 class ActivityRequestLog:
     def __init__(self, id=None, activity_id=None, key_process_id=None, task_id=None, user_id=None, key_process_name=None,
-                 user_name=None, task=None, creation_date=None):
+                 user_name=None, task=None, creation_date=None, requester=None, activity_request_id=None,
+                 project_code=None, project_name=None, subject=None, date_time=None, approve_as=None):
         self.id = id
         self.activity_id = activity_id
         self.key_process_id = key_process_id
@@ -6337,6 +6339,13 @@ class ActivityRequestLog:
         self.user_name = user_name
         self.task = task
         self.creation_date = creation_date
+        self.requester = requester
+        self.activity_request_id = activity_request_id
+        self.project_code = project_code
+        self.project_name = project_name
+        self.subject = subject
+        self.date_time = date_time
+        self.approve_as = approve_as
 
     @staticmethod
     def get_id_of_insert_into_trn_activity_log_overview_row(activity_id, key_process_id, task_id, user_id):
@@ -6488,6 +6497,424 @@ class ActivityRequestLog:
             conn.close()
 
     @staticmethod
+    def get_completed_wip_activity_requests_pending_approval(user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            # Fetch submitted reconciliations
+            query = """
+                        DECLARE @logged_in_user_id INT = ?; -- Set logged-in user's ID
+
+                        ;WITH GlobalFiles AS (
+                            -- Get files where responsibility is global
+                            SELECT 
+                                (SELECT CONCAT(u.Fname, ' ', u.Mname, ' ', u.Sname) FROM users WHERE ID = tar.user_id) 
+                                AS requester,
+                                tar.id AS activity_request_id, 
+                                mp.project_code AS project_code, 
+                                mp.project_name AS project_name, 
+                                tao.subject AS subject,
+                                FORMAT(tar.last_modified, 'yyyy-MM-dd HH:mm:ss') AS date_time, 
+                                (
+                                    SELECT TOP 1 r.name 
+                                    FROM role r 
+                                    LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
+                                    LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
+                                    LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                    WHERE 
+                                        wb.is_workflow_level = 1 
+                                        AND wb.level = tar.wip_status
+                                        AND ur.user_id = @logged_in_user_id
+                                ) AS approve_as,
+                                ROW_NUMBER() OVER (PARTITION BY tar.id ORDER BY tar.last_modified DESC) AS row_num
+                            FROM trn_activity_request tar
+                            JOIN trn_activity_request_approvals tara ON tar.id = tara.activity_request_id
+                            JOIN mst_project mp ON tar.project_id = mp.id
+                            JOIN trn_activity_overview tao ON tar.id = tao.activity_id
+                            JOIN users u ON tar.user_id = u.ID
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE 
+                                ur.start_datetime <= GETDATE() 
+                                AND ur.expiry_datetime >= GETDATE()
+                                AND tara.approver_id IN (
+                                    SELECT DISTINCT a.ID
+                                    FROM users a
+                                    JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
+                                    WHERE b.parent_org_unit_tier_id IN (
+                                        SELECT d.organisation_unit_tier_id 
+                                        FROM users d 
+                                        WHERE d.ID = @logged_in_user_id
+                                    )
+                                )
+                                AND tar.wip_status > 1 
+                                AND tar.wip_status IN (
+                                    SELECT DISTINCT a.level
+                                    FROM workflow_breakdown a
+                                    JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                    JOIN role c ON b.role_id = c.id
+                                    JOIN user_role d ON c.id = d.role_id
+                                    JOIN users e ON d.user_id = e.ID
+                                    WHERE 
+                                        a.is_responsibility_global = 1
+                                        AND e.ID = @logged_in_user_id
+                                )
+                        ),
+                        OrgBasedFiles AS (
+                            -- Get files where responsibility is restricted to specific organizational units
+                            SELECT 
+                                (SELECT CONCAT(u.Fname, ' ', u.Mname, ' ', u.Sname) FROM users WHERE ID = tar.user_id) 
+                                AS requester,
+                                tar.id AS activity_request_id, 
+                                mp.project_code AS project_code, 
+                                mp.project_name AS project_name, 
+                                tao.subject AS subject,
+                                FORMAT(tar.last_modified, 'yyyy-MM-dd HH:mm:ss') AS date_time, 
+                                (
+                                    SELECT TOP 1 r.name 
+                                    FROM role r 
+                                    LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
+                                    LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
+                                    LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                    WHERE 
+                                        wb.is_workflow_level = 1 
+                                        AND wb.level = tar.wip_status
+                                        AND ur.user_id = @logged_in_user_id
+                                ) AS approve_as,
+                                ROW_NUMBER() OVER (PARTITION BY tar.id ORDER BY tar.last_modified DESC) AS row_num
+                            FROM trn_activity_request tar
+                            JOIN trn_activity_request_approvals tara ON tar.id = tara.activity_request_id
+                            JOIN mst_project mp ON tar.project_id = mp.id
+                            JOIN trn_activity_overview tao ON tar.id = tao.activity_id
+                            JOIN users u ON tar.user_id = u.ID
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE 
+                                ur.start_datetime <= GETDATE() 
+                                AND ur.expiry_datetime >= GETDATE()
+                                AND tara.approver_id IN (
+                                    SELECT DISTINCT a.ID
+                                    FROM users a
+                                    JOIN organisation_unit b ON a.organisation_unit_id = b.id
+                                    WHERE b.parent_org_unit_id IN (
+                                        SELECT d.organisation_unit_id 
+                                        FROM users d 
+                                        WHERE d.ID = @logged_in_user_id
+                                    )
+                                )
+                                AND tar.wip_status > 1 
+                                AND tar.wip_status IN (
+                                    SELECT DISTINCT a.level
+                                    FROM workflow_breakdown a
+                                    JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                    JOIN role c ON b.role_id = c.id
+                                    JOIN user_role d ON c.id = d.role_id
+                                    JOIN users e ON d.user_id = e.ID
+                                    WHERE 
+                                        a.is_responsibility_global = 0
+                                        AND e.ID = @logged_in_user_id
+                                )
+                        )
+
+                        -- Combine results
+                        SELECT 
+                            requester, activity_request_id, project_code, project_name, subject, date_time, approve_as
+                        FROM (
+                            SELECT * FROM GlobalFiles WHERE row_num = 1
+                            UNION
+                            SELECT * FROM OrgBasedFiles WHERE row_num = 1
+                        ) AS UniqueResults
+                        ORDER BY project_code, date_time, subject ASC;
+
+            """
+            cursor.execute(query, (user_id,))
+            result = cursor.fetchall()
+
+            activity_requests = [
+                ActivityRequestApprovals(requester=row.requester, activity_request_id=row.activity_request_id,
+                                         project_code=row.project_code, project_name=row.project_name,
+                                         subject=row.subject, date_time=row.date_time, approve_as=row.approve_as)
+                for row in result
+            ]
+            return activity_requests
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_completed_wip_activity_requests_pending_approval_count(user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return 0  # Return 0 if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        DECLARE @logged_in_user_id INT = ?;
+
+                        WITH GlobalFiles AS (
+                            SELECT DISTINCT(tar.id)
+                            FROM trn_activity_request tar
+                            JOIN trn_activity_request_approvals tara ON tar.id = tara.activity_request_id
+                            JOIN users u ON tar.user_id = u.ID
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE tara.approver_id IN (
+                                SELECT DISTINCT a.ID
+                                FROM users a
+                                JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
+                                WHERE b.parent_org_unit_tier_id IN (
+                                    SELECT d.organisation_unit_tier_id
+                                    FROM users d
+                                    WHERE d.ID = @logged_in_user_id
+                                )
+                            )
+                            AND tar.wip_status > 1
+                            AND tar.wip_status IN (
+                                SELECT DISTINCT a.level
+                                FROM workflow_breakdown a
+                                JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                JOIN role c ON b.role_id = c.id
+                                JOIN user_role d ON c.id = d.role_id
+                                WHERE a.is_responsibility_global = 1
+                                AND d.user_id = @logged_in_user_id
+                            )
+                        ),
+                        OrgBasedFiles AS (
+                            SELECT DISTINCT(tar.id)
+                            FROM trn_activity_request tar
+                            JOIN trn_activity_request_approvals tara ON tar.id = tara.activity_request_id
+                            JOIN users u ON tar.user_id = u.ID
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE tara.approver_id IN (
+                                SELECT DISTINCT a.ID
+                                FROM users a
+                                JOIN organisation_unit b ON a.organisation_unit_id = b.id
+                                WHERE b.parent_org_unit_id IN (
+                                    SELECT d.organisation_unit_id
+                                    FROM users d
+                                    WHERE d.ID = @logged_in_user_id
+                                )
+                            )
+                            AND tar.wip_status > 1
+                            AND tar.wip_status IN (
+                                SELECT DISTINCT a.level
+                                FROM workflow_breakdown a
+                                JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                JOIN role c ON b.role_id = c.id
+                                JOIN user_role d ON c.id = d.role_id
+                                WHERE a.is_responsibility_global = 0
+                                AND d.user_id = @logged_in_user_id
+                            )
+                        )
+
+                        SELECT 
+                            (SELECT COUNT(*) FROM GlobalFiles) + 
+                            (SELECT COUNT(*) FROM OrgBasedFiles) AS TotalPendingApprovals;
+
+            """
+            cursor.execute(query, [user_id])
+            pending_approvals_count = cursor.fetchone()[0]
+            return pending_approvals_count if pending_approvals_count is not None else 0
+        except Exception as e:
+            print("Database error:", e)
+            return 0
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_latest_completed_wip_activity_request_approval_level(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            # check if User has a request pending submission
+            cursor.execute("SELECT COALESCE((SELECT TOP 1 level FROM trn_completed_wip_activity_request_approvals "
+                           "WHERE activity_request_id = ? ORDER BY date_time DESC), 0) AS level;", activity_request_id)
+
+            latest_approval_level = cursor.fetchone()[0]  # Fetch last batch_id
+            return latest_approval_level
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_wip_status_of_activity_request(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            # Check if a record with the given bank_account, year, and month exists
+            cursor.execute(
+                "SELECT wip_status FROM trn_activity_request WHERE id = ?", activity_request_id
+            )
+            result = cursor.fetchone()[0]
+            return result
+        except Exception as e:
+            print("Database error:", e)
+            return None  # Return None to indicate an error occurred
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_completed_wip_activity_requests_pending_submission(user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return 0  # Return 0 if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT COUNT(*)
+                        FROM trn_activity_request a
+                        WHERE a.wip_status = 1 AND a.user_id = ?
+            """
+            cursor.execute(query, [user_id])
+            pending_submissions_count = cursor.fetchone()[0]
+            return pending_submissions_count if pending_submissions_count is not None else 0
+        except Exception as e:
+            print("Database error:", e)
+            return 0
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_completed_wip_activity_request_approval_levels(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                           SELECT tara.level, CASE WHEN tara.decision = 1 
+                           THEN 'Submitted' WHEN tara.decision = 2 THEN 'Approved' WHEN tara.decision = 3 
+                           THEN 'Rejected' 
+                           ELSE 'Pending' 
+                           END AS decision,
+                           CONCAT(u.Fname, ' ', u.Mname, ' ', u.Sname) AS approver, tara.date_time, tara.comment 
+                           FROM trn_completed_wip_activity_request_approvals tara
+                           LEFT OUTER JOIN users u ON tara.approver_id = u.ID
+                           WHERE tara.activity_request_id = ? ORDER BY tara.date_time
+                       """
+            cursor.execute(query, (activity_request_id,))  # Pass the parameter twice
+            result = cursor.fetchall()  # Fetch results properly
+
+            return result if result else []
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_completed_wip_logs(activity_id):
+
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                SELECT 
+                    a.id AS activity_log_id,
+                    CONCAT(u.Fname, ' ', u.Mname, ' ', u.Sname) AS team_member,
+                    a.creation_date,
+                    d.task,
+                    e.start_date,
+                    e.end_date,
+                    COALESCE(e.detail,'') AS detail,
+                    COALESCE(STRING_AGG(f.[file], ', '), '') AS files
+                FROM trn_activity_log_overview a
+                LEFT JOIN users u ON u.ID = a.user_id
+                LEFT JOIN trn_activity_breakdown d 
+                       ON d.id = a.task_id 
+                      AND d.activity_id = a.activity_id
+                LEFT JOIN trn_activity_log_activity_breakdown e 
+                       ON e.trn_activity_log_id = a.id
+                LEFT JOIN trn_activity_log_attachment f 
+                       ON f.activity_log_id = a.id
+                WHERE a.activity_id = ?
+                GROUP BY 
+                    a.id,
+                    u.Fname, u.Mname, u.Sname,
+                    a.creation_date,
+                    d.task,
+                    e.start_date,
+                    e.end_date,
+                    e.detail
+                ORDER BY a.id
+            """
+
+            cursor.execute(query, (activity_id,))
+            columns = [column[0] for column in cursor.description]
+            rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+            grouped = defaultdict(list)
+
+            for row in rows:
+                grouped[row["activity_log_id"]].append(row)
+
+            logs = []
+
+            for log_id, items in grouped.items():
+                logs.append({
+                    "activity_log_id": log_id,
+                    "team_member": items[0]["team_member"],
+                    "creation_date": items[0]["creation_date"].strftime('%d %b %Y %H:%M')
+                    if items[0]["creation_date"] else "",
+                    "task": items[0]["task"],
+                    "files": items[0]["files"],
+                    "row_count": len(items),
+                    "breakdowns": [
+                        {
+                            "start_date": i["start_date"].strftime('%d %b %Y')
+                            if i["start_date"] else "",
+                            "end_date": i["end_date"].strftime('%d %b %Y')
+                            if i["end_date"] else "",
+                            "detail": i["detail"]
+                        }
+                        for i in items
+                    ]
+                })
+
+            return logs
+
+        except Exception as e:
+            print("Database error:", e)
+            return []
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
     def update_activity_log_id_of_trn_activity_log_attachment(old_activity_log_id, new_activity_log_id):
         conn = get_db_connection()
         if conn is None:
@@ -6507,6 +6934,92 @@ class ActivityRequestLog:
         except Exception as e:
             print(
                 "Database error; failed to update trn_activity_log_attachment:",
+                e
+            )
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def update_completed_wip_activity_request_approval_wip_status(activity_request_id, action):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            if action == "reject":
+                query = """
+                    UPDATE trn_activity_request
+                    SET wip_status = 1
+                    WHERE id = ?;
+                """
+
+            else:
+                query = """                    
+                    UPDATE trn_activity_request
+                    SET 
+                        wip_status = wip_status + 1                        
+                    WHERE id = ?;
+                """
+
+            cursor.execute(query, activity_request_id)
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating wip_status of trn_activity_request record: {e}")
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def update_completed_wip_activity_request_approval_status_following_a_rejected_approval(activity_request_id):
+
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                UPDATE trn_activity_request
+                SET wip_status = 1
+                WHERE id = ?
+            """
+            file_upload_id = cursor.execute(query, activity_request_id)
+            conn.commit()
+            return activity_request_id
+        except Exception as e:
+            print(f"Error updating status of trn_activity_request following a rejected completed wip activity "
+                  f"approval request: {e}")
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def submit_wip_activity_for_approval(activity_task_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                UPDATE trn_activity_request
+                SET wip_status = 2
+                WHERE id = ?
+            """
+            cursor.execute(query, activity_task_request_id)
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            print(
+                "Database error; failed to update table: trn_activity_request:",
                 e
             )
             return False
@@ -6581,6 +7094,32 @@ class ActivityRequestLog:
             )
             conn.commit()
             return id
+        except pyodbc.Error as e:
+            print("Database insert error:", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    @staticmethod
+    def insert_into_trn_completed_wip_activity_request_approvals(activity_request_id, decision, approver_id, level, comment):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        now = datetime.now()
+
+        try:
+
+            cursor.execute(
+                "INSERT INTO trn_completed_wip_activity_request_approvals (activity_request_id, decision, "
+                "approver_id, level, comment, date_time) VALUES (?, ?, ?, ?, ?, ?)",
+                (activity_request_id, decision, approver_id, level, comment, now),
+            )
+            conn.commit()
+            return activity_request_id
         except pyodbc.Error as e:
             print("Database insert error:", e)
             conn.rollback()

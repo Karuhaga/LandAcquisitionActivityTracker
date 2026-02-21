@@ -308,7 +308,7 @@
                         class="menu-collapse-heading d-flex align-items-center">
                      <i class="fa-sharp fa-solid fa-list-check"></i>
                      <span>Actions</span>
-                        {% set total_pending = pending_approvals_count + pending_submissions_count %}
+                        {% set total_pending = pending_approvals_count + pending_submissions_count + completed_wip_activity_requests_pending_approvals_count + completed_wip_activity_requests_pending_submission_count%}
                         {% if total_pending > 0 %}
                         <span class="badge badge-danger rounded-pill ml-1">{{ total_pending }}</span>
                         {% endif %}
@@ -340,6 +340,9 @@
                            href="{{ url_for('work_in_progress_page') }}">
                            <i class="fa fa-spinner"></i>
                         <span>Work in Progress</span>
+                              {% if completed_wip_activity_requests_pending_submission_count > 0 %}
+                                 <span class="badge badge-danger rounded-pill ml-1">{{ completed_wip_activity_requests_pending_submission_count }}</span>
+                              {% endif %}
                         </a>
                      {% endif %}
 
@@ -350,6 +353,27 @@
                         <span>Approve Activity Requests</span>
                            {% if pending_approvals_count > 0 %}
                               <span class="badge badge-danger rounded-pill ml-1">{{ pending_approvals_count }}</span>
+                           {% endif %}
+                        </a>
+                     {% endif %}
+
+                     {% if 'Approved Reconciliations' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('approved_reconciliations_page') %} active {% endif %}"
+                           href="{{ url_for('approved_reconciliations_page') }}">
+                        <i class="fa-solid fa-folder-open"></i>
+                        <span>Approved Reconciliations</span>
+                        </a>
+                     {% endif %}
+
+
+
+                     {% if 'Approve Reconciliations' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('approve_completed_wip_activity_requests_page') %} active {% endif %}"
+                           href="{{ url_for('approve_completed_wip_activity_requests_page') }}">
+                        <i class="fas fa-stamp"></i>
+                        <span>Approve Completed WIP Activity Requests</span>
+                           {% if completed_wip_activity_requests_pending_approvals_count > 0 %}
+                              <span class="badge badge-danger rounded-pill ml-1">{{ completed_wip_activity_requests_pending_approvals_count }}</span>
                            {% endif %}
                         </a>
                      {% endif %}
@@ -596,6 +620,8 @@
             {% include 'includes/flash_message_modal.html' %}
             {% include 'includes/approval_action_modal.html' %}
             {% include 'includes/activity_request_details_modal.html' %}
+            {% include 'includes/activity_completed_wip_details_with_approval_map_modal.html' %}
+            {% include 'includes/activity_completed_wip_log_details_modal.html' %}
             {% include 'includes/work_in_progress_add_log_modal.html' %}
             {% include 'includes/work_in_progress_list_logs_modal.html' %}
             {% include 'includes/work_in_progress_view_edit_log_modal.html' %}
