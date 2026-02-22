@@ -1461,7 +1461,7 @@ def approve_completed_wip_activity_requests_update():
             activity_request_id = file.get("activity_request_id")
 
             # Update file status
-            updated_activity_request_record = (ActivityRequestLog.update_completed_wip_activity_request_approval_wip_status(activity_request_id, action))
+            updated_activity_request_record = ActivityRequestLog.update_completed_wip_activity_request_approval_wip_status(activity_request_id, action, 3)
             # update audit trail
             user_id = current_user.id
             Audit.log_audit_trail(

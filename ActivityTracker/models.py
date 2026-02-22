@@ -4877,6 +4877,221 @@ class ActivityRequest:
             conn.close()
 
     @staticmethod
+    def get_activity_status_for_dashboard_pie_chart():
+        conn = get_db_connection()
+        if conn is None:
+            return {
+                "pending_approval": 0,
+                "wip_in_progress": 0,
+                "wip_completed": 0
+            }
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                SELECT
+                    SUM(CASE WHEN wip_status = 0 AND status > 1 THEN 1 ELSE 0 END) AS pending_approval,
+                    SUM(CASE WHEN wip_status <> 0 AND wip_approval_complete = 0 THEN 1 ELSE 0 END) AS wip_in_progress,
+                    SUM(CASE WHEN wip_status <> 0 AND wip_approval_complete = 1 THEN 1 ELSE 0 END) AS wip_completed
+                FROM trn_activity_request;
+            """
+
+            cursor.execute(query)
+            row = cursor.fetchone()
+
+            if row:
+                return {
+                    "pending_approval": row[0] or 0,
+                    "wip_in_progress": row[1] or 0,
+                    "wip_completed": row[2] or 0
+                }
+
+            return {
+                "pending_approval": 0,
+                "wip_in_progress": 0,
+                "wip_completed": 0
+            }
+
+        except Exception as e:
+            print("Database error:", e)
+            return {
+                "pending_approval": 0,
+                "wip_in_progress": 0,
+                "wip_completed": 0
+            }
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_activity_requests_pending_approval_for_dashboard(status, wip_status):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """                   
+                    SELECT 
+                        CONCAT(b.project_code, ' - ', b.project_name) AS project_name,
+                        c.subject,
+                        LTRIM(RTRIM(COALESCE(d.Fname + ' ' + d.Mname + ' ' + d.Sname, ''))) AS name,
+                        appr.submission_date AS creation_date
+                    FROM trn_activity_request a
+                    
+                    LEFT JOIN mst_project b 
+                        ON a.project_id = b.id
+                    
+                    LEFT JOIN trn_activity_overview c 
+                        ON a.id = c.activity_id
+                    
+                    LEFT JOIN users d 
+                        ON a.user_id = d.ID
+                    
+                    LEFT JOIN (
+                        SELECT 
+                            activity_request_id,
+                            MIN(date_time) AS submission_date
+                        FROM trn_activity_request_approvals
+                        GROUP BY activity_request_id
+                    ) appr 
+                        ON appr.activity_request_id = a.id
+                    
+                    WHERE a.status > ? 
+                      AND a.wip_status = ?
+                    
+                    ORDER BY appr.submission_date;
+                    """
+            cursor.execute(query, (status, wip_status,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                ActivityRequest(project_name=row.project_name, subject=row.subject, name=row.name, creation_date=row.creation_date)
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_activity_requests_under_wip_for_dashboard(wip_approval_complete, wip_status):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """                   
+                    SELECT 
+                        CONCAT(b.project_code, ' - ', b.project_name) AS project_name,
+                        c.subject,
+                        LTRIM(RTRIM(COALESCE(d.Fname + ' ' + d.Mname + ' ' + d.Sname, ''))) AS name,
+                        appr.submission_date AS creation_date
+                    FROM trn_activity_request a
+
+                    LEFT JOIN mst_project b 
+                        ON a.project_id = b.id
+
+                    LEFT JOIN trn_activity_overview c 
+                        ON a.id = c.activity_id
+
+                    LEFT JOIN users d 
+                        ON a.user_id = d.ID
+
+                    LEFT JOIN (
+                        SELECT 
+                            activity_request_id,
+                            MIN(date_time) AS submission_date
+                        FROM trn_activity_request_approvals
+                        GROUP BY activity_request_id
+                    ) appr 
+                        ON appr.activity_request_id = a.id
+
+                    WHERE a.wip_approval_complete = ? 
+                      AND a.wip_status <> ?
+
+                    ORDER BY appr.submission_date;
+                    """
+            cursor.execute(query, (wip_approval_complete, wip_status,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                ActivityRequest(project_name=row.project_name, subject=row.subject, name=row.name,
+                                creation_date=row.creation_date)
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_completed_wip_activity_dashboard(wip_approval_complete, wip_status):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """                   
+                    SELECT 
+                        CONCAT(b.project_code, ' - ', b.project_name) AS project_name,
+                        c.subject,
+                        LTRIM(RTRIM(COALESCE(d.Fname + ' ' + d.Mname + ' ' + d.Sname, ''))) AS name,
+                        appr.submission_date AS creation_date
+                    FROM trn_activity_request a
+
+                    LEFT JOIN mst_project b 
+                        ON a.project_id = b.id
+
+                    LEFT JOIN trn_activity_overview c 
+                        ON a.id = c.activity_id
+
+                    LEFT JOIN users d 
+                        ON a.user_id = d.ID
+
+                    LEFT JOIN (
+                        SELECT 
+                            activity_request_id,
+                            MIN(date_time) AS submission_date
+                        FROM trn_activity_request_approvals
+                        GROUP BY activity_request_id
+                    ) appr 
+                        ON appr.activity_request_id = a.id
+
+                    WHERE a.wip_approval_complete = ? 
+                      AND a.wip_status <> ?
+
+                    ORDER BY appr.submission_date;
+                    """
+            cursor.execute(query, (wip_approval_complete, wip_status,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                ActivityRequest(project_name=row.project_name, subject=row.subject, name=row.name,
+                                creation_date=row.creation_date)
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
     def get_activity_requests_pending_approval_count(user_id):
         conn = get_db_connection()
         if conn is None:
@@ -6942,7 +7157,7 @@ class ActivityRequestLog:
             conn.close()
 
     @staticmethod
-    def update_completed_wip_activity_request_approval_wip_status(activity_request_id, action):
+    def update_completed_wip_activity_request_approval_wip_status(activity_request_id, action, workflow_id):
         conn = get_db_connection()
         if conn is None:
             return None  # Handle database connection failure
@@ -6961,11 +7176,22 @@ class ActivityRequestLog:
                 query = """                    
                     UPDATE trn_activity_request
                     SET 
-                        wip_status = wip_status + 1                        
+                        wip_status = wip_status + 1  
+                        wip_approval_complete = CASE 
+                            WHEN status = (
+                                SELECT MAX(wb.level)
+                                FROM workflow wf
+                                LEFT JOIN workflow_breakdown wb 
+                                    ON wf.id = wb.workflow_id
+                                WHERE wf.id = ?
+                            ) 
+                            THEN 1
+                            ELSE 0
+                        END                      
                     WHERE id = ?;
                 """
 
-            cursor.execute(query, activity_request_id)
+            cursor.execute(query, (workflow_id, activity_request_id))
             conn.commit()
             return True
         except Exception as e:

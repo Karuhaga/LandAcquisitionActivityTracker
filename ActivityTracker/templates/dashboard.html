@@ -9,6 +9,305 @@
 {% endblock %}
 
 {% block content %}
-    <div class="h3 font-weight-normal" style="padding: 5px 5px;">
+<div class="dashboard-container">
+
+    <!-- Pie Chart Card -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h6>Status of Activities</h6>
+        </div>
+        <div class="card-body">
+            <canvas id="statusPieChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Table Card 1 -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h6>Activity Requests Pending Approval</h6>
+        </div>
+        <div class="card-body">
+            <table class="table table-sm table-bordered dashboard-table" id="activityRequestsPendingApproval">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Project</th>
+                        <th>Subject</th>
+                        <th>Requester</th>
+                        <th>Submitted On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if activities_pending_approval %}
+                        {% for activity in activities_pending_approval %}
+                        <tr>
+                            <td><div class="truncate">{{ loop.index }}</div></td>
+                            <td><div class="truncate" title="{{ activity.project_name }}">{{ activity.project_name }}</div></td>
+                            <td><div class="truncate" title="{{ activity.subject }}">{{ activity.subject }}</div></td>
+                            <td><div class="truncate" title="{{ activity.name }}">{{ activity.name }}</div></td>
+                            <td><div class="truncate" title="{{ activity.creation_date.strftime('%Y-%m-%d') if activity.creation_date }}">{{ activity.creation_date.strftime('%Y-%m-%d') if activity.creation_date }}</div></td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Table Card 2 -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h6>Activities under WIP</h6>
+        </div>
+        <div class="card-body">
+            <table class="table table-sm table-bordered dashboard-table" id="activityUnderWip">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Project</th>
+                        <th>Subject</th>
+                        <th>Requester</th>
+                        <th>Submitted On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if activities_under_wip %}
+                        {% for activity2 in activities_under_wip %}
+                        <tr>
+                            <td><div class="truncate">{{ loop.index }}</div></td>
+                            <td><div class="truncate" title="{{ activity2.project_name }}">{{ activity2.project_name }}</div></td>
+                            <td><div class="truncate" title="{{ activity2.subject }}">{{ activity2.subject }}</div></td>
+                            <td><div class="truncate" title="{{ activity2.name }}">{{ activity2.name }}</div></td>
+                            <td><div class="truncate" title="{{ activity2.creation_date.strftime('%Y-%m-%d') if activity2.creation_date }}">{{ activity2.creation_date.strftime('%Y-%m-%d') if activity2.creation_date }}</div></td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+     <!-- Table Card 3 -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h6>Completed Activities</h6>
+        </div>
+        <div class="card-body">
+            <table class="table table-sm table-bordered dashboard-table" id="completedWipActivities">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Project</th>
+                        <th>Subject</th>
+                        <th>Requester</th>
+                        <th>Submitted On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if completed_wip_activities %}
+                        {% for activity3 in completed_wip_activities %}
+                        <tr>
+                            <td><div class="truncate">{{ loop.index }}</div></td>
+                            <td><div class="truncate" title="{{ activity3.project_name }}">{{ activity3.project_name }}</div></td>
+                            <td><div class="truncate" title="{{ activity3.subject }}">{{ activity3.subject }}</div></td>
+                            <td><div class="truncate" title="{{ activity3.name }}">{{ activity3.name }}</div></td>
+                            <td><div class="truncate" title="{{ activity3.creation_date.strftime('%Y-%m-%d') if activity3.creation_date }}">{{ activity3.creation_date.strftime('%Y-%m-%d') if activity3.creation_date }}</div></td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+      <!-- Table Card 4 -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h6>Personnel Bookings</h6>
+        </div>
+        <div class="card-body">
+            <table class="table table-sm table-bordered dashboard-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Task</th>
+                        <th>Requester</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Populate dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.dashboard-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+    padding: 15px;
+}
+
+.dashboard-card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    min-height: 300px;
+}
+
+.dashboard-card .card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+    background: #f8f9fa;
+}
+
+.dashboard-card .card-body {
+    padding: 15px;
+    flex: 1;
+    overflow: auto;
+}
+
+/* ================= DASHBOARD TABLE CONTROL ================= */
+
+
+/* Force no wrapping + ellipsis */
+.dashboard-table {
+    table-layout: fixed;
+    width: 100%;
+    font-size: 0.1rem;
+}
+
+.truncate {
+    display: block;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Keep layout clean inside cards */
+.dashboard-card .card-body {
+    overflow-x: auto;
+}
+
+</style>
+
+<script>
+    $(document).ready(function(){
+        initStatusPieChart();
+        initDashboardTables();
+    });
+
+    function initStatusPieChart() {
+       const ctx = document.getElementById('statusPieChart');
+
+        if (ctx) {
+
+            const stats = {{ dashboard_pie_chart_stats | tojson }};
+
+            const dataValues = [
+                stats.pending_approval,
+                stats.wip_in_progress,
+                stats.wip_completed
+            ];
+
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Pending Approval', 'WIP', 'Completed'],
+                    datasets: [{
+                        data: dataValues,
+                        backgroundColor: [
+                           '#dc3545',
+                           '#ffc107',
+                           '#28a745'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const value = context.raw;
+                                    const percentage = total > 0
+                                        ? ((value / total) * 100).toFixed(1)
+                                        : 0;
+
+                                    return `${context.label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    function initDashboardTables() {
+        // Initialize ONLY activityRequestsPendingApproval with fixed widths
+        $('#activityRequestsPendingApproval, #activityUnderWip, #completedWipActivities').DataTable({
+            pageLength: 5,
+            lengthChange: false,
+            searching: true,
+            ordering: true,
+            info: false,
+            responsive: false,
+            autoWidth: false,  // Use columnDefs for widths
+            columnDefs: [
+                { targets: 0, width: "10%", orderable: false },  // # column fixed
+                { targets: 1, width: "25%" },  // Project
+                { targets: 2, width: "25%" },  // Subject
+                { targets: 3, width: "20%" },  // Requester
+                { targets: 4, width: "20%" }   // Submission Date
+            ],
+                // Update # column after each draw
+        drawCallback: function(settings) {
+            var api = this.api();
+            api.column(0, { search:'applied', order:'applied' }).nodes().each(function(cell, i) {
+                cell.innerHTML = i + 1;
+            });
+        }
+        });
+
+        //Initialize all other dashboard tables with flexible widths
+        $('.dashboard-table').not('#activityRequestsPendingApproval, #activityUnderWip, #completedWipActivities').DataTable({
+            pageLength: 5,
+            lengthChange: false,
+            searching: true,
+            ordering: true,
+            info: false,
+            responsive: false,
+            autoWidth: true,
+                columnDefs: [
+            { targets: 0, orderable: false } // # column
+        ],
+        drawCallback: function(settings) {
+            var api = this.api();
+            api.column(0, { search:'applied', order:'applied' }).nodes().each(function(cell, i) {
+                cell.innerHTML = i + 1;
+            });
+        }
+        });
+    }
+</script>
 
 {% endblock %}

@@ -124,6 +124,63 @@ def inject_completed_wip_requests_pending_submission_count():
     return {'completed_wip_activity_requests_pending_submission_count': count}
 
 
+@app.context_processor
+def inject_activity_status_for_dashboard_pie_chart():
+    if current_user.is_authenticated:
+        from ActivityTracker.models import ActivityRequest
+        stats = ActivityRequest.get_activity_status_for_dashboard_pie_chart()
+    else:
+        stats = {
+            "pending_approval": 0,
+            "wip_in_progress": 0,
+            "wip_completed": 0
+        }
+
+    return dict(dashboard_pie_chart_stats=stats)
+
+
+@app.context_processor
+def inject_activities_pending_approval_dashboard_table():
+    from ActivityTracker.models import ActivityRequest
+
+    if current_user.is_authenticated:
+        activities_pending_approval = (
+            ActivityRequest.get_activity_requests_pending_approval_for_dashboard(1, 0)
+        )
+    else:
+        activities_pending_approval = []
+
+    return dict(activities_pending_approval=activities_pending_approval)
+
+
+@app.context_processor
+def inject_activities_under_wip_dashboard_table():
+    from ActivityTracker.models import ActivityRequest
+
+    if current_user.is_authenticated:
+        activities_under_wip = (
+            ActivityRequest.get_activity_requests_under_wip_for_dashboard(0, 0)
+        )
+    else:
+        activities_under_wip = []
+
+    return dict(activities_under_wip=activities_under_wip)
+
+
+@app.context_processor
+def inject_completed_wip_activities_dashboard_table():
+    from ActivityTracker.models import ActivityRequest
+
+    if current_user.is_authenticated:
+        completed_wip_activities = (
+            ActivityRequest.get_completed_wip_activity_dashboard(1, 0)
+        )
+    else:
+        completed_wip_activities = []
+
+    return dict(completed_wip_activities=completed_wip_activities)
+
+
 # Set session timeout duration
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=15)  # Change to your preferred timeout
 
