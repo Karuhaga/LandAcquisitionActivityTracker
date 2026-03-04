@@ -49,38 +49,82 @@ from ActivityTracker import routes
 
 @app.context_processor
 def inject_menu_items():
-    """Dynamically inject menu items based on user's roles."""
+    """Inject menu items, active roles, and user's organisation unit."""
+
     if not current_user.is_authenticated:
-        return {'menu_items': []}
+        return {
+            'menu_items': [],
+            'user_roles': [],
+            'user_org_unit': None
+        }
 
     conn = get_db_connection()
     if conn is None:
-        return {'menu_items': []}  # No menu items if the DB connection fails
+        return {
+            'menu_items': [],
+            'user_roles': [],
+            'user_org_unit': None
+        }
 
     cursor = conn.cursor()
 
-    # Get the role IDs assigned to the current user
-    cursor.execute("SELECT role_id FROM user_role WHERE user_id = ? AND start_datetime <= GETDATE() AND "
-                   "expiry_datetime >= GETDATE()", (current_user.id, ))
+    # 🔹 Get user's organisation unit name
+    cursor.execute("""
+        SELECT ou.name
+        FROM users u
+        LEFT JOIN organisation_unit ou ON u.organisation_unit_id = ou.id
+        WHERE u.id = ?
+    """, (current_user.id,))
+
+    org_row = cursor.fetchone()
+    user_org_unit = org_row[0] if org_row else None
+
+    # 🔹 Get active role IDs
+    cursor.execute("""
+        SELECT role_id
+        FROM user_role
+        WHERE user_id = ?
+        AND start_datetime <= GETDATE()
+        AND expiry_datetime >= GETDATE()
+    """, (current_user.id,))
+
+    role_ids = [row[0] for row in cursor.fetchall()]
+
+    if not role_ids:
+        conn.close()
+        return {
+            'menu_items': [],
+            'user_roles': [],
+            'user_org_unit': user_org_unit
+        }
+
+    # 🔹 Fetch role names
+    cursor.execute("""
+        SELECT name
+        FROM role
+        WHERE id IN ({})
+    """.format(",".join("?" * len(role_ids))), tuple(role_ids))
+
     user_roles = [row[0] for row in cursor.fetchall()]
 
-    if not user_roles:  # If user has no roles, return an empty menu
-        conn.close()
-        return {'menu_items': []}
-
-    # Fetch workflows assigned to these roles
+    # 🔹 Fetch menu items
     cursor.execute("""
-        SELECT mi.name
+        SELECT DISTINCT mi.name
         FROM workflow_breakdown wb
-        LEFT OUTER JOIN menu_item mi ON wb.menu_item_id = mi.id
-        LEFT OUTER JOIN role_workflow_breakdown rwb ON wb.id = rwb.workflow_breakdown_id 
+        LEFT JOIN menu_item mi ON wb.menu_item_id = mi.id
+        LEFT JOIN role_workflow_breakdown rwb ON wb.id = rwb.workflow_breakdown_id 
         WHERE rwb.role_id IN ({})
-    """.format(",".join("?" * len(user_roles))), tuple(user_roles))
+    """.format(",".join("?" * len(role_ids))), tuple(role_ids))
 
     menu_items = [row[0] for row in cursor.fetchall()]
+
     conn.close()
 
-    return {'menu_items': menu_items}
+    return {
+        'menu_items': menu_items,
+        'user_roles': user_roles,
+        'user_org_unit': user_org_unit
+    }
 
 
 @app.context_processor
@@ -179,6 +223,20 @@ def inject_completed_wip_activities_dashboard_table():
         completed_wip_activities = []
 
     return dict(completed_wip_activities=completed_wip_activities)
+
+
+@app.context_processor
+def inject_officer_bookings_dashboard_table():
+    from ActivityTracker.models import ActivityRequest
+
+    if current_user.is_authenticated:
+        officer_bookings = (
+            ActivityRequest.get_officer_bookings_dashboard()
+        )
+    else:
+        officer_bookings = []
+
+    return dict(officer_bookings=officer_bookings)
 
 
 # Set session timeout duration

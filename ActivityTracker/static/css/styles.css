@@ -49,6 +49,87 @@ header nav{
     background-color: transparent;
     transition: 0.3s ease;
 }
+
+/* Enhanced User Dropdown */
+.user-dropdown-enhanced {
+    min-width: 280px;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.user-dropdown-enhanced .user-name {
+    font-weight: 600;
+    font-size: 15px;
+    color: #3c4e63;
+}
+
+.user-dropdown-enhanced .user-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+}
+
+.badge-role {
+    background-color: #e9f1ff;
+    color: #2c3e50;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 20px;
+    border: 1px solid #d0e2ff;
+}
+
+.badge-role:hover {
+    background-color: #d6e8ff;
+}
+
+.nav-link2 {
+    color: white !important;
+    font-weight: 500;
+}
+
+.nav-link2:hover {
+    opacity: 0.85;
+}
+
+.user-org-unit {
+    font-size: 12px;
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.user-dropdown-enhanced {
+    min-width: 300px;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.badge-role {
+    background-color: #e9f1ff;
+    color: #2c3e50;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 20px;
+    border: 1px solid #d0e2ff;
+}
+
+.role-card {
+    background-color: #f4f6f9;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border-left: 4px solid #3c4e63;
+}
+
+.role-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: #2c3e50;
+}
+
+.role-org {
+    font-size: 11px;
+}
+/* Main */
 main{
     margin-top: 87px;
 }

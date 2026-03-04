@@ -129,7 +129,7 @@
     }
 
     // Handle submission from the modal
-    $(document).on("click", "#confirmApprovalAction", function() {
+    $(document).off("click", "#confirmApprovalAction").on("click", "#confirmApprovalAction", function() {
         let action = $("#approvalAction").val();
         let comment = $("#approvalComment").val().trim();
 
@@ -287,11 +287,11 @@
         let approveAs = row.find("td:nth-child(8)").text().trim();
 
         // Populate the modal fields
-        $("#viewRequesterCompletedWipLogDetails").text(requester);
-        $("#viewProjectCodeCompletedLogDetails").text(projectCode);
-        $("#viewProjectNameCompletedLogDetails").text(projectName);
-        $("#viewApproveAsCompletedLogDetails").text(approveAs);
-        $("#viewLastModifiedCompletedLogDetails").text(lastModified);
+        $("#viewRequesterCompletedWipApproval").text(requester);
+        $("#viewProjectCodeCompletedWipApproval").text(projectCode);
+        $("#viewProjectNameCompletedWipApproval").text(projectName);
+        $("#viewApproveAsCompletedWipApproval").text(approveAs);
+        $("#viewLastModifiedCompletedWipApproval").text(lastModified);
 
         // Fetch workflow details
         loadCompletedWipActivityRequestApprovalWorkflow(activityRequestId, window.workFlowId);

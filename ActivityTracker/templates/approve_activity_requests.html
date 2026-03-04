@@ -121,7 +121,7 @@
     }
 
     // Handle submission from the modal
-    $(document).on("click", "#confirmApprovalAction", function() {
+    $(document).off("click", "#confirmApprovalAction").on("click", "#confirmApprovalAction", function() {
         let action = $("#approvalAction").val();
         let comment = $("#approvalComment").val().trim();
 

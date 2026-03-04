@@ -1130,6 +1130,29 @@ def update_activity_request():
 @role_required(1, 25)
 def submit_wip_activity_for_approval(activity_task_request_id):
     try:
+        is_user_requester_of_activity = ActivityRequestLog.get_is_user_requester_of_activity(activity_task_request_id, current_user.id)
+
+        if is_user_requester_of_activity is None:
+            return jsonify(
+                {"error": "Database error while retrieving is_user_requester_of_activity.",
+                 "type": "danger"}), 500
+
+        elif is_user_requester_of_activity == 0:
+            return jsonify(
+                {"error": "Only the original requester of this activity is authorized to close it.",
+                 "type": "danger"}), 400  # 400 is more appropriate than 500 here
+
+        log_overview_count = ActivityRequestLog.get_log_overview_count(activity_task_request_id)
+
+        if log_overview_count is None:
+            return jsonify(
+                {"error": "Database error while retrieving activity logs.",
+                 "type": "danger"}), 500
+
+        elif log_overview_count == 0:
+            return jsonify(
+                {"error": "You must submit at least one (1) activity log before you can close this activity.",
+                 "type": "danger"}), 400   # 400 is more appropriate than 500 here
 
         decision = 1
         level = 1
@@ -1180,46 +1203,37 @@ def submit_wip_activity_for_approval(activity_task_request_id):
 @app.route('/send_email_reminders', methods=['GET', 'POST'])
 def send_email_reminders():
     with app.app_context():
-        initiators_pending_submission_of_reconciliations = FileUpload.initiators_pending_submission_of_reconciliations()
+        initiators_pending_submission_of_activity_requests = ActivityRequest.initiators_pending_submission_of_activity_requests()
 
-        for initiator_id in initiators_pending_submission_of_reconciliations:
+        for initiator_id in initiators_pending_submission_of_activity_requests:
             # Fetch initiator details
-            initiator_fname_email = FileUpload.get_user_fname_email(initiator_id)
+            initiator_fname_email = ActivityRequest.get_user_fname_email(initiator_id)
 
             if initiator_fname_email:
-                # Optionally get their pending reconciliations
-                pending_reconciliation_submission_details = FileUpload.pending_reconciliation_submission_details(
+                pending_activity_requests_submission_details = ActivityRequest.pending_activity_requests_submission_details(
                     initiator_id)
-                EmailHelper.email_reminder_to_initiator_reconciliations_pending_submission(
+                EmailHelper.email_reminder_to_initiator_activity_requests_pending_submission(
                     initiator_fname_email["fname"],
                     initiator_fname_email["email"],
-                    pending_reconciliation_submission_details)
+                    pending_activity_requests_submission_details)
 
-        next_approver_ids = FileUpload.get_next_approver_id(initiators_pending_submission_of_reconciliations)
-
-        for approver_id in next_approver_ids:
-            # Fetch initiator details
-            approver_fname_email = FileUpload.get_user_fname_email(approver_id)
-
-            if approver_fname_email:
-                # Optionally get their pending reconciliations
-                pending_reconciliation_submission_details_for_approver = FileUpload.pending_reconciliation_submission_details_for_approver(
-                    approver_id)
-                EmailHelper.email_reminder_to_approver_reconciliations_pending_submission(approver_fname_email["fname"],
-                                                                                          approver_fname_email["email"],
-                                                                                          pending_reconciliation_submission_details_for_approver)
-
-        user_ids = FileUpload.get_all_user_ids()
+        user_ids = ActivityRequest.get_all_user_ids()
 
         for user_id in user_ids:
-            user_fname_email = FileUpload.get_user_fname_email(user_id)
+            user_fname_email = ActivityRequest.get_user_fname_email(user_id)
 
             if user_fname_email:
-                pending_approval_details = FileUpload.get_reconciliations_pending_approval(user_id)
+                pending_approval_details = ActivityRequest.get_activity_requests_pending_approval(user_id)
                 if pending_approval_details:
-                    EmailHelper.email_reminder_to_approve_submitted_reconciliations(user_fname_email["fname"],
-                                                                                    user_fname_email["email"],
-                                                                                    pending_approval_details)
+                    EmailHelper.email_reminder_to_approve_submitted_activity_requests(user_fname_email["fname"], user_fname_email["email"], pending_approval_details)
+
+        for user_id in user_ids:
+            user_fname_email = ActivityRequest.get_user_fname_email(user_id)
+
+            if user_fname_email:
+                pending_approval_details = ActivityRequest.get_completed_wip_activity_requests_pending_approval(user_id)
+                if pending_approval_details:
+                    EmailHelper.email_reminder_to_approve_submitted_completed_wip_activity_requests(user_fname_email["fname"], user_fname_email["email"], pending_approval_details)
 
 
 @app.route('/submitted-reconciliations', methods=['GET', 'POST'])
@@ -1239,7 +1253,6 @@ def work_in_progress_page():
     return render_template('work_in_progress.html',
                            activity_request_details=activity_request_details)
 
-
 @app.route('/approve-activity-requests', methods=['GET', 'POST'])
 @login_required
 @role_required(3, 5, 27, 47)
@@ -1256,6 +1269,15 @@ def approve_completed_wip_activity_requests_page():
     activity_requests = ActivityRequestLog.get_completed_wip_activity_requests_pending_approval(current_user.id)
     return render_template(
         'approve_completed_wip_activity_requests.html', activity_requests=activity_requests)
+
+
+@app.route('/submitted-work-in-progress', methods=['GET', 'POST'])
+@login_required
+@role_required(2, 26)
+def submitted_work_in_progress_page():
+    submitted_wip_activities = ActivityRequestLog.get_submitted_and_approved_wip_activity_requests(current_user.id, 3, 1)
+    return render_template(
+        'submitted_work_in_progress.html', submitted_wip_activities=submitted_wip_activities)
 
 
 @app.route('/approved-reconciliations', methods=['GET', 'POST'])

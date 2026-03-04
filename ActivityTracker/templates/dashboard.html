@@ -69,7 +69,7 @@
                         <th>Project</th>
                         <th>Subject</th>
                         <th>Requester</th>
-                        <th>Submitted On</th>
+                        <th>Start Date</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -104,7 +104,7 @@
                         <th>Project</th>
                         <th>Subject</th>
                         <th>Requester</th>
-                        <th>Submitted On</th>
+                        <th>Completion On</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -129,19 +129,33 @@
       <!-- Table Card 4 -->
     <div class="dashboard-card">
         <div class="card-header">
-            <h6>Personnel Bookings</h6>
+            <h6>Officer Bookings</h6>
         </div>
         <div class="card-body">
-            <table class="table table-sm table-bordered dashboard-table">
+            <table class="table table-sm table-bordered dashboard-table" id="officerBooking">
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>Task</th>
-                        <th>Requester</th>
+                        <th>Officer</th>
+                        <th>Project</th>
+                        <th>Subject</th>
+                        <th>End Date</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Populate dynamically -->
+                    {% if activities_under_wip %}
+                        {% for officer_booking in officer_bookings %}
+                        <tr>
+                            <td><div class="truncate">{{ loop.index }}</div></td>
+                            <td><div class="truncate" title="{{ officer_booking.name }}">{{ officer_booking.name }}</div></td>
+                            <td><div class="truncate" title="{{ officer_booking.project_name }}">{{ officer_booking.project_name }}</div></td>
+                            <td><div class="truncate" title="{{ officer_booking.subject }}">{{ officer_booking.subject }}</div></td>
+                            <td><div class="truncate" title="{{ officer_booking.max_end_date.strftime('%Y-%m-%d') if officer_booking.max_end_date }}">{{ officer_booking.max_end_date.strftime('%Y-%m-%d') if officer_booking.max_end_date }}</div></td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+
+                    {% endif %}
                 </tbody>
             </table>
         </div>
@@ -263,7 +277,7 @@
     }
 
     function initDashboardTables() {
-        // Initialize ONLY activityRequestsPendingApproval with fixed widths
+        // Initialize ONLY #activityRequestsPendingApproval, #activityUnderWip, #completedWipActivities with fixed widths
         $('#activityRequestsPendingApproval, #activityUnderWip, #completedWipActivities').DataTable({
             pageLength: 5,
             lengthChange: false,
@@ -288,8 +302,33 @@
         }
         });
 
+        // Initialize ONLY officerBooking with fixed widths
+        $('#officerBooking').DataTable({
+            pageLength: 5,
+            lengthChange: false,
+            searching: true,
+            ordering: true,
+            info: false,
+            responsive: false,
+            autoWidth: false,  // Use columnDefs for widths
+            columnDefs: [
+                { targets: 0, width: "10%", orderable: false },  // # column fixed
+                { targets: 1, width: "20%" },  // Project
+                { targets: 2, width: "25%" },  // Subject
+                { targets: 3, width: "20%" },  // Requester
+                { targets: 4, width: "25%" }   // Submission Date
+            ],
+                // Update # column after each draw
+        drawCallback: function(settings) {
+            var api = this.api();
+            api.column(0, { search:'applied', order:'applied' }).nodes().each(function(cell, i) {
+                cell.innerHTML = i + 1;
+            });
+        }
+        });
+
         //Initialize all other dashboard tables with flexible widths
-        $('.dashboard-table').not('#activityRequestsPendingApproval, #activityUnderWip, #completedWipActivities').DataTable({
+        $('.dashboard-table').not('#activityRequestsPendingApproval, #activityUnderWip, #completedWipActivities, #officerBooking').DataTable({
             pageLength: 5,
             lengthChange: false,
             searching: true,

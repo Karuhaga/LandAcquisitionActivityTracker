@@ -244,14 +244,57 @@
             {% if request.path not in pages_with_no_navbar_menu %}
             <ul class="navbar-nav ml-auto">
                 {% if current_user.is_authenticated %}
-                <li class="nav-item dropdown">
-                  <a class="nav-link2 dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                      {{ " ".join([current_user.fname, current_user.mname, current_user.sname] | select("string") | list) }}
-                  </a>
-                  <div class="dropdown-menu dropdown-menu-right" aria-labelledby="userDropdown">
-                     <a class="dropdown-item" href="{{ url_for('logout_page') }}">Logout</a>
-                  </div>
-                </li>
+<li class="nav-item dropdown">
+  <a class="nav-link2 dropdown-toggle d-flex align-items-center"
+     href="#"
+     id="userDropdown"
+     role="button"
+     data-toggle="dropdown"
+     aria-haspopup="true"
+     aria-expanded="false">
+
+      <i class="fa-solid fa-circle-user mr-2"></i>
+      {{ " ".join([current_user.fname, current_user.mname, current_user.sname] | select("string") | list) }}
+  </a>
+
+  <div class="dropdown-menu dropdown-menu-right shadow user-dropdown-enhanced" aria-labelledby="userDropdown">
+
+      <!-- User Info Header -->
+      <div class="dropdown-header text-center">
+          <div class="user-name">
+              {{ current_user.fname }} {{ current_user.mname }} {{ current_user.sname }}
+          </div>
+
+          <!-- Organisation Unit -->
+          {% if user_org_unit %}
+          <div class="user-org-unit mt-1">
+              <i class="fa-solid fa-sitemap mr-1"></i>
+              {{ user_org_unit }}
+          </div>
+          {% endif %}
+
+          <!-- Roles -->
+          <div class="user-roles mt-2">
+              {% if user_roles %}
+                  {% for role in user_roles %}
+                      <span class="badge badge-pill badge-role">
+                          <i class="fa-solid fa-user-tag mr-1"></i>
+                          {{ role }}
+                      </span>
+                  {% endfor %}
+              {% else %}
+                  <span class="text-muted small">No active roles</span>
+              {% endif %}
+          </div>
+      </div>
+
+      <div class="dropdown-divider"></div>
+
+      <a class="dropdown-item text-danger" href="{{ url_for('logout_page') }}">
+          <i class="fa-solid fa-right-from-bracket mr-2"></i> Logout
+      </a>
+  </div>
+</li>
                 {% endif %}
             </ul>
             {% endif %}
@@ -340,6 +383,17 @@
                            href="{{ url_for('work_in_progress_page') }}">
                            <i class="fa fa-spinner"></i>
                         <span>Work in Progress</span>
+                              {% if completed_wip_activity_requests_pending_submission_count > 0 %}
+                                 <span class="badge badge-danger rounded-pill ml-1">{{ completed_wip_activity_requests_pending_submission_count }}</span>
+                              {% endif %}
+                        </a>
+                     {% endif %}
+
+                     {% if 'Submitted Reconciliations' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('submitted_work_in_progress_page') %} active {% endif %}"
+                           href="{{ url_for('submitted_work_in_progress_page') }}">
+                           <i class="fas fa-paper-plane"></i>
+                        <span>Submitted Work In Progress</span>
                               {% if completed_wip_activity_requests_pending_submission_count > 0 %}
                                  <span class="badge badge-danger rounded-pill ml-1">{{ completed_wip_activity_requests_pending_submission_count }}</span>
                               {% endif %}
