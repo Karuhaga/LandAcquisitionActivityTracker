@@ -149,7 +149,7 @@
             <div class="modal-footer mt-3 d-flex justify-content-center gap-5">
                 <button type="button" class="btn btn-sm btn-outline-custom"
                         style="margin: 0 1rem;"
-                        onclick="handleActionAddLog('save activity log');">
+                        onclick="handleActionAddWIPActivityLog('save activity log');">
                     <i class="fa fa-save"></i> Save
                 </button>
 
@@ -381,7 +381,7 @@
         });
     });
 
-    function handleActionAddLog(actionType, buttonElem = null) {
+    function handleActionAddWIPActivityLog(actionType, buttonElem = null) {
 
         if (actionType === "save activity log") {
             if (!validateFormAddLog()) {
@@ -390,7 +390,7 @@
         }
 
         // Show confirmation modal for the action
-        showConfirmationAddLog(actionType);
+        showConfirmationAddWIPActivityLog(actionType);
     }
 
     function validateFormAddLog() {
@@ -456,7 +456,7 @@
         return isValid;
     }
 
-    function showConfirmationAddLog(actionType) {
+    function showConfirmationAddWIPActivityLog(actionType) {
         let modalTitle = "";
         let modalMessage = "";
 
@@ -574,7 +574,6 @@
             }
         });
     }
-
 
     $('#confirmationModal').on('hidden.bs.modal', function () {
 

@@ -1,19 +1,19 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    All Submitted Reconciliations
+    All Submitted Activity Requests
 {% endblock %}
 
 {% block page_title %}
-    <div data-page-title>All Submitted Reconciliations</div>
+    <div data-page-title>All Submitted Activity Requests</div>
 {% endblock %}
 
 
 {% block content %}
 
     <div class="card">
-       <div class="card-header d-flex justify-content-between align-items-center">
-           <span>All Submitted Reconciliations</span>
+        <div class="card-header d-flex justify-content-between align-items-center">
+           <span>All Submitted Activity Requests</span>
             <div class="d-flex align-items-center flex-wrap gap-2 py-2">
                 <div class="input-group input-group-sm" style="max-width: 200px;">
                     <span class="input-group-text text-muted"
@@ -35,54 +35,52 @@
                            style="height: calc(1.4em + 0.5rem + 2px);">
                 </div>
             </div>
-       </div>
+        </div>
 
-        <div class="card-body">
-            <table id="uploadedFilesTable" class="table table-striped table-bordered table-hover paginated">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Bank Account</th>
-                        <th>Year</th>
-                        <th>Month</th>
-                        <th style="max-width: 150px; word-break: break-all; white-space: normal;">File Name</th>
-                        <th>Status</th>
-                        <th>Last Modified</th>
-                        <th>Download File</th>
-                        <th>View Request</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for reconciliation in reconciliations %}
-                    <tr>
-                        <td>{{ loop.index }}</td>
-                        <td>{{ reconciliation.bank_account }}</td>
-                        <td>{{ reconciliation.year }}</td>
-                        <td>{{ reconciliation.month }}</td>
-                        <td style="max-width: 150px; word-break: break-all; white-space: normal;">{{ reconciliation.file_name }}</td>
-                        <td>{{ reconciliation.status }}</td>
-                        <td>{{ reconciliation.date_time }}</td>
-                        <td>
-                            <button class="btn-outline-custom download-btn" type="button" data-filename="{{ reconciliation.file_name }}">Download</button>
-                        </td>
-                        <td>
-                            <button class="btn-outline-custom view-request-btn" type="button" data-filename="{{ reconciliation.file_name }}">View</button>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="9" style="text-align: center;">No submitted reconciliations found.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="card">
+            <div class="card-body">
+                <table id="savedActivityRequestsTable" class="table table-striped table-bordered table-hover paginated">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Requester</th>
+                            <th>Project Code</th>
+                            <th>Project Name</th>
+                            <th>Subject</th>
+                            <th>Last Modified</th>
+                            <th>Status</th>
+                            <th>Approvals</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for activity_request_detail in activity_request_details %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ activity_request_detail.name }}</td>
+                            <td>{{ activity_request_detail.project_code }}</td>
+                            <td>{{ activity_request_detail.project_name }}</td>
+                            <td>{{ activity_request_detail.subject }}</td>
+                            <td>{{ activity_request_detail.last_modified.strftime('%Y-%m-%d %I:%M %p') }}</td>
+                            <td>{{ activity_request_detail.status }}</td>
+                            <td class="text-center" data-orderable="false" data-ordering="false">
+                                <button class="btn btn-sm btn-outline-custom view-request-btn"
+                                        type="button"
+                                        data-activity-request-id="{{ activity_request_detail.id }}">
+                                            <i class="fa-solid fa-circle-check"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    {% include 'includes/flash_message_modal.html' %}
-    {% include 'includes/reconciliation_file_details_modal.html' %}
-
 <script>
+    window.workFlowId = 1;
+
     function showFlashMessage(message, type) {
         let title = "Notification"; // Default title
 
@@ -99,33 +97,31 @@
         $("#flashMessageModal").modal("show");
     }
 
-    // Custom filter for DataTables
-    $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-        let min = $('#minDate').val();
-        let max = $('#maxDate').val();
-        let dateStr = data[6]; // Adjust index if "Last Modified" is not at index 6
+    $(document).ready(function() {
+        // Custom filter for DataTables
+        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+            let min = $('#minDate').val();
+            let max = $('#maxDate').val();
+            let dateStr = data[5]; // Adjust index if "Last Modified" is not at index 6
 
-        if (!dateStr) return true; // Include rows without a date
+            if (!dateStr) return true; // Include rows without a date
 
-        let rowDate = flatpickr.parseDate(dateStr, "Y-m-d H:i");
-        if (!rowDate) return true; // Include if unable to parse
+            let rowDate = flatpickr.parseDate(dateStr, "Y-m-d H:i");
+            if (!rowDate) return true; // Include if unable to parse
 
-        min = min ? flatpickr.parseDate(min, "Y-m-d H:i") : null;
-        max = max ? flatpickr.parseDate(max, "Y-m-d H:i") : null;
+            min = min ? flatpickr.parseDate(min, "Y-m-d H:i") : null;
+            max = max ? flatpickr.parseDate(max, "Y-m-d H:i") : null;
 
-        if (
-            (!min && !max) ||
-            (!min && rowDate <= max) ||
-            (min <= rowDate && !max) ||
-            (min <= rowDate && rowDate <= max)
-        ) {
-            return true;
-        }
-        return false;
-    });
-
-
-    $(document).ready(function () {
+            if (
+                (!min && !max) ||
+                (!min && rowDate <= max) ||
+                (min <= rowDate && !max) ||
+                (min <= rowDate && rowDate <= max)
+            ) {
+                return true;
+            }
+            return false;
+        });
         // Calculate default date range (last 30 days)
         let now = new Date();
         let thirtyDaysAgo = new Date();
@@ -157,7 +153,7 @@
             allowInput: true
         });
 
-        const table = $('#uploadedFilesTable').DataTable({
+        const table = $('#savedActivityRequestsTable').DataTable({
             paging: true,
             searching: true,
             ordering: true,
@@ -225,7 +221,7 @@
                         let from = new Date(fromDate).toLocaleDateString(undefined, options);
                         let to = new Date(toDate).toLocaleDateString(undefined, options);
 
-                        return 'All Submitted Reconciliations ' + from + ' - ' + to;
+                        return 'Submitted Activity Requests ' + from + ' - ' + to;
                     },
                     customize: function (doc) {
                         // Insert logo (left-aligned)
@@ -262,7 +258,7 @@
                         let from = new Date(fromDate).toLocaleDateString(undefined, options);
                         let to = new Date(toDate).toLocaleDateString(undefined, options);
 
-                        return 'All Submitted Reconciliations ' + from + ' - ' + to;
+                        return 'Submitted Activity Requests ' + from + ' - ' + to;
                     },
                     customize: function (win) {
                         // Add logo (left-aligned)
@@ -315,37 +311,32 @@
         $('#minDate, #maxDate').on('change', function () {
             table.draw();
         });
-    });
 
-    // Calling the reconciliation_file_details_modal.html
-    $(document).off("click", ".view-request-btn").on("click", ".view-request-btn", function() {
-        let row = $(this).closest("tr");
+        // Calling the activity_request_file_details_modal.html
+        $(document).off("click", ".view-request-btn").on("click", ".view-request-btn", function() {
+            let row = $(this).closest("tr");
 
-        let bankAccount = row.find("td:nth-child(2)").text().trim();
-        let year = row.find("td:nth-child(3)").text().trim();
-        let month = row.find("td:nth-child(4)").text().trim();
-        let lastModified = row.find("td:nth-child(7)").text().trim();
-        let approveAs = row.find("td:nth-child(6)").text().trim();
-        let fileName = $(this).data("filename");
+            let activityRequestId = $(this).data("activity-request-id");
+            let requester = {{ (" ".join([current_user.fname, current_user.mname, current_user.sname] | select("string") | list)) | tojson }};
+            let projectCode = row.find("td:nth-child(2)").text().trim();
+            let projectName = row.find("td:nth-child(3)").text().trim();
+            let lastModified = row.find("td:nth-child(5)").text().trim();
+            let approveAs = row.find("td:nth-child(8)").text().trim();
 
-        // Populate the modal fields
-        $("#viewBankAccount").text(bankAccount);
-        $("#viewYear").text(year);
-        $("#viewMonth").text(month);
-        $("#viewLastModified").text(lastModified);
-        $("#viewApproveAs").text(approveAs);
-        $("#viewFileName").text(fileName);
+            // Populate the modal fields
+            $("#viewRequester").text(requester);
+            $("#viewProjectCode").text(projectCode);
+            $("#viewProjectName").text(projectName);
+            $("#viewApproveAs").text(approveAs);
+            $("#viewLastModified").text(lastModified);
 
-        // Fetch workflow details
-        loadReconciliationWorkflow(bankAccount, year, month, fileName);
+            // Fetch workflow details
+            loadActivityRequestApprovalWorkflow(activityRequestId, window.workFlowId);
 
-        // Show the modal after data is populated
-        $("#viewRequestModal").modal("show");
-    });
+            // Show the modal after data is populated
+            $("#viewRequestModal").modal("show");
+        });
 
-    // Handle "Close" button click
-    $("#closeViewRequest").click(function() {
-        $("#viewRequestCard").slideUp();
     });
 
 </script>

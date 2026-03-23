@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    Banks
+    Team Member Roles
 {% endblock %}
 
 {% block page_title %}
-    <div data-page-title>Banks</div>
+    <div data-page-title>Team Member Roles</div>
 {% endblock %}
 
 
@@ -13,32 +13,32 @@
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Banks</span>
-            <button style="font-size: 18px;" class="btn-outline-custom" type="button" onclick="addBank()">Add Bank</button>
+            <span>Team Member Roles</span>
+            <button style="font-size: 18px;" class="btn-outline-custom" type="button" onclick="addTeamMemberRole()">Add Role</button>
         </div>
 
         <div class="card-body">
-            <table id="uploadedFilesTable" class="table table-striped table-bordered table-hover paginated">
+            <table id="teamMemberRolesTable" class="table table-striped table-bordered table-hover paginated">
                 <thead>
                     <tr>
                         <th style="width: 5%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false">#</th> <!-- Row number column -->
-                        <th style="">Bank</th>
-                        <th style="width: 10%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false" data-orderable="false" data-ordering="false">Edit Bank</th>
+                        <th style="">Team Member Roles</th>
+                        <th style="width: 10%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false" >Edit Role</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for bank_detail in bank_details %}
+                    {% for team_member_role in team_member_roles %}
                     <tr>
                         <td style="width: 5%; white-space: nowrap; text-align: left;">{{ loop.index }}</td> <!-- Display row number -->
-                        <td style="">{{ bank_detail.name }}</td>
+                        <td style="">{{ team_member_role.name }}</td>
                         <td style="width: 10%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false">
-                            <button class="btn-outline-custom edit-bank-btn" style="float: right;" type="button" data-role-id="{{ bank_detail.id }}" data-role-name="{{ bank_detail.name }}">Edit</button>
+                            <button class="btn-outline-custom edit-team-member-role-btn" style="float: right;" type="button" data-role-id="{{ team_member_role.id }}" data-role-name="{{ team_member_role.name }}">Edit</button>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
                         <td></td>
-                        <td style="text-align: center; max-width: 150px; word-break: break-all; white-space: normal;">No bank(s) found.</td>
+                        <td style="text-align: center; max-width: 150px; word-break: break-all; white-space: normal;">No team member role found.</td>
                         <td></td>
                     </tr>
                     {% endfor %}
@@ -64,34 +64,40 @@
         $("#flashMessageModal").modal("show");
     }
 
-    function addBank() {
+    function addTeamMemberRole() {
 
         // Open the modal
-        $("#bankAddModal").modal("show");
+        $("#teamMemberRoleAddModal").modal("show");
     }
 
-    function showConfirmation(actionType) {
+    function showTeamMemberRoleConfirmation(actionType) {
         let modalTitle = "";
         let modalMessage = "";
 
         switch (actionType) {
-            case "add bank":
-                modalTitle = "Confirm Addition of Bank";
-                modalMessage = "Are you sure you want to add this bank?";
+            case "add team member role":
+                modalTitle = "Confirm Addition of Team Member Role";
+                modalMessage = "Are you sure you want to add this role?";
+
                 $("#confirmAction").off("click").on("click", () => {
                     $("#confirmationModal").modal("hide");
-                    registerBank();
+                    registerTeamMemberRole();
                 });
                 break;
 
-            case "edit bank":
-                modalTitle = "Confirm Update of Bank";
-                modalMessage = "Are you sure you want to edit this bank?";
+            case "edit team member role":
+                modalTitle = "Confirm Update of Team Member Role";
+                modalMessage = "Are you sure you want to edit this role?";
+
                 $("#confirmAction").off("click").on("click", () => {
                     $("#confirmationModal").modal("hide");
-                    updateBank();
+                    updateTeamMemberRole();
                 });
                 break;
+
+             default:
+                modalTitle = "Confirmation";
+                modalMessage = "Are you sure you want to proceed?";
         }
 
         $("#confirmationModalLabel").text(modalTitle);
@@ -108,9 +114,9 @@
         }, 10);
     }
 
-    function registerBank() {
+    function registerTeamMemberRole() {
 
-        const form = document.getElementById("addBankForm");
+        const form = document.getElementById("addTeamMemberRoleForm");
 
         if (!form.checkValidity()) {
             form.reportValidity();
@@ -118,29 +124,30 @@
         }
 
         const formData = {
-            bankName: $("#bankName").val().trim(),
+            teamMemberRoleName: $("#teamMemberRoleName").val().trim(),
         };
 
         // Step 1: Check if role name already exists
         $.ajax({
-            url: `/check-bank-name/${encodeURIComponent(formData.bankName)}`,
+            url: `/check-team-member-role-name/${encodeURIComponent(formData.teamMemberRoleName)}`,
             type: "GET",
             success: function (response) {
                 if (response.exists) {
-                    showFlashMessage(`Bank name '${formData.bankName}' already exists.`, "warning");
+                    showFlashMessage(`Team Member Role Name '${formData.teamMemberRoleName}' already exists.`, "warning");
                     return;
                 }
 
                 // Step 2: Submit new bank
                 $.ajax({
-                    url: "/admin-register-new-bank",
+                    url: "/admin-register-new-team-member-role",
                     type: "POST",
                     contentType: "application/json",
                     data: JSON.stringify(formData),
                     success: function (response) {
-                        $("#bankAddModal").modal("hide");
+                        $("#addTeamMemberRoleForm")[0].reset();
+                        $("#teamMemberRoleAddModal").modal("hide");
                         showFlashMessage(response.message, "success");
-                        $("#flashMessageModal").on("hidden.bs.modal", function () {
+                        $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function () {
                         $(".content").load(location.href + " .content > *", function() {
                             initializeRoleDataTable();
                         });
@@ -154,29 +161,29 @@
                 });
             },
             error: function () {
-                showFlashMessage("Failed to validate name of bank. Please try again.", "danger");
+                showFlashMessage("Failed to validate name of team member role. Please try again.", "danger");
             }
         });
     }
 
-    function updateBank() {
-        const form = document.getElementById("bankEditModal");
+    function updateTeamMemberRole() {
+        const form = document.getElementById("teamMemberRoleEditModal");
 
-        const bankId = $("#editBankId").val();
+        const team_member_role_id = $("#editTeamMemberRoleId").val();
         const formData = {
-            bank_id: bankId,
-            bank_name: $("#bankName2").val(),
+            team_member_role_id: team_member_role_id,
+            team_member_role_name_2: $("#team_member_role_name_2").val(),
         };
 
         $.ajax({
-            url: "/admin-update-bank",
+            url: "/admin-update-team-member-role",
             type: "POST",
             contentType: "application/json",
             data: JSON.stringify(formData),
             success: function (response) {
-                $("#bankEditModal").modal("hide");
+                $("#teamMemberRoleEditModal").modal("hide");
                 showFlashMessage(response.message, "success");
-                $("#flashMessageModal").on("hidden.bs.modal", function () {
+                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function () {
                     $(".content").load(location.href + " .content > *", function() {
                         initializeRoleDataTable();
                     });
@@ -190,34 +197,33 @@
         });
     }
 
-    // Calling the bank_edit_modal.html
-    $(document).off("click", ".edit-bank-btn").on("click", ".edit-bank-btn", function () {
+    $(document).off("click", ".edit-team-member-role-btn").on("click", ".edit-team-member-role-btn", function () {
 
-        const bankName = $(this).closest("tr").find("td:nth-child(2)").text().trim();
-        console.log("Bank name being passed:", bankName);
+        const teamMemberRoleName = $(this).closest("tr").find("td:nth-child(2)").text().trim();
+        console.log("Team member role name being passed:", teamMemberRoleName);
 
         $.ajax({
-            url: "/get-bank-details",
+            url: "/get-team-member-role-details",
             type: "GET",
-            data: {  bank_name: bankName  },
+            data: {  team_member_role_name: teamMemberRoleName  },
             success: function (data) {
                 // Populate modal fields
-                $("#bankName2").val(data.bankname);
+                $("#team_member_role_name_2").val(data.team_member_role_name);
 
                 // Store ID in form using jQuery data
-                $("#editBankId").val(data.id);
+                $("#editTeamMemberRoleId").val(data.id);
 
                 // Show the modal
-                $("#bankEditModal").modal("show");
+                $("#teamMemberRoleEditModal").modal("show");
             },
             error: function () {
-                showFlashMessage("Failed to load bank details. Please try again.", "danger");
+                showFlashMessage("Failed to load Team Member Role details. Please try again.", "danger");
             }
         });
     });
 
     function initializeRoleDataTable() {
-        $('#uploadedFilesTable').DataTable({
+        $('#teamMemberRolesTable').DataTable({
             paging: true,
             searching: true,
             ordering: true,
@@ -270,9 +276,6 @@
 <style>
     #confirmationModal {
         z-index: 1060; /* Higher than default Bootstrap modal (1050) */
-    }
-    #roleModal {
-        z-index: 1050;
     }
 
     /* Ensure backdrop covers roleModal when confirmationModal is active */

@@ -68,7 +68,7 @@ def inject_menu_items():
 
     cursor = conn.cursor()
 
-    # 🔹 Get user's organisation unit name
+    # Get user's organisation unit name
     cursor.execute("""
         SELECT ou.name
         FROM users u
@@ -79,7 +79,7 @@ def inject_menu_items():
     org_row = cursor.fetchone()
     user_org_unit = org_row[0] if org_row else None
 
-    # 🔹 Get active role IDs
+    # Get active role IDs
     cursor.execute("""
         SELECT role_id
         FROM user_role
@@ -98,7 +98,7 @@ def inject_menu_items():
             'user_org_unit': user_org_unit
         }
 
-    # 🔹 Fetch role names
+    # Fetch role names
     cursor.execute("""
         SELECT name
         FROM role
@@ -107,7 +107,7 @@ def inject_menu_items():
 
     user_roles = [row[0] for row in cursor.fetchall()]
 
-    # 🔹 Fetch menu items
+    # Fetch menu items
     cursor.execute("""
         SELECT DISTINCT mi.name
         FROM workflow_breakdown wb

@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    Currencies
+    Key Processes
 {% endblock %}
 
 {% block page_title %}
-    <div data-page-title>Currencies</div>
+    <div data-page-title>Key Processes</div>
 {% endblock %}
 
 
@@ -13,35 +13,32 @@
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Currencies</span>
-            <button style="font-size: 18px;" class="btn-outline-custom" type="button" onclick="currencyRole()">Add Currency</button>
+            <span>Key Processes</span>
+            <button style="font-size: 18px;" class="btn-outline-custom" type="button" onclick="addKeyProcess()">Add Process</button>
         </div>
 
         <div class="card-body">
-            <table id="uploadedFilesTable" class="table table-striped table-bordered table-hover paginated">
+            <table id="teamMemberRolesTable" class="table table-striped table-bordered table-hover paginated">
                 <thead>
                     <tr>
                         <th style="width: 5%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false">#</th> <!-- Row number column -->
-                        <th style="">Currency</th>
-                        <th style="">Code</th>
-                        <th style="width: 10%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false" data-orderable="false" data-ordering="false">Edit Currency</th>
+                        <th style="">Key Processes</th>
+                        <th style="width: 10%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false" >Edit Process</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for currency_detail in currency_details %}
+                    {% for key_process in key_processes %}
                     <tr>
                         <td style="width: 5%; white-space: nowrap; text-align: left;">{{ loop.index }}</td> <!-- Display row number -->
-                        <td style="">{{ currency_detail.name }}</td>
-                        <td style="">{{ currency_detail.code }}</td>
+                        <td style="">{{ key_process.name }}</td>
                         <td style="width: 10%; white-space: nowrap; text-align: left;" data-orderable="false" data-ordering="false">
-                            <button class="btn-outline-custom edit-currency-btn" style="float: right;" type="button" data-role-id="{{ currency_detail.id }}" data-role-name="{{ currency_detail.name }}">Edit</button>
+                            <button class="btn-outline-custom edit-key-process-btn" style="float: right;" type="button" data-role-id="{{ key_process.id }}" data-role-name="{{ key_process.name }}">Edit</button>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
                         <td></td>
-                        <td style="text-align: center; max-width: 150px; word-break: break-all; white-space: normal;">No role(s) found.</td>
-                        <td></td>
+                        <td style="text-align: center; max-width: 150px; word-break: break-all; white-space: normal;">No key process found.</td>
                         <td></td>
                     </tr>
                     {% endfor %}
@@ -67,31 +64,40 @@
         $("#flashMessageModal").modal("show");
     }
 
-    function currencyRole() {
+    function addKeyProcess() {
+
         // Open the modal
-        $("#currencyAddModal").modal("show");
+        $("#keyProcessAddModal").modal("show");
     }
 
-    function showConfirmation(actionType) {
+    function showKeyProcessConfirmation(actionType) {
         let modalTitle = "";
         let modalMessage = "";
 
-        if (actionType === "add currency") {
-            modalTitle = "Confirm Addition of Currency";
-            modalMessage = "Are you sure you want to add this currency?";
-            $("#confirmAction").off("click").on("click", function () {
-                $("#confirmationModal").modal("hide");
-                registerCurrency();
-            });
-        }
+        switch (actionType) {
+            case "add key process":
+                modalTitle = "Confirm Addition of Key Process";
+                modalMessage = "Are you sure you want to add this process?";
 
-        if (actionType === "edit currency") {
-            modalTitle = "Confirm Update of Role";
-            modalMessage = "Are you sure you want to update this currency?";
-            $("#confirmAction").off("click").on("click", function () {
-                $("#confirmationModal").modal("hide");
-                updateCurrency();
-            });
+                $("#confirmAction").off("click").on("click", () => {
+                    $("#confirmationModal").modal("hide");
+                    registerKeyProcess();
+                });
+                break;
+
+            case "edit key process":
+                modalTitle = "Confirm Update of Key Process";
+                modalMessage = "Are you sure you want to edit this process?";
+
+                $("#confirmAction").off("click").on("click", () => {
+                    $("#confirmationModal").modal("hide");
+                    updateKeyProcess();
+                });
+                break;
+
+             default:
+                modalTitle = "Confirmation";
+                modalMessage = "Are you sure you want to proceed?";
         }
 
         $("#confirmationModalLabel").text(modalTitle);
@@ -108,8 +114,9 @@
         }, 10);
     }
 
-    function registerCurrency() {
-        const form = document.getElementById("addCurrencyForm");
+    function registerKeyProcess() {
+
+        const form = document.getElementById("addKeyProcessForm");
 
         if (!form.checkValidity()) {
             form.reportValidity();
@@ -117,34 +124,34 @@
         }
 
         const formData = {
-            currencyName: $("#currency3").val().trim(),
-            codeName: $("#code3").val().trim(),
+            key_process_name: $("#keyProcessName").val().trim(),
         };
 
         // Step 1: Check if role name already exists
         $.ajax({
-            url: `/check-currency-name/${encodeURIComponent(formData.currencyName)}`,
+            url: `/check-key-process-name/${encodeURIComponent(formData.key_process_name)}`,
             type: "GET",
             success: function (response) {
                 if (response.exists) {
-                    showFlashMessage(`Currency name '${formData.currencyName}' already exists.`, "warning");
+                    showFlashMessage(`Team Member Role Name '${formData.key_process_name}' already exists.`, "warning");
                     return;
                 }
 
-                // Step 2: Submit new role
+                // Step 2: Submit new bank
                 $.ajax({
-                    url: "/admin-register-new-currency",
+                    url: "/admin-register-new-key-process",
                     type: "POST",
                     contentType: "application/json",
                     data: JSON.stringify(formData),
                     success: function (response) {
-                        $("#currencyAddModal").modal("hide");
+                        $("#addKeyProcessForm")[0].reset();
+                        $("#keyProcessAddModal").modal("hide");
                         showFlashMessage(response.message, "success");
-                        $("#flashMessageModal").on("hidden.bs.modal", function () {
-                            $(".content").load(location.href + " .content > *", function() {
-                                initializeRoleDataTable();
-                            });
+                        $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function () {
+                        $(".content").load(location.href + " .content > *", function() {
+                            initializeRoleDataTable();
                         });
+                });
                     },
                     error: function (xhr) {
                         let errorMessage = xhr.responseJSON?.error || "An unexpected error occurred.";
@@ -154,30 +161,29 @@
                 });
             },
             error: function () {
-                showFlashMessage("Failed to validate name of currency. Please try again.", "danger");
+                showFlashMessage("Failed to validate name of key process. Please try again.", "danger");
             }
         });
     }
 
-    function updateCurrency() {
-        const form = document.getElementById("currencyEditModal");
+    function updateKeyProcess() {
+        const form = document.getElementById("keyProcessEditModal");
 
-        const currencyId = $("#editCurrencyId").val();
+        const key_process_id = $("#editKeyProcessId").val();
         const formData = {
-            currency_id: currencyId,
-            currency_name: $("#currency4").val(),
-            currency_code: $("#code4").val(),
+            key_process_id: key_process_id,
+            key_process_name_2: $("#key_process_name_2").val(),
         };
 
         $.ajax({
-            url: "/admin-update-currency",
+            url: "/admin-update-key-process",
             type: "POST",
             contentType: "application/json",
             data: JSON.stringify(formData),
             success: function (response) {
-                $("#currencyEditModal").modal("hide");
+                $("#keyProcessEditModal").modal("hide");
                 showFlashMessage(response.message, "success");
-                $("#flashMessageModal").on("hidden.bs.modal", function () {
+                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function () {
                     $(".content").load(location.href + " .content > *", function() {
                         initializeRoleDataTable();
                     });
@@ -191,41 +197,33 @@
         });
     }
 
-    // Calling the role_edit_modal.html
-    $(document).off("click", ".edit-currency-btn").on("click", ".edit-currency-btn", function () {
+    $(document).off("click", ".edit-key-process-btn").on("click", ".edit-key-process-btn", function () {
 
-        const currencyName = $(this).closest("tr").find("td:nth-child(2)").text().trim();
+        const keyProcessName = $(this).closest("tr").find("td:nth-child(2)").text().trim();
+        console.log("Key Process Name being passed:", keyProcessName);
 
         $.ajax({
-            url: "/get-currency-details",
+            url: "/get-key-process-details",
             type: "GET",
-            data: { currency_name: currencyName },
+            data: {  key_process_name: keyProcessName  },
             success: function (data) {
                 // Populate modal fields
-                $("#currency4").val(data.currency_name);
-                $("#code4").val(data.currency_code);
+                $("#key_process_name_2").val(data.key_process_name);
 
                 // Store ID in form using jQuery data
-                $("#editCurrencyId").val(data.id);
+                $("#editKeyProcessId").val(data.id);
 
                 // Show the modal
-                $("#currencyEditModal").modal("show");
+                $("#keyProcessEditModal").modal("show");
             },
             error: function () {
-                showFlashMessage("Failed to load currency details. Please try again.", "danger");
+                showFlashMessage("Failed to load Key Process details. Please try again.", "danger");
             }
         });
     });
 
-    $(document).on('hidden.bs.modal', function () {
-        if ($('.modal.show').length > 0) {
-            // Keep 'modal-open' if any modal is still open
-            $('body').addClass('modal-open');
-        }
-    });
-
     function initializeRoleDataTable() {
-        $('#uploadedFilesTable').DataTable({
+        $('#teamMemberRolesTable').DataTable({
             paging: true,
             searching: true,
             ordering: true,
@@ -266,14 +264,18 @@
         });
     });
 
+    $(document).on('hidden.bs.modal', function () {
+        if ($('.modal.show').length > 0) {
+            // Keep 'modal-open' if any modal is still open
+            $('body').addClass('modal-open');
+        }
+    });
+
 </script>
 
 <style>
     #confirmationModal {
         z-index: 1060; /* Higher than default Bootstrap modal (1050) */
-    }
-    #roleModal {
-        z-index: 1050;
     }
 
     /* Ensure backdrop covers roleModal when confirmationModal is active */

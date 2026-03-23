@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    Activity Requests Pending My Approval
+    Activity Requests Pending Approval
 {% endblock %}
 
 {% block page_title %}
-    <div data-page-title>Activity Requests Pending My Approval</div>
+    <div data-page-title>Activity Requests Pending Approval</div>
 {% endblock %}
 
 
@@ -13,7 +13,7 @@
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-           <span>Activity Requests Pending My Approval</span>
+           <span>Activity Requests Pending Approval</span>
             <div class="d-flex align-items-center flex-wrap gap-2 py-2">
                 <div class="input-group input-group-sm" style="max-width: 200px;">
                     <span class="input-group-text text-muted"
@@ -48,7 +48,8 @@
                             <th>Project Name</th>
                             <th>Subject</th>
                             <th>Last Modified</th>
-                            <th>Approve As</th>
+                            <th>Next Approver</th>
+                            <th>Approvals</th>
                         </tr>
                     </thead>
 
@@ -56,12 +57,19 @@
                         {% for activity_request_detail in activity_request_details %}
                         <tr>
                             <td>{{ loop.index }}</td>
-                            <td>{{ activity_request_detail.requester }}</td>
+                            <td>{{ activity_request_detail.name }}</td>
                             <td>{{ activity_request_detail.project_code }}</td>
                             <td>{{ activity_request_detail.project_name }}</td>
                             <td>{{ activity_request_detail.subject }}</td>
-                            <td>{{ activity_request_detail.date_time }}</td>
-                            <td>{{ activity_request_detail.approve_as }}</td>
+                            <td>{{ activity_request_detail.last_modified.strftime('%Y-%m-%d %I:%M %p') }}</td>
+                            <td>{{ activity_request_detail.status }}</td>
+                            <td class="text-center" data-orderable="false" data-ordering="false">
+                                <button class="btn btn-sm btn-outline-custom view-request-btn"
+                                        type="button"
+                                        data-activity-request-id="{{ activity_request_detail.id }}">
+                                            <i class="fa-solid fa-circle-check"></i>
+                                </button>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

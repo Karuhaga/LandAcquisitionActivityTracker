@@ -233,7 +233,7 @@
    </head>
    <body>
       <header>
-         <nav class="navbar navbar-expand-md navbar-light" style="background-color: #3c4e63;">
+         <nav class="navbar navbar-expand-md navbar-dark" style="background-color: #4270a8;">
             <a class="navbar-brand" href="">
             <img src="/static/images/logo_5.png" style="height: 80px;">
             </a>
@@ -244,18 +244,18 @@
             {% if request.path not in pages_with_no_navbar_menu %}
             <ul class="navbar-nav ml-auto">
                 {% if current_user.is_authenticated %}
-<li class="nav-item dropdown">
-  <a class="nav-link2 dropdown-toggle d-flex align-items-center"
-     href="#"
-     id="userDropdown"
-     role="button"
-     data-toggle="dropdown"
-     aria-haspopup="true"
-     aria-expanded="false">
+                  <li class="nav-item dropdown">
+                    <a class="nav-link2 dropdown-toggle d-flex align-items-center"
+                       href="#"
+                       id="userDropdown"
+                       role="button"
+                       data-toggle="dropdown"
+                       aria-haspopup="true"
+                       aria-expanded="false">
 
-      <i class="fa-solid fa-circle-user mr-2"></i>
-      {{ " ".join([current_user.fname, current_user.mname, current_user.sname] | select("string") | list) }}
-  </a>
+                        <i class="fa-solid fa-circle-user mr-2"></i>
+                        {{ " ".join([current_user.fname, current_user.mname, current_user.sname] | select("string") | list) }}
+                    </a>
 
   <div class="dropdown-menu dropdown-menu-right shadow user-dropdown-enhanced" aria-labelledby="userDropdown">
 
@@ -359,7 +359,7 @@
                      </a>
                   </div>
                   <div id="collapse2" class="panel-collapse collapse" data-parent="#accordion">
-                     {% if 'Submit Reconciliations' in menu_items %}
+                     {% if 'Submit Activity Requests' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('activity_request_page') %} active {% endif %}"
                            href="{{ url_for('activity_request_page') }}">
                            <i class="fa-solid fa-pen-to-square"></i>
@@ -370,7 +370,7 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Submitted Reconciliations' in menu_items %}
+                     {% if 'Submitted Activity Requests' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('submitted_activity_requests_page') %} active {% endif %}"
                            href="{{ url_for('submitted_activity_requests_page') }}">
                         <i class="fa-solid fa-folder"></i>
@@ -378,29 +378,15 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Submitted Reconciliations' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('work_in_progress_page') %} active {% endif %}"
-                           href="{{ url_for('work_in_progress_page') }}">
-                           <i class="fa fa-spinner"></i>
-                        <span>Work in Progress</span>
-                              {% if completed_wip_activity_requests_pending_submission_count > 0 %}
-                                 <span class="badge badge-danger rounded-pill ml-1">{{ completed_wip_activity_requests_pending_submission_count }}</span>
-                              {% endif %}
-                        </a>
-                     {% endif %}
-
-                     {% if 'Submitted Reconciliations' in menu_items %}
+                     {% if 'Submitted Completed WIP Activity Requests' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('submitted_work_in_progress_page') %} active {% endif %}"
                            href="{{ url_for('submitted_work_in_progress_page') }}">
                            <i class="fas fa-paper-plane"></i>
-                        <span>Submitted Work In Progress</span>
-                              {% if completed_wip_activity_requests_pending_submission_count > 0 %}
-                                 <span class="badge badge-danger rounded-pill ml-1">{{ completed_wip_activity_requests_pending_submission_count }}</span>
-                              {% endif %}
+                        <span>Submitted Completed WIP Activity Requests</span>
                         </a>
                      {% endif %}
 
-                     {% if 'Approve Reconciliations' in menu_items %}
+                     {% if 'Approve Activity Requests' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('approve_activity_requests_page') %} active {% endif %}"
                            href="{{ url_for('approve_activity_requests_page') }}">
                         <i class="fa fa-check-square"></i>
@@ -411,17 +397,15 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Approved Reconciliations' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('approved_reconciliations_page') %} active {% endif %}"
-                           href="{{ url_for('approved_reconciliations_page') }}">
+                     {% if 'Approved Activity Requests' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('approved_activity_requests_page') %} active {% endif %}"
+                           href="{{ url_for('approved_activity_requests_page') }}">
                         <i class="fa-solid fa-folder-open"></i>
-                        <span>Approved Reconciliations</span>
+                        <span>Approved Activity Requests</span>
                         </a>
                      {% endif %}
 
-
-
-                     {% if 'Approve Reconciliations' in menu_items %}
+                     {% if 'Approve Completed WIP Activity Requests' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('approve_completed_wip_activity_requests_page') %} active {% endif %}"
                            href="{{ url_for('approve_completed_wip_activity_requests_page') }}">
                         <i class="fas fa-stamp"></i>
@@ -432,13 +416,25 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Approved Reconciliations' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('approved_reconciliations_page') %} active {% endif %}"
-                           href="{{ url_for('approved_reconciliations_page') }}">
+                     {% if 'Approved Completed WIP Activity Requests' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('approved_completed_wip_activity_requests_page') %} active {% endif %}"
+                           href="{{ url_for('approved_completed_wip_activity_requests_page') }}">
                         <i class="fa-solid fa-folder-open"></i>
-                        <span>Approved Reconciliations</span>
+                        <span>Approved Completed WIP Activity Requests</span>
                         </a>
                      {% endif %}
+
+                     {% if 'Work In Progress' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('work_in_progress_page') %} active {% endif %}"
+                           href="{{ url_for('work_in_progress_page') }}">
+                           <i class="fa fa-spinner"></i>
+                        <span>Work in Progress</span>
+                              {% if completed_wip_activity_requests_pending_submission_count > 0 %}
+                                 <span class="badge badge-danger rounded-pill ml-1">{{ completed_wip_activity_requests_pending_submission_count }}</span>
+                              {% endif %}
+                        </a>
+                     {% endif %}
+
                   </div>
                   <div class="panel-heading">
                      <a data-toggle="collapse" data-parent="#accordion" href="#collapse3"
@@ -448,12 +444,46 @@
                      <i class="fa fa-caret-down caret-icon"></i>
                      </a>
                   </div>
+
                   <div id="collapse3" class="panel-collapse collapse" data-parent="#accordion">
-                     {% if 'Report - All Submitted Reconciliations' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('report_all_submitted_reconciliations_page') %} active {% endif %}"
-                           href="{{ url_for('report_all_submitted_reconciliations_page') }}">
+
+                     {% if 'Report - All Submitted Activity Requests' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('report_all_submitted_activity_requests_page') %} active {% endif %}"
+                           href="{{ url_for('report_all_submitted_activity_requests_page') }}">
                         <i class="fa-solid fa-file-invoice-dollar"></i>
-                        <span>All Submitted Reconciliations</span>
+                        <span>Activity Requests - All Submissions</span>
+                        </a>
+                     {% endif %}
+
+                     {% if 'Report - Fully Approved Activity Requests' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('report_fully_approved_activity_requests_page') %} active {% endif %}"
+                           href="{{ url_for('report_fully_approved_activity_requests_page') }}">
+                        <i class="fa-solid fa-check-square"></i>
+                        <span>Activity Requests - Fully Approved</span>
+                        </a>
+                     {% endif %}
+
+                     {% if 'Report - Activity Requests Pending Approval' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('report_activity_requests_pending_approval_page') %} active {% endif %}"
+                           href="{{ url_for('report_activity_requests_pending_approval_page') }}">
+                        <i class="fa-solid fa-clock"></i>
+                        <span>Activity Requests - Pending Approval</span>
+                        </a>
+                     {% endif %}
+
+                     {% if 'Report - Activity Requests Pending Submission' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('report_activity_requests_pending_submission_page') %} active {% endif %}"
+                           href="{{ url_for('report_activity_requests_pending_submission_page') }}">
+                        <i class="fa-solid fa-hourglass-half"></i>
+                        <span>Activity Requests - Pending Submission</span>
+                        </a>
+                     {% endif %}
+
+                     {% if 'Report - Rejected Activity Requests' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('report_rejected_activity_requests_page') %} active {% endif %}"
+                           href="{{ url_for('report_rejected_activity_requests_page') }}">
+                        <i class="fa-solid fa-ban"></i>
+                        <span>Activity Requests - Rejected</span>
                         </a>
                      {% endif %}
 
@@ -465,35 +495,43 @@
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Fully Approved Reconciliations' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('report_fully_approved_reconciliations_page') %} active {% endif %}"
-                           href="{{ url_for('report_fully_approved_reconciliations_page') }}">
-                        <i class="fa-solid fa-check-square"></i>
-                        <span>Fully Approved Reconciliations</span>
+                     {% if 'Report - All Submitted Activity Requests' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('report_all_submitted_completed_wip_activity_requests_page') %} active {% endif %}"
+                           href="{{ url_for('report_all_submitted_completed_wip_activity_requests_page') }}">
+                        <i class="fas fa-clipboard-check"></i>
+                        <span>Completed WIP Activity Requests - All Submissions</span>
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Reconciliations Pending Approval' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('report_reconciliations_pending_approval_page') %} active {% endif %}"
-                           href="{{ url_for('report_reconciliations_pending_approval_page') }}">
-                        <i class="fa-solid fa-clock"></i>
-                        <span>Reconciliations Pending Approval</span>
+                     {% if 'Report - Activity Requests Pending Approval' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('report_completed_wip_activity_requests_pending_approval_page') %} active {% endif %}"
+                           href="{{ url_for('report_completed_wip_activity_requests_pending_approval_page') }}">
+                        <i class="fas fa-list-check"></i>
+                        <span>Completed WIP Activity Requests - Pending Approval</span>
                         </a>
                      {% endif %}
 
-                     {% if 'Report - Reconciliations Pending Submission' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('report_reconciliations_pending_submission_page') %} active {% endif %}"
-                           href="{{ url_for('report_reconciliations_pending_submission_page') }}">
+                     {% if 'Report - Fully Approved Activity Requests' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('report_fully_approved_completed_wip_activity_requests_page') %} active {% endif %}"
+                           href="{{ url_for('report_fully_approved_completed_wip_activity_requests_page') }}">
+                        <i class="fas fa-box-archive"></i>
+                        <span>Completed WIP Activity Requests - Fully Approved</span>
+                        </a>
+                     {% endif %}
+
+                     {% if 'Report - Rejected Activity Requests' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('report_rejected_completed_wip_activity_requests_page') %} active {% endif %}"
+                           href="{{ url_for('report_rejected_completed_wip_activity_requests_page') }}">
+                        <i class="fas fa-triangle-exclamation"></i>
+                        <span>Completed WIP Activity Requests - Rejected</span>
+                        </a>
+                     {% endif %}
+
+                     {% if 'Report - Activity Requests Pending Submission' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('report_completed_wip_activity_requests_pending_submission_page') %} active {% endif %}"
+                           href="{{ url_for('report_completed_wip_activity_requests_pending_submission_page') }}">
                         <i class="fa-solid fa-hourglass-half"></i>
-                        <span>Reconciliations Pending Submission</span>
-                        </a>
-                     {% endif %}
-
-                     {% if 'Report - Rejected Reconciliations' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('report_rejected_reconciliations_page') %} active {% endif %}"
-                           href="{{ url_for('report_rejected_reconciliations_page') }}">
-                        <i class="fa-solid fa-ban"></i>
-                        <span>Rejected Reconciliations</span>
+                        <span>Work In Progress</span>
                         </a>
                      {% endif %}
 
@@ -509,35 +547,11 @@
                   </div>
                   <div id="collapse4" class="panel-collapse collapse" data-parent="#accordion">
 
-                     {% if 'Admin - Bank Account Responsible User' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('admin_bank_account_responsible_user') %} active {% endif %}"
-                           href="{{ url_for('admin_bank_account_responsible_user') }}">
-                        <i class="fas fa-user-shield"></i>
-                        <span>Bank Account Responsible User</span>
-                        </a>
-                     {% endif %}
-
-                     {% if 'Admin - Bank Accounts' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('admin_bank_accounts') %} active {% endif %}"
-                           href="{{ url_for('admin_bank_accounts') }}">
-                        <i class="fas fa-credit-card"></i>
-                        <span>Bank Accounts</span>
-                        </a>
-                     {% endif %}
-
-                     {% if 'Admin - Banks' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('admin_banks') %} active {% endif %}"
-                           href="{{ url_for('admin_banks') }}">
-                        <i class="fas fa-university"></i>
-                        <span>Banks</span>
-                        </a>
-                     {% endif %}
-
-                     {% if 'Admin - Currencies' in menu_items %}
-                        <a class="nav-link {% if request.path == url_for('admin_currencies') %} active {% endif %}"
-                           href="{{ url_for('admin_currencies') }}">
-                        <i class="fas fa-credit-card"></i>
-                        <span>Currencies</span>
+                     {% if 'Admin - Key Processes' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('admin_key_processes') %} active {% endif %}"
+                           href="{{ url_for('admin_key_processes') }}">
+                        <i class="fas fa-key"></i>
+                        <span>Key Processes</span>
                         </a>
                      {% endif %}
 
@@ -578,6 +592,14 @@
                            href="{{ url_for('admin_roles') }}">
                         <i class="fas fa-users-cog"></i>
                         <span>Roles</span>
+                        </a>
+                     {% endif %}
+
+                     {% if 'Admin - Team Member Roles' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('team_member_role') %} active {% endif %}"
+                           href="{{ url_for('team_member_role') }}">
+                        <i class="fas fa-id-badge"></i>
+                        <span>Team Member Roles</span>
                         </a>
                      {% endif %}
 
@@ -650,12 +672,12 @@
             {% include 'includes/role_edit_modal.html' %}
             {% include 'includes/user_role_add_modal.html' %}
             {% include 'includes/user_role_edit_modal.html' %}
-            {% include 'includes/bank_add_modal.html' %}
-            {% include 'includes/bank_edit_modal.html' %}
+            {% include 'includes/team_member_role_add_modal.html' %}
+            {% include 'includes/team_member_role_edit_modal.html' %}
             {% include 'includes/bank_account_add_modal.html' %}
             {% include 'includes/bank_account_edit_modal.html' %}
-            {% include 'includes/currency_add_modal.html' %}
-            {% include 'includes/currency_edit_modal.html' %}
+            {% include 'includes/key_process_add_modal.html' %}
+            {% include 'includes/key_process_edit_modal.html' %}
             {% include 'includes/bank_account_responsible_user_add_modal.html' %}
             {% include 'includes/bank_account_responsible_user_edit_modal.html' %}
             {% include 'includes/organisation_unit_tier_add_modal.html' %}

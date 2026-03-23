@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    Reconciliations Pending Submission
+    Activity Requests Pending Submission
 {% endblock %}
 
 {% block page_title %}
-    <div data-page-title>Reconciliations Pending Submission</div>
+    <div data-page-title>Activity Requests Pending Submission</div>
 {% endblock %}
 
 
@@ -13,85 +13,147 @@
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Reconciliations Pending Submission</span>
-
+           <span>Activity Requests Pending Submission</span>
             <div class="d-flex align-items-center flex-wrap gap-2 py-2">
                 <div class="input-group input-group-sm" style="max-width: 200px;">
                     <span class="input-group-text text-muted"
                           style="font-weight: 400; font-size: 0.8rem; color: #484a52; height: calc(1.5em + 0.5rem + 2px);">
-                        Days Overdue From
+                        From
                     </span>
-                    <input type="number" id="minOverdue" class="form-control"
-                           placeholder="Overdue days above"
-                           style="height: calc(1.5em + 0.5rem + 2px); text-align: right;">
+                    <input type="text" id="minDate" class="form-control"
+                           placeholder="Start Date/Time"
+                           style="height: calc(1.4em + 0.5rem + 2px);">
                 </div>
 
                 <div class="input-group input-group-sm" style="max-width: 200px;">
                     <span class="input-group-text text-muted"
                           style="font-weight: 400; font-size: 0.8rem; color: #484a52; height: calc(1.5em + 0.5rem + 2px);">
-                        Days Overdue To
+                        To
                     </span>
-                    <input type="number" id="maxOverdue" class="form-control"
-                           placeholder="Overdue days below"
-                           style="height: calc(1.5em + 0.5rem + 2px); text-align: right;">
+                    <input type="text" id="maxDate" class="form-control"
+                           placeholder="End Date/Time"
+                           style="height: calc(1.4em + 0.5rem + 2px);">
                 </div>
             </div>
         </div>
 
-        <div class="card-body">
-            <table id="uploadedFilesTable" class="table table-striped table-bordered table-hover paginated">
-                <thead>
-                    <tr>
-                        <th data-orderable="false" data-ordering="false">#</th> <!-- Row number column -->
-                        <th>Bank Account</th>
-                        <th>Year</th>
-                        <th>Month</th>
-                        <th>Days Overdue</th>
-                        <th>Responsible Person(s)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for reconciliation in reconciliations %}
-                    <tr>
-                        <td>{{ loop.index }}</td> <!-- Display row number -->
-                        <td>{{ reconciliation.bank_account }}</td>
-                        <td>{{ reconciliation.year }}</td>
-                        <td>{{ reconciliation.month }}</td>
-                        <td>{{ reconciliation.days_overdue }}</td>
-                        <td>{{ reconciliation.responsible_users }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td style="text-align: center;">No submitted reconciliations found.</td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="card">
+            <div class="card-body">
+                <table id="savedActivityRequestsTable" class="table table-striped table-bordered table-hover paginated">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Requester</th>
+                            <th>Project Code</th>
+                            <th>Project Name</th>
+                            <th>Subject</th>
+                            <th>Last Modified</th>
+                            <th>Status</th>
+                            <th>Approvals</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for activity_request_detail in activity_request_details %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ activity_request_detail.name }}</td>
+                            <td>{{ activity_request_detail.project_code }}</td>
+                            <td>{{ activity_request_detail.project_name }}</td>
+                            <td>{{ activity_request_detail.subject }}</td>
+                            <td>{{ activity_request_detail.last_modified.strftime('%Y-%m-%d %I:%M %p') }}</td>
+                            <td>{{ activity_request_detail.status }}</td>
+                            <td class="text-center" data-orderable="false" data-ordering="false">
+                                <button class="btn btn-sm btn-outline-custom view-request-btn"
+                                        type="button"
+                                        data-activity-request-id="{{ activity_request_detail.id }}">
+                                            <i class="fa-solid fa-circle-check"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
 <script>
-    // Custom numeric filter for Days Overdue
-    $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-        let min = parseInt($('#minOverdue').val(), 10);
-        let max = parseInt($('#maxOverdue').val(), 10);
-        let overdue = parseInt(data[4], 10); // "Days Overdue" column index is 4
+    window.workFlowId = 1;
 
-        if (isNaN(overdue)) return false; // exclude rows without valid integer
+    function showFlashMessage(message, type) {
+        let title = "Notification"; // Default title
 
-        if ((isNaN(min) || overdue >= min) && (isNaN(max) || overdue <= max)) {
-            return true;
+        if (type === "danger") {
+            title = "Error";
+        } else if (type === "success") {
+            title = "Success";
+        } else if (type === "warning") {
+            title = "Warning";
         }
-        return false;
-    });
 
-    $(document).ready(function () {
-        const table = $('#uploadedFilesTable').DataTable({
+        $("#flashMessageTitle").text(title);
+        $("#flashMessageBody").html(message);
+        $("#flashMessageModal").modal("show");
+    }
+
+    $(document).ready(function() {
+        // Custom filter for DataTables
+        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+            let min = $('#minDate').val();
+            let max = $('#maxDate').val();
+            let dateStr = data[6]; // Adjust index if "Last Modified" is not at index 6
+
+            if (!dateStr) return true; // Include rows without a date
+
+            let rowDate = flatpickr.parseDate(dateStr, "Y-m-d H:i");
+            if (!rowDate) return true; // Include if unable to parse
+
+            min = min ? flatpickr.parseDate(min, "Y-m-d H:i") : null;
+            max = max ? flatpickr.parseDate(max, "Y-m-d H:i") : null;
+
+            if (
+                (!min && !max) ||
+                (!min && rowDate <= max) ||
+                (min <= rowDate && !max) ||
+                (min <= rowDate && rowDate <= max)
+            ) {
+                return true;
+            }
+            return false;
+        });
+        // Calculate default date range (last 30 days)
+        let now = new Date();
+        let thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(now.getDate() - 30);
+
+        // Format dates for Flatpickr input (Y-m-d H:i)
+        function formatDate(date) {
+            return date.getFullYear() + "-" +
+                String(date.getMonth() + 1).padStart(2, '0') + "-" +
+                String(date.getDate()).padStart(2, '0') + " " +
+                String(date.getHours()).padStart(2, '0') + ":" +
+                String(date.getMinutes()).padStart(2, '0');
+        }
+
+        $("#minDate").val(formatDate(thirtyDaysAgo));
+        $("#maxDate").val(formatDate(now));
+
+        // Initialize Flatpickr
+        flatpickr("#minDate", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            time_24hr: true,
+            allowInput: true
+        });
+        flatpickr("#maxDate", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            time_24hr: true,
+            allowInput: true
+        });
+
+        const table = $('#savedActivityRequestsTable').DataTable({
             paging: true,
             searching: true,
             ordering: true,
@@ -151,13 +213,15 @@
                     className: 'btn btn-secondary',
                     orientation: 'landscape',
                     title: function () {
-                        let minOverdue = $('#minOverdue').val();
-                        let maxOverdue = $('#maxOverdue').val();
+                        let fromDate = $('#minDate').val();
+                        let toDate = $('#maxDate').val();
 
-                        let from = minOverdue ? minOverdue + " days" : "0 days";
-                        let to = maxOverdue ? maxOverdue + " days" : "∞ days";
+                        // Format as "01 July 2025"
+                        const options = { day: '2-digit', month: 'long', year: 'numeric' };
+                        let from = new Date(fromDate).toLocaleDateString(undefined, options);
+                        let to = new Date(toDate).toLocaleDateString(undefined, options);
 
-                        return 'Reconciliations Pending Submission – Overdue From ' + from + ' To ' + to;
+                        return 'Submitted Activity Requests ' + from + ' - ' + to;
                     },
                     customize: function (doc) {
                         // Insert logo (left-aligned)
@@ -186,13 +250,15 @@
                     className: 'btn btn-secondary',
                     orientation: 'landscape',
                     title: function () {
-                        let minOverdue = $('#minOverdue').val();
-                        let maxOverdue = $('#maxOverdue').val();
+                        let fromDate = $('#minDate').val();
+                        let toDate = $('#maxDate').val();
 
-                        let from = minOverdue ? minOverdue + " days" : "0 days";
-                        let to = maxOverdue ? maxOverdue + " days" : "∞ days";
+                        // Format as "01 July 2025"
+                        const options = { day: '2-digit', month: 'long', year: 'numeric' };
+                        let from = new Date(fromDate).toLocaleDateString(undefined, options);
+                        let to = new Date(toDate).toLocaleDateString(undefined, options);
 
-                        return 'Reconciliations Pending Submission – Overdue From ' + from + ' To ' + to;
+                        return 'Submitted Activity Requests ' + from + ' - ' + to;
                     },
                     customize: function (win) {
                         // Add logo (left-aligned)
@@ -231,27 +297,47 @@
             ]
         });
 
-        // Add dynamic row numbering in the UI
+        // Add dynamic row numbering
         table.on('order.dt search.dt draw.dt', function () {
             table.column(0, { search: 'applied', order: 'applied' }).nodes().each(function (cell, i) {
                 cell.innerHTML = i + 1;
             });
         }).draw();
 
-        // Automatically set min/max inputs to table's min/max Days Overdue
-        let overdueValues = table.column(4).data().map(x => parseInt(x, 10)).toArray().filter(Number.isFinite);
-        if (overdueValues.length) {
-            let minValue = Math.min(...overdueValues);
-            let maxValue = Math.max(...overdueValues);
-            $('#minOverdue').val(minValue);
-            $('#maxOverdue').val(maxValue);
-        }
+        // Filter table on initial load for last 30 days
+        table.draw();
 
-        // Redraw when user changes min/max filters
-        $('#minOverdue, #maxOverdue').on('keyup change', function () {
+        // Redraw when user changes date filters
+        $('#minDate, #maxDate').on('change', function () {
             table.draw();
         });
+
+        // Calling the activity_request_file_details_modal.html
+        $(document).on("click", ".view-request-btn", function() {
+            let row = $(this).closest("tr");
+
+            let activityRequestId = $(this).data("activity-request-id");
+            let requester = row.find("td:nth-child(2)").text().trim();
+            let projectCode = row.find("td:nth-child(3)").text().trim();
+            let projectName = row.find("td:nth-child(4)").text().trim();
+            let lastModified = row.find("td:nth-child(6)").text().trim();
+
+            // Populate the modal fields
+            $("#viewRequester").text(requester);
+            $("#viewProjectCode").text(projectCode);
+            $("#viewProjectName").text(projectName);
+            $("#viewApproveAs").text(approveAs);
+            $("#viewLastModified").text(lastModified);
+
+            // Fetch workflow details
+            loadActivityRequestApprovalWorkflow(activityRequestId, window.workFlowId);
+
+            // Show the modal after data is populated
+            $("#viewRequestModal").modal("show");
+        });
+
     });
+
 </script>
 
 {% endblock %}

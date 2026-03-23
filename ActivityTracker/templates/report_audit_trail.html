@@ -315,7 +315,7 @@
     });
 
     // Handle "Download File" button click
-    $(document).on("click", ".download-btn", function() {
+    $(document).off("click", ".download-btn").on("click", ".download-btn", function() {
         let fileName = $(this).data("filename");
         if (fileName) {
             window.location.href = `/download/${encodeURIComponent(fileName)}`;

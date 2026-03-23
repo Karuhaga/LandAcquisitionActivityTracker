@@ -3,7 +3,7 @@ from ActivityTracker.models import (User, FileUploadBatch, FileUpload, FileDelet
                                     ReconciliationApprovals, WorkflowBreakdown, EmailHelper, Audit, UserSummary,
                                     Role, UserRole, Currency, BankAccountResponsibleUser, OrganisationUnitTier,
                                     OrganisationUnit, Workflow, Project, MenuItem, ActivityRequest,
-                                    ActivityRequestApprovals, ActivityRequestLog)
+                                    ActivityRequestApprovals, ActivityRequestLog, TeamMemberRole, KeyProcess)
 from ActivityTracker.forms import LoginForm
 from flask import render_template, redirect, url_for, flash, request, jsonify, session, send_from_directory, abort
 import re
@@ -623,7 +623,7 @@ def save_activity_request():
 
 @app.route('/save_activity_request_log', methods=['POST'])
 @login_required
-@role_required(1, 25)
+@role_required(1, 25, 59, 69, 70, 71)
 def save_activity_request_log():
     try:
         data = json.loads(request.form.get("data", "{}"))
@@ -1127,7 +1127,7 @@ def update_activity_request():
 
 @app.route('/submit-wip-activity-for-approval/<int:activity_task_request_id>', methods=['POST'])
 @login_required
-@role_required(1, 25)
+@role_required(1, 25, 58, 59, 69, 70, 71, 72)
 def submit_wip_activity_for_approval(activity_task_request_id):
     try:
         is_user_requester_of_activity = ActivityRequestLog.get_is_user_requester_of_activity(activity_task_request_id, current_user.id)
@@ -1236,7 +1236,7 @@ def send_email_reminders():
                     EmailHelper.email_reminder_to_approve_submitted_completed_wip_activity_requests(user_fname_email["fname"], user_fname_email["email"], pending_approval_details)
 
 
-@app.route('/submitted-reconciliations', methods=['GET', 'POST'])
+@app.route('/submitted_activity_requests', methods=['GET', 'POST'])
 @login_required
 @role_required(2, 26)
 def submitted_activity_requests_page():
@@ -1247,11 +1247,12 @@ def submitted_activity_requests_page():
 
 @app.route('/work-in-progress', methods=['GET', 'POST'])
 @login_required
-@role_required(2, 26)
+@role_required(2, 26, 58, 69, 70, 71, 72)
 def work_in_progress_page():
     activity_request_details = ActivityRequest.get_wip_activity_request_details(1, current_user.id)
     return render_template('work_in_progress.html',
                            activity_request_details=activity_request_details)
+
 
 @app.route('/approve-activity-requests', methods=['GET', 'POST'])
 @login_required
@@ -1264,7 +1265,7 @@ def approve_activity_requests_page():
 
 @app.route('/approve-completed-wip-activity-requests', methods=['GET', 'POST'])
 @login_required
-@role_required(3, 5, 27, 47)
+@role_required(3, 5, 27, 47, 52)
 def approve_completed_wip_activity_requests_page():
     activity_requests = ActivityRequestLog.get_completed_wip_activity_requests_pending_approval(current_user.id)
     return render_template(
@@ -1273,19 +1274,27 @@ def approve_completed_wip_activity_requests_page():
 
 @app.route('/submitted-work-in-progress', methods=['GET', 'POST'])
 @login_required
-@role_required(2, 26)
+@role_required(2, 26, 57)
 def submitted_work_in_progress_page():
     submitted_wip_activities = ActivityRequestLog.get_submitted_and_approved_wip_activity_requests(current_user.id, 3, 1)
     return render_template(
         'submitted_work_in_progress.html', submitted_wip_activities=submitted_wip_activities)
 
 
-@app.route('/approved-reconciliations', methods=['GET', 'POST'])
+@app.route('/approved-activity-requests', methods=['GET', 'POST'])
 @login_required
 @role_required(4, 6, 28, 48)
-def approved_reconciliations_page():
-    reconciliations = FileUpload.get_approved_reconciliations(current_user.id)
-    return render_template('approved_reconciliations.html', reconciliations=reconciliations)
+def approved_activity_requests_page():
+    activity_requests = ActivityRequestLog.get_approved_activity_requests(current_user.id)
+    return render_template('approved_activity_requests.html', activity_requests=activity_requests)
+
+
+@app.route('/approved-completed-wip-activity-requests', methods=['GET', 'POST'])
+@login_required
+@role_required(4, 6, 28, 48)
+def approved_completed_wip_activity_requests_page():
+    activity_requests = ActivityRequestLog.get_approved_completed_wip_activity_requests(current_user.id)
+    return render_template('approved_completed_wip_activity_requests.html', activity_requests=activity_requests)
 
 
 @app.route('/approve-activity-requests-update', methods=['POST'])
@@ -1318,6 +1327,7 @@ def approve_activity_requests_update():
         for file in files:
             activity_request_id = file.get("activity_request_id")
 
+            print(action)
             # Update file status
             updated_activity_request_record = (ActivityRequestApprovals.update_activity_request_approval_status
                                                (activity_request_id, action, 1))
@@ -1806,20 +1816,36 @@ def download_log_file(filename):
         abort(404)
 
 
-@app.route('/report-reconciliations-pending-submission', methods=['GET', 'POST'])
+@app.route('/report-activity-requests-pending-submission', methods=['GET', 'POST'])
 @login_required
 @role_required(7, 11, 15, 29, 52)
-def report_reconciliations_pending_submission_page():
-    reconciliations = FileUpload.get_reconciliations_pending_submission()
-    return render_template('report_reconciliations_pending_submission.html', reconciliations=reconciliations)
+def report_activity_requests_pending_submission_page():
+    activity_request_details = ActivityRequest.get_all_activity_requests_pending_submission_details(1)
+    return render_template('report_activity_requests_pending_submission.html', activity_request_details=activity_request_details)
 
 
-@app.route('/report-all-submitted-reconciliations', methods=['GET', 'POST'])
+@app.route('/report-completed-wip-activity-requests-pending-submission', methods=['GET', 'POST'])
+@login_required
+@role_required(7, 11, 15, 29, 52)
+def report_completed_wip_activity_requests_pending_submission_page():
+    activity_request_details = ActivityRequest.get_all_completed_wip_activity_requests_pending_submission_details(3)
+    return render_template('report_completed_wip_activity_requests_pending_submission.html', activity_request_details=activity_request_details)
+
+
+@app.route('/report-all-submitted-activity-requests', methods=['GET', 'POST'])
 @login_required
 @role_required(8, 12, 16, 31, 49)
-def report_all_submitted_reconciliations_page():
-    reconciliations = FileUpload.get_all_submitted_reconciliations()
-    return render_template('report_all_submitted_activity_requests.html', reconciliations=reconciliations)
+def report_all_submitted_activity_requests_page():
+    activity_request_details = ActivityRequest.get_all_submitted_activity_request_details(1)
+    return render_template('report_all_submitted_activity_requests.html', activity_request_details=activity_request_details)
+
+
+@app.route('/report-all-submitted-completed-wip-activity-requests', methods=['GET', 'POST'])
+@login_required
+@role_required(8, 12, 16, 31, 49)
+def report_all_submitted_completed_wip_activity_requests_page():
+    activity_request_details = ActivityRequest.get_all_submitted_completed_wip_activity_request_details(1)
+    return render_template('report_all_submitted_completed_wip_activity_requests.html', activity_request_details=activity_request_details)
 
 
 @app.route('/report-audit-trail', methods=['GET', 'POST'])
@@ -1830,28 +1856,52 @@ def report_report_audit_trail_page():
     return render_template('report_audit_trail.html', audit_trail_records=audit_trail_records)
 
 
-@app.route('/report-reconciliations-pending-approval', methods=['GET', 'POST'])
+@app.route('/report-activity-requests-pending-approval-page', methods=['GET', 'POST'])
 @login_required
 @role_required(9, 13, 17, 32, 51)
-def report_reconciliations_pending_approval_page():
-    reconciliations = FileUpload.get_reconciliations_pending_approval_report()
-    return render_template('report_reconciliations_pending_approval.html', reconciliations=reconciliations)
+def report_activity_requests_pending_approval_page():
+    activity_request_details = ActivityRequest.get_activity_requests_pending_approval_details(1)
+    return render_template('report_activity_requests_pending_approval.html', activity_request_details=activity_request_details)
 
 
-@app.route('/report-fully-approved-reconciliations', methods=['GET', 'POST'])
+@app.route('/report-completed-wip-activity-requests-pending-approval', methods=['GET', 'POST'])
+@login_required
+@role_required(9, 13, 17, 32, 51)
+def report_completed_wip_activity_requests_pending_approval_page():
+    activity_request_details = ActivityRequest.get_completed_wip_activity_requests_pending_approval_details(3)
+    return render_template('report_completed_wip_activity_requests_pending_approval.html', activity_request_details=activity_request_details)
+
+
+@app.route('/report-fully-approved-activity-requests', methods=['GET', 'POST'])
 @login_required
 @role_required(10, 14, 18, 33, 50)
-def report_fully_approved_reconciliations_page():
-    reconciliations = FileUpload.get_fully_approved_reconciliations_report()
-    return render_template('report_fully_approved_reconciliations.html', reconciliations=reconciliations)
+def report_fully_approved_activity_requests_page():
+    activity_request_details = ActivityRequest.get_fully_approved_activity_request_details(1, 1)
+    return render_template('report_fully_approved_activity_requests.html', activity_request_details=activity_request_details)
 
 
-@app.route('/report-rejected-reconciliations', methods=['GET', 'POST'])
+@app.route('/report-fully-approved-completed-wip-activity-requests', methods=['GET', 'POST'])
+@login_required
+@role_required(10, 14, 18, 33, 50)
+def report_fully_approved_completed_wip_activity_requests_page():
+    activity_request_details = ActivityRequest.get_fully_approved_completed_wip_activity_request_details(1, 3)
+    return render_template('report_fully_approved_completed_wip_activity_requests.html', activity_request_details=activity_request_details)
+
+
+@app.route('/report-rejected-activity-requests', methods=['GET', 'POST'])
 @login_required
 @role_required(19, 20, 21, 34, 53)
-def report_rejected_reconciliations_page():
-    reconciliations = FileUpload.get_rejected_reconciliations_report()
-    return render_template('report_rejected_reconciliations.html', reconciliations=reconciliations)
+def report_rejected_activity_requests_page():
+    activity_request_details = ActivityRequest.get_rejected_activity_requests_details(1, 3)
+    return render_template('report_rejected_activity_requests.html', activity_request_details=activity_request_details)
+
+
+@app.route('/report-rejected-completed-wip-activity-requests', methods=['GET', 'POST'])
+@login_required
+@role_required(19, 20, 21, 34, 53)
+def report_rejected_completed_wip_activity_requests_page():
+    activity_request_details = ActivityRequest.get_rejected_completed_wip_activity_requests_details(3, 3)
+    return render_template('report_rejected_completed_wip_activity_requests.html', activity_request_details=activity_request_details)
 
 
 @app.route('/admin-users', methods=['GET', 'POST'])
@@ -2307,107 +2357,200 @@ def admin_update_user_role():
         return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
 
 
-@app.route('/admin-banks', methods=['GET', 'POST'])
+@app.route('/team-member-role', methods=['GET', 'POST'])
 @login_required
 @role_required(36)
-def admin_banks():
-    bank_details = BankAccount.get_all_bank_details()
-    return render_template('banks.html', bank_details=bank_details)
+def team_member_role():
+    team_member_roles = TeamMemberRole.get_all_team_member_roles()
+    return render_template('team_member_role.html', team_member_roles=team_member_roles)
 
 
-@app.route('/check-bank-name/<string:bankname>', methods=['GET'])
+@app.route('/check-team-member-role-name/<string:teamMemberRoleName>', methods=['GET'])
 @login_required
-def check_bank_name_exists(bankname):
-    exists = BankAccount.bank_name_exists(bankname)
+def check_team_member_role_name_exists(teamMemberRoleName):
+    exists = TeamMemberRole.team_member_role_name_exists(teamMemberRoleName)
     return jsonify({"exists": exists})
 
 
-@app.route('/admin-register-new-bank', methods=['POST'])
+@app.route('/check-key-process-name/<string:key_process_name>', methods=['GET'])
+@login_required
+def check_key_process_name_exists(key_process_name):
+    exists = KeyProcess.key_process_name_exists(key_process_name)
+    return jsonify({"exists": exists})
+
+
+@app.route('/admin-register-new-team-member-role', methods=['POST'])
 @login_required
 @role_required(36)
-def admin_register_new_bank():
-    print('hello')
+def admin_register_new_team_member_role():
     data = request.get_json()
-    print("Received data:", data)
 
     try:
         # Extract fields
-        bankname = data.get("bankName", "").strip()
+        team_member_role_ = data.get("teamMemberRoleName", "").strip()
 
         # Validate required fields
-        if not all([bankname]):
+        if not all([team_member_role_]):
             return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
 
         # Insert user into DB (pseudo-function: implement in your model)
-        result = BankAccount.insert_new_bank(bank_name=bankname)
+        result = TeamMemberRole.insert_new_team_member_role(name=team_member_role_)
         if result:
             # update audit trail
             user_id = current_user.id
             Audit.log_audit_trail(
                 user_id=user_id,
-                action="Insert into table: bank",
-                details=f"Add Bank, bank_name: '{bankname}'",
+                action="Insert into table: team_member_role",
+                details=f"Add team_member_role, role name: '{team_member_role_}'",
                 ip_address=request.remote_addr
             )
-            return jsonify({"message": "Bank added successfully."}), 200
+            return jsonify({"message": "Team Member Role added successfully."}), 200
         else:
-            return jsonify({"error": "Failed to insert bank.", "type": "danger"}), 500
+            return jsonify({"error": "Failed to insert Team Member Role.", "type": "danger"}), 500
 
     except Exception as e:
         print("Error inserting new user:", e)
         return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
 
 
-@app.route("/get-bank-details", methods=["GET"])
-def get_bank_details():
-    bankname = request.args.get("bank_name")
-    bankdetails = BankAccount.get_bank_details(bankname)
-
-    if not bankdetails:
-        return jsonify({"error": "Bank not found"}), 404
-
-    bank = bankdetails[0]
-
-    # Serialize manually
-    bank_data = {
-        "id": bank.id,
-        "bankname": bank.name
-    }
-    return jsonify(bank_data)
-
-
-@app.route('/admin-update-bank', methods=['POST'])
+@app.route('/admin-register-new-key-process', methods=['POST'])
 @login_required
 @role_required(36)
-def admin_update_bank():
+def admin_register_new_key_process():
     data = request.get_json()
 
     try:
         # Extract fields
-        bank_id = data.get("bank_id")
-        bank_name = data.get("bank_name")
+        key_process_name_ = data.get("key_process_name", "").strip()
 
         # Validate required fields
-        if not bank_id or not bank_name or bank_name.strip() == "":
+        if not all([key_process_name_]):
             return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
 
         # Insert user into DB (pseudo-function: implement in your model)
-        result = BankAccount.update_bank(bank_id, bank_name)
+        result = KeyProcess.insert_new_key_process(name=key_process_name_)
         if result:
             # update audit trail
             user_id = current_user.id
             Audit.log_audit_trail(
                 user_id=user_id,
-                action="Update table: bank",
-                details=f"Update Bank, bank_id: '{bank_id}': bank_name: '{bank_name}'",
+                action="Insert into table: mst_key_process",
+                details=f"Add key process, process name: '{key_process_name_}'",
                 ip_address=request.remote_addr
             )
-            return jsonify({"message": "Bank updated successfully."}), 200
+            return jsonify({"message": "Key Process added successfully."}), 200
         else:
-            return jsonify({"error": "Failed to update bank.", "type": "danger"}), 500
+            return jsonify({"error": "Failed to insert Key Process.", "type": "danger"}), 500
 
     except Exception as e:
-        print("Error inserting new bank:", e)
+        print("Error inserting new key process:", e)
+        return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
+
+
+@app.route("/get-team-member-role-details", methods=["GET"])
+def get_bank_details():
+    team_member_role_name = request.args.get("team_member_role_name")
+    team_member_role_details = TeamMemberRole.get_team_member_role_details(team_member_role_name)
+
+    if not team_member_role_details:
+        return jsonify({"error": "Bank not found"}), 404
+
+    team_member_role = team_member_role_details[0]
+
+    # Serialize manually
+    team_member_role_data = {
+        "id": team_member_role.id,
+        "team_member_role_name": team_member_role.name
+    }
+    return jsonify(team_member_role_data)
+
+
+@app.route("/get-key-process-details", methods=["GET"])
+def get_key_process_details():
+    key_process_name = request.args.get("key_process_name")
+    key_process_details = KeyProcess.get_key_process_details(key_process_name)
+
+    if not key_process_details:
+        return jsonify({"error": "Bank not found"}), 404
+
+    key_process = key_process_details[0]
+
+    # Serialize manually
+    key_process_data = {
+        "id": key_process.id,
+        "key_process_name": key_process.name
+    }
+    return jsonify(key_process_data)
+
+
+@app.route('/admin-update-team-member-role', methods=['POST'])
+@login_required
+@role_required(36)
+def admin_update_team_member_role():
+    data = request.get_json()
+
+    try:
+        # Extract fields
+        team_member_role_id = data.get("team_member_role_id")
+        team_member_role_name_2 = data.get("team_member_role_name_2")
+
+        # Validate required fields
+        if not team_member_role_id or not team_member_role_name_2 or team_member_role_name_2.strip() == "":
+            return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
+
+        # Insert user into DB (pseudo-function: implement in your model)
+        result = TeamMemberRole.update_team_member_role(team_member_role_id, team_member_role_name_2)
+        if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: team_member_role",
+                details=f"Update team_member_role, team_member_role_id: '{team_member_role_id}': "
+                        f"team_member_role_name: '{team_member_role_name_2}'",
+                ip_address=request.remote_addr
+            )
+            return jsonify({"message": "Team Member Role updated successfully."}), 200
+        else:
+            return jsonify({"error": "Failed to update Team Member Role.", "type": "danger"}), 500
+
+    except Exception as e:
+        print("Error inserting new Team Member Role:", e)
+        return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
+
+
+@app.route('/admin-update-key-process', methods=['POST'])
+@login_required
+@role_required(36)
+def admin_update_key_process():
+    data = request.get_json()
+
+    try:
+        # Extract fields
+        key_process_id = data.get("key_process_id")
+        key_process_name_2 = data.get("key_process_name_2")
+
+        # Validate required fields
+        if not key_process_id or not key_process_name_2 or key_process_name_2.strip() == "":
+            return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
+
+        # Insert user into DB (pseudo-function: implement in your model)
+        result = KeyProcess.update_key_process(key_process_id, key_process_name_2)
+        if result:
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: mst_key_process",
+                details=f"Update key_process, key_process_id: '{key_process_id}': "
+                        f"key_process_name: '{key_process_name_2}'",
+                ip_address=request.remote_addr
+            )
+            return jsonify({"message": "Key Process updated successfully."}), 200
+        else:
+            return jsonify({"error": "Failed to update Key Process.", "type": "danger"}), 500
+
+    except Exception as e:
+        print("Error inserting new Key Process:", e)
         return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
 
 
@@ -2519,12 +2662,12 @@ def admin_update_bank_account():
         return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
 
 
-@app.route('/admin-currencies', methods=['GET', 'POST'])
+@app.route('/admin-key-processes', methods=['GET', 'POST'])
 @login_required
 @role_required(37)
-def admin_currencies():
-    currency_details = Currency.get_all_currency_details()
-    return render_template('currencies.html', currency_details=currency_details)
+def admin_key_processes():
+    key_processes = KeyProcess.get_all_key_processes()
+    return render_template('key_processes.html', key_processes=key_processes)
 
 
 @app.route('/check-currency-name/<string:currencyName>', methods=['GET'])

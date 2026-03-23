@@ -54,6 +54,7 @@
                     <thead>
                         <tr>
                             <th>#</th>
+                            <th>Requester</th>
                             <th>Project Code</th>
                             <th>Project Name</th>
                             <th>Subject</th>
@@ -68,6 +69,7 @@
                         {% for activity_request_detail in activity_request_details %}
                         <tr>
                             <td>{{ loop.index }}</td>
+                            <td>{{ activity_request_detail.name }}</td>
                             <td>{{ activity_request_detail.project_code }}</td>
                             <td>{{ activity_request_detail.project_name }}</td>
                             <td>{{ activity_request_detail.subject }}</td>
@@ -131,7 +133,7 @@
 
             let min = $('#minDate').val();
             let max = $('#maxDate').val();
-            let dateStr = data[4];
+            let dateStr = data[5];
 
             if (!dateStr) return true;
 
@@ -357,13 +359,10 @@
             let row = $(this).closest("tr");
 
             let activityRequestId = $(this).data("activity-request-id");
-            let requester = {{ (
-                                    " ".join([current_user.fname, current_user.mname, current_user.sname]
-                                    | select("string") | list)
-                                ) | tojson | safe }};
-            let projectCode = row.find("td:nth-child(2)").text().trim();
-            let projectName = row.find("td:nth-child(3)").text().trim();
-            let subject = row.find("td:nth-child(4)").text().trim();
+            let requester = row.find("td:nth-child(2)").text().trim();;
+            let projectCode = row.find("td:nth-child(3)").text().trim();
+            let projectName = row.find("td:nth-child(4)").text().trim();
+            let subject = row.find("td:nth-child(5)").text().trim();
 
             // Populate the modal fields
             $("#viewRequesterWIP").text(requester);
@@ -430,13 +429,10 @@
             let rowWIPLog = $(this).closest("tr");
 
             let activityTaskRequestId = $(this).data("saved-activity-request-id");
-            let requester = {{ (
-                                    " ".join([current_user.fname, current_user.mname, current_user.sname]
-                                    | select("string") | list)
-                                ) | tojson | safe }};
-            let projectCode = rowWIPLog.find("td:nth-child(2)").text().trim();
-            let projectName = rowWIPLog.find("td:nth-child(3)").text().trim();
-            let subject = rowWIPLog.find("td:nth-child(4)").text().trim();
+            let requester = rowWIPLog.find("td:nth-child(2)").text().trim();
+            let projectCode = rowWIPLog.find("td:nth-child(3)").text().trim();
+            let projectName = rowWIPLog.find("td:nth-child(4)").text().trim();
+            let subject = rowWIPLog.find("td:nth-child(5)").text().trim();
 
             // Populate the modal fields
             $("#viewRequesterWipLog").text(requester);

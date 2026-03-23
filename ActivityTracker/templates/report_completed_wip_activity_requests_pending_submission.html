@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    Approved Activity Requests
+    Completed WIP Activity Requests Pending Submission
 {% endblock %}
 
 {% block page_title %}
-    <div data-page-title>Approved Activity Requests</div>
+    <div data-page-title>Completed WIP Activity Requests Pending Submission</div>
 {% endblock %}
 
 
@@ -13,7 +13,7 @@
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-           <span>Approved Activity Requests</span>
+           <span>Completed WIP Activity Requests Pending Submission</span>
             <div class="d-flex align-items-center flex-wrap gap-2 py-2">
                 <div class="input-group input-group-sm" style="max-width: 200px;">
                     <span class="input-group-text text-muted"
@@ -43,6 +43,7 @@
                     <thead>
                         <tr>
                             <th>#</th>
+                            <th>Requester</th>
                             <th>Project Code</th>
                             <th>Project Name</th>
                             <th>Subject</th>
@@ -53,18 +54,19 @@
                     </thead>
 
                     <tbody>
-                        {% for activity_request in activity_requests %}
+                        {% for activity_request_detail in activity_request_details %}
                         <tr>
                             <td>{{ loop.index }}</td>
-                            <td>{{ activity_request.project_code }}</td>
-                            <td>{{ activity_request.project_name }}</td>
-                            <td>{{ activity_request.subject }}</td>
-                            <td>{{ activity_request.last_modified.strftime('%Y-%m-%d %I:%M %p') }}</td>
-                            <td>{{ activity_request.status }}</td>
+                            <td>{{ activity_request_detail.name }}</td>
+                            <td>{{ activity_request_detail.project_code }}</td>
+                            <td>{{ activity_request_detail.project_name }}</td>
+                            <td>{{ activity_request_detail.subject }}</td>
+                            <td>{{ activity_request_detail.last_modified.strftime('%Y-%m-%d %I:%M %p') }}</td>
+                            <td>{{ activity_request_detail.status }}</td>
                             <td class="text-center" data-orderable="false" data-ordering="false">
                                 <button class="btn btn-sm btn-outline-custom view-request-btn"
                                         type="button"
-                                        data-activity-request-id="{{ activity_request.id }}">
+                                        data-activity-request-id="{{ activity_request_detail.id }}">
                                             <i class="fa-solid fa-circle-check"></i>
                                 </button>
                             </td>
@@ -100,7 +102,7 @@
         $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
             let min = $('#minDate').val();
             let max = $('#maxDate').val();
-            let dateStr = data[4]; // Adjust index if "Last Modified" is not at index 6
+            let dateStr = data[5]; // Adjust index if "Last Modified" is not at index 6
 
             if (!dateStr) return true; // Include rows without a date
 

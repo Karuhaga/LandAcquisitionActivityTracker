@@ -8,8 +8,8 @@ def start_scheduler():
         func=send_email_reminders,
         trigger="cron",
         #day='6-31',  # Exclude days 1 to 5
-        hour=17,
-        minute=47  # 2:50 PM daily
+        hour=10,
+        minute=6  # 2:50 PM daily
     )
     scheduler.start()
     print("Scheduler for Email Reminders started")

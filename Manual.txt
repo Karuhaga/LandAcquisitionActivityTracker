@@ -1,6 +1,26 @@
 Failure to add or update items under the admin panel
-=> The solution is in aligning the @role_required() in the routes.py with (id column of the workflow_breakdown table)
 
-•	Establish a dedicated mobile IT support and helpdesk team to provide timely technical assistance.
-•	Implement a structured and recurring IT training calendar tailored for Land Acquisition teams.
-•	Deploy offline-capable tools—both hardware and software—to ensure continued operations in areas with limited connectivity.
+1. Check the existing records in the following tables:
+
+   * `menu_item`
+   * `workflow_breakdown`
+   * `role_workflow_breakdown`
+
+2. Insert a new entry in the **`menu_item`** table.
+
+3. Create a corresponding entry in the **`workflow_breakdown`** table.
+
+4. Associate the **`workflow_breakdown`** record with the relevant **`menu_item`**.
+
+5. Link the **`workflow_breakdown`** record to the appropriate role in **`role_workflow_breakdown`**.
+
+6. Confirm that the `@role_required()` decorator in `routes.py` matches the **`id`** of the corresponding record in the `workflow_breakdown` table.
+
+   * This allows the system to attach the workflow items to users based on their assigned roles during login.
+
+**Notes**
+
+* Ensure the new **menu item** is added to the navigation menu in `base.html`.
+*
+
+

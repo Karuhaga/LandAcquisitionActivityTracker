@@ -38,7 +38,7 @@
                     {% else %}
                     <tr>
                         <td></td>
-                        <td style="text-align: center; max-width: 150px; word-break: break-all; white-space: normal;">No workflow(s) found.</td>
+                        <td style="text-align: center; max-width: 150px; word-break: break-all; white-space: normal;">No workflow found.</td>
                         <td></td>
                     </tr>
                     {% endfor %}
@@ -69,7 +69,7 @@
         $("#workflowAddModal").modal("show");
     }
 
-    function showConfirmation(actionType) {
+    function showWorkflowConfirmation(actionType) {
         let modalTitle = "";
         let modalMessage = "";
 
