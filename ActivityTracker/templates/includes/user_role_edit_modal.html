@@ -57,7 +57,7 @@
 
 <script>
     // Dynamically update Organisation Unit dropdown list
-    $(document).on("change", "#organisationUnitTier", function () {
+    $(document).off("change", "#organisationUnitTier").on("change", "#organisationUnitTier", function () {
         const selectedTierId = $(this).val();
 
         if (selectedTierId) {

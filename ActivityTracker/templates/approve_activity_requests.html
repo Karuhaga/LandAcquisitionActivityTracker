@@ -148,7 +148,7 @@
                 $("#approvalActionModal").modal("hide");
                 showFlashMessage(response.message, "success");
 
-                $("#flashMessageModal").on("hidden.bs.modal", function() {
+                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function() {
                     // Save expanded panels
                     let expandedPanels = [];
                     $(".panel-collapse.in, .panel-collapse.show").each(function() {
@@ -219,7 +219,7 @@
         });
 
         // Automatically renumber the “#” column
-        table.on('draw.dt', function () {
+        table.off('draw.dt').on('draw.dt', function () {
             var pageInfo = table.page.info();
             table.column(1, { page: 'current' }).nodes().each(function (cell, i) {
                 cell.innerHTML = i + 1 + pageInfo.start;
@@ -228,12 +228,12 @@
 
 
         // Handle "Select All" checkbox
-        $('#selectAll').on('click', function() {
+        $('#selectAll').off('click').on('click', function() {
             $('.rowCheckbox').prop('checked', $(this).prop('checked'));
         });
 
         // Uncheck "Select All" if any row checkbox is unchecked
-        $(document).on('change', '.rowCheckbox', function() {
+        $(document).off('change', '.rowCheckbox').on('change', '.rowCheckbox', function() {
             if (!$(this).prop('checked')) {
                 $('#selectAll').prop('checked', false);
             } else if ($('.rowCheckbox:checked').length === $('.rowCheckbox').length) {
@@ -243,7 +243,7 @@
     });
 
     // Calling the reconciliation_file_details_modal.html
-    $(document).on("click", ".view-request-btn", function() {
+    $(document).off("click", ".view-request-btn").on("click", ".view-request-btn", function() {
         let row = $(this).closest("tr");
 
         let activityRequestId = $(this).data("activity-request-id");

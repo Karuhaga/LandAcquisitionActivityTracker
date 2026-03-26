@@ -213,7 +213,7 @@
             success: function (response) {
                 $("#changeUserPasswordModal").modal("hide");
                 showFlashMessage(response.message, "success");
-                $("#flashMessageModal").on("hidden.bs.modal", function () {
+                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function () {
                     $(".content").load(location.href + " .content > *", function() {
                         initializeRoleDataTable(); // <-- reinitialize after content is loaded
                     });
@@ -280,7 +280,7 @@
                     success: function (response) {
                         $("#addUserModal").modal("hide");
                         showFlashMessage(response.message, "success");
-                    $("#flashMessageModal").on("hidden.bs.modal", function () {
+                    $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function () {
                         $(".content").load(location.href + " .content > *", function() {
                             initializeRoleDataTable();
                         });
@@ -327,7 +327,7 @@
             success: function (response) {
                 $("#editUserModal").modal("hide");
                 showFlashMessage(response.message, "success");
-                $("#flashMessageModal").on("hidden.bs.modal", function () {
+                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function () {
                     $(".content").load(location.href + " .content > *", function() {
                         initializeRoleDataTable(); // <-- reinitialize after content is loaded
                     });
@@ -384,7 +384,7 @@
 
     });
 
-    $(document).on('hidden.bs.modal', function () {
+    $(document).off('hidden.bs.modal').on('hidden.bs.modal', function () {
         if ($('.modal.show').length > 0) {
             // Keep 'modal-open' if any modal is still open
             $('body').addClass('modal-open');

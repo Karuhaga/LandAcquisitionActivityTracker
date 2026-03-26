@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    Approved Activity Requests
+    Approved Completed WIP Activity Requests
 {% endblock %}
 
 {% block page_title %}
-    <div data-page-title>Approved Activity Requests</div>
+    <div data-page-title>Approved Completed WIP Activity Requests</div>
 {% endblock %}
 
 
@@ -13,7 +13,7 @@
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-           <span>Approved Activity Requests</span>
+           <span>Approved Completed WIP Activity Requests</span>
             <div class="d-flex align-items-center flex-wrap gap-2 py-2">
                 <div class="input-group input-group-sm" style="max-width: 200px;">
                     <span class="input-group-text text-muted"
@@ -77,7 +77,7 @@
     </div>
 
 <script>
-    window.workFlowId = 1;
+    window.workFlowId = 3;
 
     function showFlashMessage(message, type) {
         let title = "Notification"; // Default title
@@ -296,7 +296,7 @@
         });
 
         // Add dynamic row numbering
-        table.on('order.dt search.dt draw.dt', function () {
+        table.off('order.dt search.dt draw.dt').on('order.dt search.dt draw.dt', function () {
             table.column(0, { search: 'applied', order: 'applied' }).nodes().each(function (cell, i) {
                 cell.innerHTML = i + 1;
             });
@@ -306,12 +306,12 @@
         table.draw();
 
         // Redraw when user changes date filters
-        $('#minDate, #maxDate').on('change', function () {
+        $('#minDate, #maxDate').off('change').on('change', function () {
             table.draw();
         });
 
         // Calling the activity_request_file_details_modal.html
-        $(document).on("click", ".view-request-btn", function() {
+        $(document).off("click", ".view-request-btn").on("click", ".view-request-btn", function() {
             let row = $(this).closest("tr");
 
             let activityRequestId = $(this).data("activity-request-id");

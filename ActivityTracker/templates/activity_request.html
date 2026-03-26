@@ -1013,11 +1013,11 @@
         initDatePickersActivityRequest($('#taskInputs'));
 
         // Rotate caret icons on accordion expand/collapse
-        $(document).on("show.bs.collapse", "#activityAccordion .collapse", function() {
+        $(document).off("show.bs.collapse", "#activityAccordion .collapse").on("show.bs.collapse", "#activityAccordion .collapse", function() {
             $(this).prev(".card-header").find(".caret-icon2").addClass("rotated");
         });
 
-        $(document).on("hide.bs.collapse", "#activityAccordion .collapse", function() {
+        $(document).off("hide.bs.collapse", "#activityAccordion .collapse").on("hide.bs.collapse", "#activityAccordion .collapse", function() {
             $(this).prev(".card-header").find(".caret-icon2").removeClass("rotated");
         });
 
@@ -1152,7 +1152,7 @@
             });
 
             // Add dynamic row numbering
-            table.on('order.dt search.dt draw.dt', function() {
+            table.off('order.dt search.dt draw.dt').on('order.dt search.dt draw.dt', function() {
                 table.column(0, {
                     search: 'applied',
                     order: 'applied'
@@ -1520,7 +1520,7 @@
     }
 
     // Calling the activity_request_file_details_modal.html
-    $(document).on("click", ".view-request-btn", function() {
+    $(document).off("click", ".view-request-btn").on("click", ".view-request-btn", function() {
         let row = $(this).closest("tr");
 
         let activityRequestId = $(this).data("activity-request-id");

@@ -65,7 +65,7 @@
 
 <script>
     //Load current date in start_date and end_date form fields
-    $('#addUserRoleModal').on('shown.bs.modal', function () {
+    $('#addUserRoleModal').off('shown.bs.modal').on('shown.bs.modal', function () {
         const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
         $('#start_date').val(today);
         $('#end_date').val(today);

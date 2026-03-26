@@ -5820,6 +5820,40 @@ class ActivityRequest:
 
         try:
             query = """
+                        SELECT a.id, a.project_id as project_code, b.subject, b.objectives, b.scope, b.stakeholders, 
+                        b.deliverables, b.assumptions 
+                        FROM trn_completed_wip_activity_request_approvals a
+                        LEFT OUTER JOIN trn_activity_overview b ON a.id = b.activity_id
+                        LEFT OUTER JOIN mst_project c ON a.project_id = c.id
+                        WHERE a.activity_request_id = ?;
+                    """
+            cursor.execute(query, (activity_request_id,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                ActivityRequest(id=row.id, project_code=row.project_code, subject=row.subject, objectives=row.objectives,
+                                scope=row.scope, stakeholders=row.stakeholders, deliverables=row.deliverables,
+                                assumptions=row.assumptions)
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_saved_activity_request_details_3(activity_request_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
                         SELECT a.id, c.project_code, c.project_name, b.subject
                         FROM trn_activity_request a
                         LEFT OUTER JOIN trn_activity_overview b ON a.id = b.activity_id
@@ -5885,6 +5919,7 @@ class ActivityRequest:
                         )
                         SELECT 
                             a.id,
+                            LTRIM(RTRIM(COALESCE(d.Fname + ' ' + d.Mname + ' ' + d.Sname, ''))) AS name,
                             c.project_code,
                             c.project_name,
                             b.subject,
@@ -5900,6 +5935,7 @@ class ActivityRequest:
                         FROM trn_activity_request a
                         LEFT JOIN trn_activity_overview b ON a.id = b.activity_id
                         LEFT JOIN mst_project c ON a.project_id = c.id
+                        LEFT JOIN users d ON a.user_id = d.ID
                         LEFT JOIN ApprovalLevel al ON a.id = al.activity_request_id
                         LEFT JOIN WorkflowMaxLevel wml ON wml.workflow_id = @workflow_id
                         WHERE 
@@ -5918,7 +5954,7 @@ class ActivityRequest:
             result = cursor.fetchall()
 
             activity_request_details = [
-                ActivityRequest(id=row.id, project_code=row.project_code, project_name=row.project_name,
+                ActivityRequest(id=row.id, name=row.name, project_code=row.project_code, project_name=row.project_name,
                                 subject=row.subject, last_modified=row.last_modified, status=row.status)
                 for row in result
             ]
@@ -7182,6 +7218,7 @@ class ActivityRequestApprovals:
                 (last_activity_request_approvals_id, activity_request_id, decision, approver_id, level, comment, now),
             )
             conn.commit()
+
             return last_activity_request_approvals_id
         except pyodbc.Error as e:
             print("Database insert error:", e)

@@ -254,7 +254,7 @@
                         let from = new Date(fromDate).toLocaleDateString(undefined, options);
                         let to = new Date(toDate).toLocaleDateString(undefined, options);
 
-                        return 'Submitted Activity Requests ' + from + ' - ' + to;
+                        return 'Work-In-Progress Activity Requests ' + from + ' - ' + to;
                     },
                     customize: function (doc) {
                         // Insert logo (left-aligned)
@@ -291,7 +291,7 @@
                         let from = new Date(fromDate).toLocaleDateString(undefined, options);
                         let to = new Date(toDate).toLocaleDateString(undefined, options);
 
-                        return 'Submitted Activity Requests ' + from + ' - ' + to;
+                        return 'Work-In-Progress Activity Requests ' + from + ' - ' + to;
                     },
                     customize: function (win) {
                         // Add logo (left-aligned)
@@ -331,7 +331,7 @@
         });
 
         // Add dynamic row numbering
-        table.on('order.dt search.dt draw.dt', function () {
+        table.off('order.dt search.dt draw.dt').on('order.dt search.dt draw.dt', function () {
             table.column(0, { search: 'applied', order: 'applied' }).nodes().each(function (cell, i) {
                 cell.innerHTML = i + 1;
             });
@@ -341,7 +341,7 @@
         table.draw();
 
         // Redraw when user changes date filters
-        $('#minDate, #maxDate').on('change', function () {
+        $('#minDate, #maxDate').off('change').on('change', function () {
             table.draw();
         });
 
@@ -501,7 +501,7 @@
         });
 
         // Reset the flag when the modal is fully closed.
-        $('#workInProgressAddLogModal').on('hidden.bs.modal', function () {
+        $('#workInProgressAddLogModal').off('hidden.bs.modal').on('hidden.bs.modal', function () {
             loadingKeyProcesses = false;
         });
 
@@ -514,7 +514,7 @@
         });
 
         // Reset the flag when the modal is fully closed.
-        $('#workInProgressListLogsModal').on('hidden.bs.modal', function () {
+        $('#workInProgressListLogsModal').off('hidden.bs.modal').on('hidden.bs.modal', function () {
             loadingKeyProcessesWIPLog = false;
         });
     });

@@ -338,7 +338,7 @@
     $(document).ready(function() {
         initDatePickersAddLog($('#activityTaskInputs'));
 
-        $("#key_process_drop_down_WIP").on("change", function () {
+        $("#key_process_drop_down_WIP").off("change").on("change", function () {
             const keyProcessId = $(this).val();
             const activityId = $("#activityTaskId").val();
             const $taskDropdown = $("#activity_task_WIP");
@@ -575,7 +575,7 @@
         });
     }
 
-    $('#confirmationModal').on('hidden.bs.modal', function () {
+    $('#confirmationModal').off('hidden.bs.modal').on('hidden.bs.modal', function () {
 
         setTimeout(() => {
             const $parentModal = $('#workInProgressAddLogModal');
@@ -587,7 +587,7 @@
         }, 10);
     });
 
-    $('#workInProgressAddLogModal').on('hidden.bs.modal', function () {
+    $('#workInProgressAddLogModal').off('hidden.bs.modal').on('hidden.bs.modal', function () {
 
         // Reset task dropdown
         $('#activity_task_WIP')

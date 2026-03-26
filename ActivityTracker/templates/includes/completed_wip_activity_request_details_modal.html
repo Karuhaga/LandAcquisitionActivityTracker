@@ -1,9 +1,9 @@
 <!-- Activity Request Details Modal -->
-<div class="modal fade" id="viewCompletedWipApprovalRequestModal" tabindex="-1" aria-labelledby="viewRequestModalLabel" aria-hidden="true">
+<div class="modal fade" id="viewCompletedWipActivityRequestModal" tabindex="-1" aria-labelledby="viewCompletedWipActivityRequestModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header d-flex justify-content-between align-items-center">
-                <h5 class="modal-title mb-0" id="viewRequestModalLabel">Activity Request Details</h5>
+                <h5 class="modal-title mb-0" id="viewCompletedWipActivityRequestModalLabel">Completed WIP Activity Request Details</h5>
 
                 <div class="d-flex">
                     <button type="button" class="btn btn-sm btn-outline-custom me-2" id="resetPageBtn" onclick="printPage()">
@@ -20,20 +20,20 @@
                     <tbody>
                         <tr>
                             <th>Requester</th>
-                            <td id="viewRequesterCompletedWipApproval"></td>
+                            <td id="viewWipRequester"></td>
 
                             <th>Last Modified</th>
-                            <td id="viewLastModifiedCompletedWipApproval"></td>
+                            <td id="viewWipLastModifiedester"></td>
                         </tr>
                         <tr>
                             <th>Project Code</th>
-                            <td id="viewProjectCodeCompletedWipApproval"></td>
+                            <td id="viewWipProjectCode"></td>
                             <th>Approved As</th>
-                            <td id="viewApproveAsCompletedWipApproval"></td>
+                            <td id="viewWipApproveAs"></td>
                         </tr>
                         <tr>
                             <th>Project Name</th>
-                            <td id="viewProjectNameCompletedWipApproval"></td>
+                            <td id="viewWipProjectName"></td>
                         </tr>
                     </tbody>
                 </table>
@@ -45,34 +45,34 @@
                         <tbody>
                             <tr>
                                 <th style="width: 20%">Subject</th>
-                                <td id="viewSubjectCompletedWipApproval"></td>
+                                <td id="viewWipSubject"></td>
                             </tr>
                             <tr>
                                 <th>Objectives</th>
-                                <td id="viewObjectivesCompletedWipApproval"></td>
+                                <td id="viewWipObjectives"></td>
                             </tr>
                             <tr>
                                 <th>Scope</th>
-                                <td id="viewScopeCompletedWipApproval"></td>
+                                <td id="viewWipScope"></td>
                             </tr>
                             <tr>
                                 <th>Stakeholders</th>
-                                <td id="viewStakeholdersCompletedWipApproval"></td>
+                                <td id="viewWipStakeholders"></td>
                             </tr>
                             <tr>
                                 <th>Deliverables</th>
-                                <td id="viewDeliverablesCompletedWipApproval"></td>
+                                <td id="viewWipDeliverables"></td>
                             </tr>
                             <tr>
                                 <th>Assumptions</th>
-                                <td id="viewAssumptionsCompletedWipApproval"></td>
+                                <td id="viewWipAssumptions"></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Team Composition -->
-                <div id="teamCompositionContainer2">
+                <div id="teamCompositionContainer">
                     <h5>Team Composition</h5>
                     <table class="table table-sm table-bordered" style="table-layout: fixed; width: 100%;">
                         <thead>
@@ -82,12 +82,12 @@
                                 <th style="width: 45%;">Role</th>
                             </tr>
                         </thead>
-                        <tbody id="teamCompositionInputs3"></tbody>
+                        <tbody id="teamWipCompositionInputs2"></tbody>
                     </table>
                 </div>
 
                 <!-- Activity BreakDown -->
-                <div id="activityBreakdownContainer2">
+                <div id="activityBreakdownContainer">
                     <h5>Activity Breakdown</h5>
                     <table class="table table-sm table-bordered" style="table-layout: fixed; width: 100%;">
                         <thead>
@@ -100,12 +100,12 @@
                                 <th style="width: 10%;">No. of Days</th>
                             </tr>
                         </thead>
-                        <tbody id="activityBreakdownInputs2"></tbody>
+                        <tbody id="activityWipBreakdownInputs"></tbody>
                     </table>
                 </div>
 
                 <!-- Attachments -->
-                <div id="attachmentsContainer2">
+                <div id="attachmentsContainer">
                     <h5>Attachments</h5>
                     <table class="table table-sm table-bordered" style="table-layout: fixed; width: 100%;">
                         <thead>
@@ -116,15 +116,15 @@
                                 <th style="width: 12%;">Download</th>
                             </tr>
                         </thead>
-                        <tbody id="attachmentsInputs2"></tbody>
+                        <tbody id="attachmentsWipInputs"></tbody>
                     </table>
                 </div>
 
                 <!-- Workflow Visualization -->
-                <div id="workflowMap2Container2">
+                <div id="workflowWipMapContainer">
                     <h5>Approval Workflow</h5>
                     <hr class="workflow-divider"> <!-- Horizontal Line -->
-                    <ul id="workflowMap2" class="workflow-list"></ul>
+                    <ul id="workflowMap" class="workflow-list"></ul>
                 </div>
             </div>
             <div class="modal-footer">
@@ -147,7 +147,7 @@
     }
 
     /* ---------- Workflow Container ---------- */
-    #workflowMap2Container2 {
+    #workflowWipMapContainer {
         padding-top: 25px;
     }
 
@@ -328,22 +328,22 @@
 </style>
 
 <script>
-    function loadCompletedWipActivityRequestApprovalWorkflow(activityRequestId) {
-        $.get("/get-completed-wip-activity-approval-request-workflow", { activity_Request_ID: activityRequestId, workflow_ID: workFlowId })
+    function loadCompletedWIPActivityRequestApprovalWorkflow(activityRequestId) {
+        $.get("/get-completed-wip-activity-request-approval-workflow", { activity_Request_ID: activityRequestId, workflow_ID: workFlowId })
         .done(function(response) {
             // ======== 1. Populate Activity Overview ========
             const overview = response.saved_activity_request_details_2 || {};
 
-            $("#viewRequesterCompletedWipApproval").text(overview.requester);
-            $("#viewSubjectCompletedWipApproval").text(overview.subject);
-            $("#viewObjectivesCompletedWipApproval").text(overview.objectives);
-            $("#viewScopeCompletedWipApproval").text(overview.scope);
-            $("#viewStakeholdersCompletedWipApproval").text(overview.stakeholders);
-            $("#viewDeliverablesCompletedWipApproval").text(overview.deliverables);
-            $("#viewAssumptionsCompletedWipApproval").text(overview.assumptions);
+            $("#viewWipRequester").text(overview.requester);
+            $("#viewWipSubject").text(overview.subject);
+            $("#viewWipObjectives").text(overview.objectives);
+            $("#viewWipScope").text(overview.scope);
+            $("#viewWipStakeholders").text(overview.stakeholders);
+            $("#viewWipDeliverables").text(overview.deliverables);
+            $("#viewWipAssumptions").text(overview.assumptions);
 
             // ======== 2. Populate Workflow Visualization ========
-            $("#workflowMap2").empty();
+            $("#workflowMap").empty();
 
             response.workflow_steps.forEach((step, index) => {
                 let className = step.status === "Approved" ? "approved" :
@@ -389,11 +389,11 @@
                     </div>
                 `;
 
-                $("#workflowMap2").append(stepHTML);
+                $("#workflowMap").append(stepHTML);
             });
 
             // ======== 3. Populate Team Composition ========
-            const $teamBody = $("#teamCompositionInputs3");
+            const $teamBody = $("#teamWipCompositionInputs2");
             $teamBody.empty();
 
             if (response.team && response.team.length > 0) {
@@ -413,7 +413,7 @@
             }
 
             // ======== 4. Populate Tasks ========
-            const $taskBody = $("#activityBreakdownInputs2");
+            const $taskBody = $("#activityWipBreakdownInputs");
             $taskBody.empty();
 
             if (response.tasks && response.tasks.length > 0) {
@@ -442,7 +442,7 @@
             }
 
             // ======== 5. Populate Attachments ========
-            const $attachmentBody = $("#attachmentsInputs2");
+            const $attachmentBody = $("#attachmentsWipInputs");
             $attachmentBody.empty();
 
             if (response.attachments && response.attachments.length > 0) {
@@ -463,7 +463,7 @@
                     $attachmentBody.append(newRow);
                 });
             } else {
-                showFlashMessage("No attachments found for this request.", "warning");
+                showFlashMessage("No attachment(s) found for this request.", "warning");
             }
         })
         .fail(function(error) {
@@ -481,8 +481,8 @@
         let earliest = null;
         let latest = null;
 
-        // Use your table ID (#activityBreakdownInputs2)
-        $("#activityBreakdownInputs2 tr").each(function() {
+        // Use your table ID (#activityWipBreakdownInputs)
+        $("#activityWipBreakdownInputs tr").each(function() {
             const startText = $(this).find(".start-date").text().trim();
             const endText = $(this).find(".end-date").text().trim();
 
@@ -496,7 +496,7 @@
         });
 
         // Remove any existing total row to avoid duplicates
-        $("#activityBreakdownInputs2 tr.total-row").remove();
+        $("#activityWipBreakdownInputs tr.total-row").remove();
 
         // Append the new total row
         if (earliest && latest) {
@@ -508,7 +508,7 @@
                     <td class="text-center total-days">${diff >= 0 ? diff : 0}</td>
                 </tr>
             `);
-            $("#activityBreakdownInputs2").append(totalRow);
+            $("#activityWipBreakdownInputs").append(totalRow);
         } else {
             const totalRow = $(`
                 <tr class="fw-bold">
@@ -517,7 +517,7 @@
                     <td class="text-center total-days">0</td>
                 </tr>
             `);
-            $("#activityBreakdownInputs2").append(totalRow);
+            $("#activityWipBreakdownInputs").append(totalRow);
         }
     }
 
@@ -622,7 +622,7 @@
                     }
 
                     /* ===== WORKFLOW PRINT STYLES ===== */
-                    #workflowMap2Container2 {
+                    #workflowWipMapContainer {
                         page-break-inside: avoid;
                         margin-top: 30px;
                     }

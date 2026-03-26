@@ -1327,7 +1327,6 @@ def approve_activity_requests_update():
         for file in files:
             activity_request_id = file.get("activity_request_id")
 
-            print(action)
             # Update file status
             updated_activity_request_record = (ActivityRequestApprovals.update_activity_request_approval_status
                                                (activity_request_id, action, 1))
@@ -1632,7 +1631,13 @@ def get_reconciliation_workflow():
     workflow_id = request.args.get("workflow_ID")
 
     # Get the latest approval level of given activity request
-    approvals = ActivityRequestApprovals.get_activity_request_approval_levels(activity_request_id)
+    if int(workflow_id) == 1:
+        approvals = ActivityRequestApprovals.get_activity_request_approval_levels(activity_request_id)
+    elif int(workflow_id) == 3:
+        approvals = ActivityRequestLog.get_completed_wip_activity_request_approval_levels(activity_request_id)
+    else:
+        approvals = []
+
     if approvals is None:
         return jsonify({"error": "Database error while picking latest approval level of given activity request",
                         "type": "danger"}), 500

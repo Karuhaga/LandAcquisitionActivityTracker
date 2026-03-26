@@ -522,7 +522,7 @@
     }
 
     // Handler for download button
-    $(document).on("click", ".download-btn", function() {
+    $(document).off("click", ".download-btn").on("click", ".download-btn", function() {
         const fileName = $(this).data("filename");
 
         if (!fileName) {

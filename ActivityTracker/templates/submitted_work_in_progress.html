@@ -164,7 +164,7 @@
                 $("#approvalActionModal").modal("hide");
                 showFlashMessage(response.message, "success");
 
-                $("#flashMessageModal").on("hidden.bs.modal", function() {
+                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function() {
                     // Save expanded panels
                     let expandedPanels = [];
                     $(".panel-collapse.in, .panel-collapse.show").each(function() {
@@ -265,7 +265,7 @@
             searching: true,
             ordering: true,
             columnDefs: [
-                { orderable: false, targets: [0, 1, 7] }, // Disable sorting for checkbox, numbering & action columns
+                { orderable: false, targets: [0, 7, 8] }, // Disable sorting for checkbox, numbering & action columns
             ],
             lengthMenu: [5, 10, 25, 50, 100],
             pageLength: 10,
@@ -277,8 +277,79 @@
                 { extend: 'copy', text: 'Copy', className: 'btn btn-secondary' },
                 { extend: 'csv', text: 'Export to CSV', className: 'btn btn-secondary' },
                 { extend: 'excel', text: 'Export to Excel', className: 'btn btn-secondary' },
-                { extend: 'pdf', text: 'Export to PDF', className: 'btn btn-secondary' },
-                { extend: 'print', text: 'Print', className: 'btn btn-secondary' }
+                {
+                    extend: 'pdfHtml5',
+                    text: 'Export to PDF',
+                    className: 'btn btn-secondary',
+                    orientation: 'landscape',
+                    title: function () {
+                        let fromDate = $('#minDate').val();
+                        let toDate = $('#maxDate').val();
+
+                        // Format as "01 July 2025"
+                        const options = { day: '2-digit', month: 'long', year: 'numeric' };
+                        let from = new Date(fromDate).toLocaleDateString(undefined, options);
+                        let to = new Date(toDate).toLocaleDateString(undefined, options);
+
+                        return 'Submitted Work-In-Progress Activity Requests ' + from + ' - ' + to;
+                    },
+                    customize: function (doc) {
+                        // Insert logo (left-aligned)
+                        doc.content.splice(0, 0, {
+                            image: logoBase64,
+                            width: 100,
+                            alignment: 'left',
+                            margin: [0, 0, 0, 10]
+                        });
+                        // Center only the title text
+                        doc.styles.title.alignment = 'center';
+                    },
+                    exportOptions: {
+                        stripHtml: false,
+                        columns: ':visible',
+                        format: {
+                            body: function (data, row, column, node) {
+                                return $(node).text().trim();
+                            }
+                        }
+                    }
+                },
+                {
+                extend: 'print',
+                    text: 'Print',
+                    className: 'btn btn-secondary',
+                    orientation: 'landscape',
+                    title: function () {
+                        let fromDate = $('#minDate').val();
+                        let toDate = $('#maxDate').val();
+
+                        // Format as "01 July 2025"
+                        const options = { day: '2-digit', month: 'long', year: 'numeric' };
+                        let from = new Date(fromDate).toLocaleDateString(undefined, options);
+                        let to = new Date(toDate).toLocaleDateString(undefined, options);
+
+                        return 'Submitted Work-In-Progress Activity Requests ' + from + ' - ' + to;
+                    },
+                    customize: function (win) {
+                        // Add logo (left-aligned)
+                        $(win.document.body).prepend(
+                            '<div style="text-align:left; margin-bottom:10px;">' +
+                            '<img src="' + logoBase64 + '" style="width:200px; margin-bottom:10px;" />' +
+                            '</div>'
+                        );
+                        // Center only the title text
+                        $(win.document.body).find('h1').css('text-align', 'center');
+                    },
+                    exportOptions: {
+                        stripHtml: false,
+                        columns: ':visible',
+                        format: {
+                            body: function (data, row, column, node) {
+                                return $(node).text().trim();
+                            }
+                        }
+                    }
+                 }
             ],
             language: {
                 emptyTable: "No records found",
@@ -296,7 +367,7 @@
         });
 
         // Automatically renumber the “#” column
-        table.on('draw.dt', function () {
+        table.off('draw.dt').on('draw.dt', function () {
             var pageInfo = table.page.info();
             table.column(0, { page: 'current' }).nodes().each(function (cell, i) {
                 cell.innerHTML = i + 1 + pageInfo.start;
@@ -307,13 +378,13 @@
         table.draw();
 
         // Redraw when user changes date filters
-        $('#minDate, #maxDate').on('change', function () {
+        $('#minDate, #maxDate').off('change').on('change', function () {
             table.draw();
         });
     });
 
     // Calling the reconciliation_file_details_modal.html
-    $(document).on("click", ".view-completed-wip-activity-request-logs", function() {
+    $(document).off("click", ".view-completed-wip-activity-request-logs").on("click", ".view-completed-wip-activity-request-logs", function() {
         let row = $(this).closest("tr");
 
         let activityRequestId = $(this).data("activity-request-id");
@@ -336,7 +407,7 @@
     });
 
     // Calling the reconciliation_file_details_modal.html
-    $(document).on("click", ".view-request-btn", function() {
+    $(document).off("click", ".view-request-btn").on("click", ".view-request-btn", function() {
         let row = $(this).closest("tr");
 
         let activityRequestId = $(this).data("activity-request-id");
