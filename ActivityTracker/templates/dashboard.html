@@ -104,7 +104,7 @@
                         <th>Project</th>
                         <th>Subject</th>
                         <th>Requester</th>
-                        <th>Completion On</th>
+                        <th>Completed On</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -237,42 +237,43 @@
                 stats.wip_completed
             ];
 
-            new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: ['Pending Approval', 'WIP', 'Completed'],
-                    datasets: [{
-                        data: dataValues,
-                        backgroundColor: [
-                           '#dc3545',
-                           '#ffc107',
-                           '#28a745'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const value = context.raw;
-                                    const percentage = total > 0
-                                        ? ((value / total) * 100).toFixed(1)
-                                        : 0;
+new Chart(ctx, {
+    type: 'doughnut',  // ✅ changed from 'pie'
+    data: {
+        labels: ['Pending Approval', 'WIP', 'Completed'],
+        datasets: [{
+            data: dataValues,
+            backgroundColor: [
+               '#dc3545',
+               '#ffc107',
+               '#28a745'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',  // ✅ controls hollow center size
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const value = context.raw;
+                        const percentage = total > 0
+                            ? ((value / total) * 100).toFixed(1)
+                            : 0;
 
-                                    return `${context.label}: ${value} (${percentage}%)`;
-                                }
-                            }
-                        },
-                        legend: {
-                            position: 'bottom'
-                        }
+                        return `${context.label}: ${value} (${percentage}%)`;
                     }
                 }
-            });
+            },
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
         }
     }
 

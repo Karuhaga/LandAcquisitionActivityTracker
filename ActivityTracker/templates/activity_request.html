@@ -72,7 +72,7 @@
                 <div class="card-body">
                     <!-- Project dropdown field -->
                     <div class="mb-3">
-                        <label for="project_id" class="form-label">Project<span class="text-danger">*</span></label>
+                        <label for="project_id" class="form-label">Project*:</label>
                         <select class="form-control" id="project_id" name="project_id" required>
                             {{ project_options | safe }}
                         </select>
@@ -402,6 +402,31 @@
         let invalidSections = new Set();
 
         // --- Check Activity Overview ---
+
+        const $projectField = $("#project_id");
+        const project = $projectField.val()?.trim() || "";
+
+        // Remove existing validation error
+        $projectField.next(".validation-error").remove();
+
+        if (!project) {
+            isValid = false;
+
+            const errorMsg = `
+                <div class="text-danger validation-error small">
+                    Please select a project.
+                </div>
+            `;
+
+            $projectField.after(errorMsg);
+            invalidSections.add("#collapseOverview");
+
+            // Optional: highlight field
+            $projectField.addClass("is-invalid");
+        } else {
+            $projectField.removeClass("is-invalid");
+        }
+
         const subjectVal = $("#subject").val()?.trim() || "";
         if (subjectVal === "") {
             isValid = false;
