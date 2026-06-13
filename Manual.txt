@@ -1,5 +1,5 @@
 Failure to add or update items under the admin panel
-
+==========================================================
 1. Check the existing records in the following tables:
 
    * `menu_item`
@@ -21,6 +21,14 @@ Failure to add or update items under the admin panel
 **Notes**
 
 * Ensure the new **menu item** is added to the navigation menu in `base.html`.
-*
+* Confirm that the `@role_required()` decorator in `routes.py` matches the **`id`** of the corresponding record in the `workflow_breakdown` table.
 
-
+==========================================================
+Defining a new workflow
+==========================================================
+1. Admin -> Workflows -> Add Workflow e.g. "Project KIP Approval" (if it returns an error, it is due to @role_required(36))
+2. Admin -> Roles -> Add Role e.g. "Team Leader"
+3. Admin -> Menu Item -> Add Menu Item e.g. "Submit Project KPI"
+4. Admin -> Workflow Breakdown -> Add Breakdown e.g. "Submit Project KPI"
+5. Admin -> Role Workflow Breakdown -> Add Breakdown
+6. Assign the particular user a User Role

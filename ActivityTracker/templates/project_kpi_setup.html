@@ -1,0 +1,689 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Activity Request
+{% endblock %}
+
+{% block page_title %}
+    <div data-page-title>Project KPI Setup</div>
+{% endblock %}
+
+{% block content %}
+<div class="sticky-page-title d-flex justify-content-between align-items-center">
+    <div>
+        <i class="fa-solid fa-bullseye"></i> Project KPI Setup
+    </div>
+</div>
+
+{# --- Centralized option templates --- #}
+
+{% set project_options %}
+    <option value="">Select a Project</option>
+    {% for project_detail in project_details %}
+        <option value="{{ project_detail.id }}">{{ project_detail.project_code }} - {{ project_detail.project_name }}</option>
+    {% endfor %}
+{% endset %}
+
+{% set key_process_options %}
+    <option value="">Select Key Process</option>
+    {% for key_process_detail in key_process_details %}
+        <option value="{{ key_process_detail.id }}">{{ key_process_detail.name }}</option>
+    {% endfor %}
+{% endset %}
+
+<div class="card">
+    <form id="projectKpiSetupForm" method="post">
+
+        <input type="hidden" id="focused_project_kpi_id" name="focused_project_kpi_id" value="{{ focused_project_kpi_id }}">
+
+        <div id="activityAccordion">
+
+        <div class="card">
+            <div class="mb-3">
+                <label for="project_id" class="form-label">Project*:</label>
+                <select class="form-control"
+                        id="project_id"
+                        name="project_id"
+                        {% if saved_project_kpi_setup_details %}disabled{% endif %}
+                        required>
+
+                    <option value="">Select a Project</option>
+
+                    {% for project_detail in project_details %}
+                        <option value="{{ project_detail.id }}"
+                                {% if project_detail.id == current_project_id %}selected{% endif %}>
+                            {{ project_detail.project_code }} - {{ project_detail.project_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="key_process_id" class="form-label">Key Process*:</label>
+                <select class="form-control" id="key_process_id" name="key_process_id" required>
+                    {{ key_process_options | safe }}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="credit_points" class="form-label">Credit Points*:</label>
+                <input type="text"
+                       class="form-control"
+                       id="credit_points"
+                       name="credit_points"
+                       value="0"
+                       style="text-align: right;"
+                       inputmode="numeric"
+                       pattern="[0-9,]+"
+                       oninput="
+                           const numericValue = this.value.replace(/,/g, '').replace(/[^0-9]/g, '');
+                           this.value = numericValue === ''
+                               ? '0'
+                               : parseInt(numericValue, 10).toLocaleString('en-US');
+                       "
+                       required>
+            </div>
+        </div>
+
+        <!-- Final Action Buttons -->
+        <div class="mt-3 d-flex justify-content-center gap-5">
+            <button type="button" class="btn-outline-custom" id="resetPageBtn" onclick="resetPage()">
+                <i class="fas fa-redo"></i> Reset Page
+            </button>
+
+            <button type="button" class="btn-outline-custom"
+                    style="margin: 0 1rem;"
+                    onclick="handleActionActivityRequest('save kpi');">
+                <i class="fas fa-circle-plus"></i> Add KPI Request
+            </button>
+        </div>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        Saved Project KPIs
+    </div>
+
+    <div class="card-body">
+        <table id="savedProjectKPIsTable" class="table table-striped table-bordered table-hover paginated">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Project Code</th>
+                    <th>Project Name</th>
+                    <th>Key Process</th>
+                    <th>Credit Units</th>
+                    <th>Status</th>
+                    <th>Approvals</th>
+                    <th>Edit</th>
+                    <th>Delete</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for saved_project_kpi_setup_detail in saved_project_kpi_setup_details %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ saved_project_kpi_setup_detail.project_code }}</td>
+                    <td>{{ saved_project_kpi_setup_detail.project_name }}</td>
+                    <td>{{ saved_project_kpi_setup_detail.key_process_name }}</td>
+                    <td style="text-align: right;">
+                        {{ "{:,.0f}".format(saved_project_kpi_setup_detail.credit_points or 0) }}
+                    </td>
+                    <td>{{ saved_project_kpi_setup_detail.status }}</td>
+                    <td class="text-center" data-orderable="false" data-ordering="false">
+                        <button class="btn btn-sm btn-outline-custom view-request-btn"
+                                type="button"
+                                data-kpi-detail-id="{{ saved_project_kpi_setup_detail.kpi_detail_id }}">
+                                    <i class="fa-solid fa-circle-check"></i>
+                        </button>
+                    </td>
+                    <td class="text-center" data-orderable="false" data-ordering="false">
+                        <button class="btn btn-sm btn-secondary edit-saved-kpi-record-btn" style="float: center;"
+                                type="button" data-kpi-detail-id="{{ saved_project_kpi_setup_detail.kpi_detail_id }}">
+                                    <i class="fa-solid fa-pen"></i>
+                        </button>
+                    </td>
+                    <td class="text-center" data-orderable="false" data-ordering="false">
+                        <button
+                            class="btn btn-sm btn-danger delete-saved-kpi-record-btn"
+                            type="button"
+                            data-kpi-detail-id="{{ saved_project_kpi_setup_detail.kpi_detail_id }}"
+                            onclick="handleActionActivityRequest('delete kpi', this)">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+
+            <tfoot>
+                <tr class="fw-bold">
+                    <td colspan="4" class="text-end">Total Credit Units</td>
+                    <td style="text-align: right;">
+                        {{ "{:,.0f}".format(total_credit_points) }}
+                    </td>
+                    <td colspan="4"></td>
+                </tr>
+            </tfoot>
+        </table>
+                <!-- Final Action Buttons -->
+        <div class="mt-3 d-flex justify-content-center gap-5">
+            <button type="button" class="btn-outline-custom"
+                    style="margin: 0 1rem;"
+                    onclick="handleActionActivityRequest('submit request');">
+                Submit Request
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.focusedProjectKpiId = window.focusedProjectKpiId || 0;
+    window.deleteKpiDetailId = window.deleteKpiDetailId || 0;
+
+    function handleActionActivityRequest(actionType, buttonElem = null) {
+
+        // For delete kpi, capture the ID from the clicked button
+        if (actionType === "delete kpi" && buttonElem) {
+            window.deleteKpiDetailId = $(buttonElem).data("kpi-detail-id");
+        }
+
+        // Show confirmation modal for the action
+        showConfirmationActivityRequest(actionType);
+    }
+
+    function validateFormActivityRequest() {
+        let isValid = true;
+
+        // Clear old errors
+        $(".text-danger.validation-error").remove();
+
+        const $projectField = $("#project_id");
+        const project = $projectField.val()?.trim() || "";
+
+        // Remove existing validation error
+        $projectField.next(".validation-error").remove();
+
+        if (!project) {
+            isValid = false;
+
+            const errorMsg = `
+                <div class="text-danger validation-error small">
+                    Please select a project.
+                </div>
+            `;
+
+            $projectField.after(errorMsg);
+            invalidSections.add("#collapseOverview");
+
+            // Optional: highlight field
+            $projectField.addClass("is-invalid");
+        } else {
+            $projectField.removeClass("is-invalid");
+        }
+
+        const $keyProcessField = $("#key_process_id");
+        const keyProcess = $keyProcessField.val()?.trim() || "";
+
+        if (!keyProcess) {
+            isValid = false;
+
+            const errorMsg = `
+                <div class="text-danger validation-error small">
+                    Please select a key process.
+                </div>
+            `;
+
+            $keyProcessField.after(errorMsg);
+            invalidSections.add("#collapseOverview");
+
+            // Optional: highlight field
+            $keyProcessField.addClass("is-invalid");
+        } else {
+            $keyProcessField.removeClass("is-invalid");
+        }
+
+        const $creditPointsField = $("#credit_points");
+        const creditPointsVal = $creditPointsField.val()?.trim() || "0";
+
+        // Remove commas and convert to number
+        const creditPoints = parseInt(creditPointsVal.replace(/,/g, ""), 10) || 0;
+
+        // Remove previous validation error
+        $creditPointsField.next(".validation-error").remove();
+
+        if (creditPoints <= 0) {
+            isValid = false;
+
+            $creditPointsField.after(`
+                <div class="text-danger validation-error small">
+                    Credit Points must be greater than zero.
+                </div>
+            `);
+
+            $creditPointsField.addClass("is-invalid");
+            invalidSections.add("#collapseOverview");
+        } else {
+            $creditPointsField.removeClass("is-invalid");
+        }
+
+        return isValid;
+    }
+
+    function showConfirmationActivityRequest(actionType) {
+        let modalTitle = "";
+        let modalMessage = "";
+
+        if (actionType === "save kpi") {
+            modalTitle = "Save Confirmation";
+            modalMessage = "Are you sure you want to save this KPI?";
+            $("#confirmAction").off("click").on("click", function() {
+                $("#confirmationModal").modal("hide");
+                saveKPI(false, null);
+            });
+        }  else if (actionType === "submit request") {
+            modalTitle = "Submission Confirmation";
+            modalMessage = "Are you sure you want to submit these Project KPIs?";
+            $("#confirmAction").off("click").on("click", function() {
+                $("#confirmationModal").modal("hide");
+                submitProjectKPIs(false, null);
+            });
+        } else if (actionType === "delete kpi") {
+            modalTitle = "Deletion Confirmation";
+            modalMessage = "Are you sure you want to delete this KPI?";
+            $("#confirmAction").off("click").on("click", function() {
+                $("#confirmationModal").modal("hide");
+                deleteKPI(window.deleteKpiDetailId);
+            });
+        }
+
+        // Set modal text
+        $("#confirmationModalLabel").text(modalTitle);
+        $("#confirmationMessage").text(modalMessage);
+
+        // Show modal
+        $("#confirmationModal").modal({
+            backdrop: true,
+            keyboard: false
+        });
+
+        // Optional: Adjust z-index
+        setTimeout(function() {
+            $(".modal-backdrop").last().addClass("confirmation-backdrop");
+        }, 10);
+    }
+
+    // --- Date validation helpers ---
+    function showDateErrorActivityRequest($row, message) {
+        let $err = $row.find('.date-error');
+        if (!$err.length) {
+            $err = $('<div class="date-error text-danger small mt-1"></div>');
+            $row.find('.end-date').closest('td').append($err);
+        }
+        $err.text(message);
+    }
+
+    function clearDateError($row) {
+        $row.find('.date-error').remove();
+    }
+
+    function saveKPI() {
+
+        if (!validateFormActivityRequest()) {
+            return;
+        }
+
+        const formData = {
+            project_id: $("#project_id").val(),
+            key_process_id: $("#key_process_id").val(),
+            credit_points: $("#credit_points").val().replace(/,/g, "")
+        };
+
+        //Update Organisation Unit Tier
+        $.ajax({
+            url: "/save-kpi",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(formData),
+
+            success: function(response) {
+                showFlashMessage(response.message || "KPI added successfully.", "success");
+
+                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function() {
+                    location.reload();
+                });
+            },
+            error: function() {
+                showFlashMessage("Failed to add KPI.", "danger");
+            }
+        });
+    }
+
+    function submitProjectKPIs() {
+    
+        const focusedProjectKpiId = $("#focused_project_kpi_id").val();
+
+        const formData = new FormData();
+
+        formData.append(
+            "data",
+            JSON.stringify({
+                focusedProjectKpiId: focusedProjectKpiId
+            })
+        );
+        
+        // --- AJAX request ---
+        $.ajax({
+            url: "/submit-kpi-setup-request",
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                showFlashMessage(response.message, "success");
+
+                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function() {
+                    location.reload();
+                });
+            },
+            error: function(xhr) {
+                let errorMessage = xhr.responseJSON?.error || "An unexpected error occurred.";
+                let messageType = xhr.responseJSON?.type || "danger";
+                showFlashMessage(errorMessage, messageType);
+            }
+        });
+    }
+
+    function deleteKPI(kpiId) {
+
+        if (!kpiId) {
+            showFlashMessage("Invalid KPI ID.", "danger");
+            return;
+        }
+
+        $.ajax({
+            url: "/delete-kpi-detail",
+            type: "POST",
+            data: {
+                kpi_id: kpiId
+            },
+            success: function(response) {
+                showFlashMessage(response.message || "KPI record deleted successfully.", "success");
+
+                $("#flashMessageModal").off("hidden.bs.modal").on("hidden.bs.modal", function() {
+                    location.reload();
+                });
+            },
+            error: function() {
+                showFlashMessage("Failed to delete KPI record.", "danger");
+            }
+        });
+
+    }
+
+    $(document).ready(function() {
+
+        // --- Reset all form inputs, selects, and textareas ---
+        $("#projectKpiSetupForm")[0].reset();
+
+        // Rotate caret icons on accordion expand/collapse
+        $(document).off("show.bs.collapse", "#activityAccordion .collapse").on("show.bs.collapse", "#activityAccordion .collapse", function() {
+            $(this).prev(".card-header").find(".caret-icon2").addClass("rotated");
+        });
+
+        $(document).off("hide.bs.collapse", "#activityAccordion .collapse").on("hide.bs.collapse", "#activityAccordion .collapse", function() {
+            $(this).prev(".card-header").find(".caret-icon2").removeClass("rotated");
+        });
+
+        const table = $('#savedProjectKPIsTable').DataTable({
+                paging: true,
+                searching: true,
+                ordering: true,
+                lengthMenu: [5, 10, 25, 50, 100],
+                pageLength: 10,
+                dom: '<"row"<"col-md-6"l><"col-md-6"f>>' +
+                    '<"row"<"col-md-12"B>>' +
+                    '<"row"<"col-md-12"t>>' +
+                    '<"row"<"col-md-6"i><"col-md-6"p>>',
+                buttons: [{
+                        extend: 'copy',
+                        text: 'Copy',
+                        className: 'btn btn-secondary',
+                        exportOptions: {
+                            stripHtml: false,
+                            columns: ':visible',
+                            format: {
+                                body: function(data, row, column, node) {
+                                    return $(node).text().trim();
+                                }
+                            }
+                        }
+                    },
+                    {
+                        extend: 'csv',
+                        text: 'Export to CSV',
+                        className: 'btn btn-secondary',
+                        exportOptions: {
+                            stripHtml: false,
+                            columns: ':visible',
+                            format: {
+                                body: function(data, row, column, node) {
+                                    return $(node).text().trim();
+                                }
+                            }
+                        }
+                    },
+                    {
+                        extend: 'excel',
+                        text: 'Export to Excel',
+                        className: 'btn btn-secondary',
+                        exportOptions: {
+                            stripHtml: false,
+                            columns: ':visible',
+                            format: {
+                                body: function(data, row, column, node) {
+                                    return $(node).text().trim();
+                                }
+                            }
+                        }
+                    },
+                    {
+                        extend: 'pdfHtml5',
+                        text: 'Export to PDF',
+                        className: 'btn btn-secondary',
+                        orientation: 'landscape',
+                        title: function() {
+                            return 'Saved Activity Requests';
+                        },
+                        customize: function(doc) {
+                            // Insert logo (left-aligned)
+                            doc.content.splice(0, 0, {
+                                image: logoBase64,
+                                width: 100,
+                                alignment: 'left',
+                                margin: [0, 0, 0, 10]
+                            });
+                            // Center only the title text
+                            doc.styles.title.alignment = 'center';
+                        },
+                        exportOptions: {
+                            stripHtml: false,
+                            columns: ':visible',
+                            format: {
+                                body: function(data, row, column, node) {
+                                    return $(node).text().trim();
+                                }
+                            }
+                        }
+                    },
+                    {
+                        extend: 'print',
+                        text: 'Print',
+                        className: 'btn btn-secondary',
+                        orientation: 'landscape',
+                        title: function() {
+                            return 'Saved Activity Requests';
+                        },
+                        customize: function(win) {
+                            // Add logo (left-aligned)
+                            $(win.document.body).prepend(
+                                '<div style="text-align:left; margin-bottom:10px;">' +
+                                '<img src="' + logoBase64 + '" style="width:200px; margin-bottom:10px;" />' +
+                                '</div>'
+                            );
+                            // Center only the title text
+                            $(win.document.body).find('h1').css('text-align', 'center');
+                        },
+                        exportOptions: {
+                            stripHtml: false,
+                            columns: ':visible',
+                            format: {
+                                body: function(data, row, column, node) {
+                                    return $(node).text().trim();
+                                }
+                            }
+                        }
+                    }
+                ],
+                language: {
+                    emptyTable: "No records found",
+                    zeroRecords: "No matching records found",
+                    search: "Search:",
+                    lengthMenu: "Show _MENU_ entries per page",
+                    info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                    paginate: {
+                        first: "First",
+                        last: "Last",
+                        next: "Next",
+                        previous: "Previous"
+                    }
+                },
+                columnDefs: [{
+                        orderable: false,
+                        targets: 0
+                    } // Disable ordering on # column
+                ]
+            });
+
+            // Add dynamic row numbering
+            table.off('order.dt search.dt draw.dt').on('order.dt search.dt draw.dt', function() {
+                table.column(0, {
+                    search: 'applied',
+                    order: 'applied'
+                }).nodes().each(function(cell, i) {
+                    cell.innerHTML = i + 1;
+                });
+            }).draw();
+        });
+
+    // Populate saved activity request
+    $(document).off("click", ".edit-saved-kpi-record-btn").on("click", ".edit-saved-kpi-record-btn", function () {
+
+        const kpiDetailId = $(this).data("kpi-detail-id");
+
+        $.ajax({
+            url: "/get-saved-kpi-details",
+            type: "GET",
+            data: {
+                kpi_detail_id: kpiDetailId
+            },
+            success: function (data) {
+
+                $("#project_id").val(data.project_id);
+
+                $("#key_process_id").val(data.key_process_id);
+
+                $("#credit_points").val(
+                    Number(data.credit_points || 0).toLocaleString("en-US")
+                );
+            },
+            error: function () {
+                showFlashMessage(
+                    "Failed to load saved KPI details.",
+                    "danger"
+                );
+            }
+        });
+    });
+
+    function resetPage() {
+        let modalTitle = "";
+        let modalMessage = "";
+
+        modalTitle = "Page Reset Confirmation";
+        modalMessage = "Are you sure you want to reset this page?";
+
+        $("#confirmAction").off("click").on("click", function() {
+            $("#confirmationModal").modal("hide");
+            // --- Reset global tracker ---
+            currentActivityRequestId = 0;
+
+            // --- Clear hidden ID field ---
+            $("#activity_request_id").val("");
+
+            // --- Reset all form inputs, selects, and textareas ---
+            $("#projectKpiSetupForm")[0].reset();
+
+            // --- Scroll to top ---
+            $("html, body").animate({
+                scrollTop: 0
+            }, "fast");
+
+            // --- Feedback for user ---
+            showFlashMessage("Page has been reset successfully.", "info");
+        });
+
+        $("#confirmationModalLabel").text(modalTitle);
+        $("#confirmationMessage").text(modalMessage);
+
+        $("#confirmationModal").modal({
+            backdrop: true,
+            keyboard: false
+        });
+
+        // Adjust z-index for confirmation backdrop
+        setTimeout(function() {
+            $('.modal-backdrop').last().addClass('confirmation-backdrop');
+        }, 10);
+    }
+
+    // Calling the activity_request_file_details_modal.html
+    $(document).off("click", ".view-request-btn").on("click", ".view-request-btn", function() {
+        let row = $(this).closest("tr");
+
+        let activityRequestId = $(this).data("activity-request-id");
+        let requester = row.find("td:nth-child(3)").text().trim();
+        let projectCode = row.find("td:nth-child(4)").text().trim();
+        let projectName = row.find("td:nth-child(5)").text().trim();
+        let lastModified = row.find("td:nth-child(7)").text().trim();
+        let approveAs = row.find("td:nth-child(8)").text().trim();
+
+        // Populate the modal fields
+        $("#viewRequester").text(requester);
+        $("#viewProjectCode").text(projectCode);
+        $("#viewProjectName").text(projectName);
+        $("#viewApproveAs").text(approveAs);
+        $("#viewLastModified").text(lastModified);
+
+        // Fetch workflow details
+        loadActivityRequestApprovalWorkflow(activityRequestId, window.workFlowId);
+
+        // Show the modal after data is populated
+        $("#viewRequestModal").modal("show");
+    });
+
+    // Handle "Close" button click
+    $("#closeViewRequest").click(function() {
+        $("#viewRequestCard").slideUp();
+    });
+</script>
+
+<style>
+    #confirmationModal { z-index: 1060; }
+    #roleModal { z-index: 1050; }
+    .modal-backdrop.confirmation-backdrop { z-index: 1055; }
+</style>
+{% endblock %}

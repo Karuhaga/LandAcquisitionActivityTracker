@@ -1,5 +1,5 @@
 <!-- Activity Request Details Modal -->
-<div class="modal fade" id="viewRequestModal" tabindex="-1" aria-labelledby="viewRequestModalLabel" aria-hidden="true">
+<div class="modal fade" id="viewProjectKpiRequestModal" tabindex="-1" aria-labelledby="viewRequestModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header d-flex justify-content-between align-items-center">
@@ -20,105 +20,36 @@
                     <tbody>
                         <tr>
                             <th>Requester</th>
-                            <td id="viewRequester"></td>
+                            <td id="viewRequesterProjectKpiSetupDetails"></td>
 
-                            <th>Last Modified</th>
-                            <td id="viewLastModified"></td>
+                            <th>Creation Date</th>
+                            <td id="viewCreationDateProjectCodeProjectKpiSetupDetails"></td>
                         </tr>
                         <tr>
                             <th>Project Code</th>
-                            <td id="viewProjectCode"></td>
+                            <td id="viewProjectCodeProjectKpiSetupDetails"></td>
                             <th>Approved As</th>
-                            <td id="viewApproveAs"></td>
+                            <td id="viewApproveAsProjectCodeProjectKpiSetupDetails"></td>
                         </tr>
                         <tr>
                             <th>Project Name</th>
-                            <td id="viewProjectName"></td>
+                            <td id="viewProjectNameProjectCodeProjectKpiSetupDetails"></td>
                         </tr>
                     </tbody>
                 </table>
 
-                <!-- Activity Overview -->
-                <div id="activityOverviewContainer">
-                    <h5>Activity Overview</h5>
-                    <table class="table table-sm table-bordered">
-                        <tbody>
-                            <tr>
-                                <th style="width: 20%">Subject</th>
-                                <td id="viewSubject"></td>
-                            </tr>
-                            <tr>
-                                <th>Objectives</th>
-                                <td id="viewObjectives"></td>
-                            </tr>
-                            <tr>
-                                <th>Scope</th>
-                                <td id="viewScope"></td>
-                            </tr>
-                            <tr>
-                                <th>Stakeholders</th>
-                                <td id="viewStakeholders"></td>
-                            </tr>
-                            <tr>
-                                <th>Deliverables</th>
-                                <td id="viewDeliverables"></td>
-                            </tr>
-                            <tr>
-                                <th>Assumptions</th>
-                                <td id="viewAssumptions"></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Team Composition -->
-                <div id="teamCompositionContainer">
-                    <h5>Team Composition</h5>
-                    <table class="table table-sm table-bordered" style="table-layout: fixed; width: 100%;">
-                        <thead>
-                            <tr>
-                                <th style="width: 5%;">#</th>
-                                <th style="width: 50%;">Member</th>
-                                <th style="width: 45%;">Role</th>
-                            </tr>
-                        </thead>
-                        <tbody id="teamCompositionInputs2"></tbody>
-                    </table>
-                </div>
-
-                <!-- Activity BreakDown -->
-                <div id="activityBreakdownContainer">
-                    <h5>Activity Breakdown</h5>
+                <div>
+                    <h5>Project KPIs</h5>
                     <table class="table table-sm table-bordered" style="table-layout: fixed; width: 100%;">
                         <thead>
                             <tr>
                                 <th class="text-end" style="width: 5%;">#</th>
-                                <th style="width: 25%;">Task</th>
                                 <th style="width: 20%;">Key Process</th>
-                                <th style="width: 20%;">Credit Points Balance</th>
-                                <th style="width: 20%;">Credit Points Requested</th>
-                                <th style="width: 15%;">Start Date</th>
-                                <th style="width: 15%;">End Date</th>
-                                <th style="width: 10%;">No. of Days</th>
+                                <th class="text-end" style="width: 10%;">Credit Points</th>
+                                <th style="width: 15%;">Creation Date</th>
                             </tr>
                         </thead>
-                        <tbody id="activityBreakdownInputs"></tbody>
-                    </table>
-                </div>
-
-                <!-- Attachments -->
-                <div id="attachmentsContainer">
-                    <h5>Attachments</h5>
-                    <table class="table table-sm table-bordered" style="table-layout: fixed; width: 100%;">
-                        <thead>
-                            <tr>
-                                <th class="text-end" style="width: 5%;">#</th>
-                                <th style="width: 41%;">File</th>
-                                <th style="width: 42%;">Description</th>
-                                <th style="width: 12%;">Download</th>
-                            </tr>
-                        </thead>
-                        <tbody id="attachmentsInputs"></tbody>
+                        <tbody id="kpiDetails"></tbody>
                     </table>
                 </div>
 
@@ -126,7 +57,7 @@
                 <div id="workflowMapContainer">
                     <h5>Approval Workflow</h5>
                     <hr class="workflow-divider"> <!-- Horizontal Line -->
-                    <ul id="workflowMap" class="workflow-list"></ul>
+                    <ul id="workflowProjectKpiApprovalMap" class="workflow-list"></ul>
                 </div>
             </div>
             <div class="modal-footer">
@@ -330,22 +261,11 @@
 </style>
 
 <script>
-    function loadActivityRequestApprovalWorkflow(activityRequestId) {
-        $.get("/get-activity-request-approval-workflow", { activity_Request_ID: activityRequestId, workflow_ID: workFlowId })
+    function loadProjectKpiSetupRequestApprovalWorkflow(kpiRequestSetupId, workflowId) {
+        $.get("/get-project-kpi-setup-approval-workflow", { kpi_request_setup_id: kpiRequestSetupId, workflow_ID: workflowId })
         .done(function(response) {
-            // ======== 1. Populate Activity Overview ========
-            const overview = response.saved_activity_request_details_2 || {};
 
-            $("#viewRequester").text(overview.requester);
-            $("#viewSubject").text(overview.subject);
-            $("#viewObjectives").text(overview.objectives);
-            $("#viewScope").text(overview.scope);
-            $("#viewStakeholders").text(overview.stakeholders);
-            $("#viewDeliverables").text(overview.deliverables);
-            $("#viewAssumptions").text(overview.assumptions);
-
-            // ======== 2. Populate Workflow Visualization ========
-            $("#workflowMap").empty();
+            $("#workflowProjectKpiApprovalMap").empty();
 
             response.workflow_steps.forEach((step, index) => {
                 let className = step.status === "Approved" ? "approved" :
@@ -391,197 +311,55 @@
                     </div>
                 `;
 
-                $("#workflowMap").append(stepHTML);
+                $("#workflowProjectKpiApprovalMap").append(stepHTML);
             });
 
-            // ======== 3. Populate Team Composition ========
-            const $teamBody = $("#teamCompositionInputs2");
-            $teamBody.empty();
-
-            if (response.team && response.team.length > 0) {
-                response.team.forEach((member, index) => {
-                    const newRow = $(`
-                        <tr>
-                            <td class="text-end">${index + 1}</td>
-                            <td>${member.member_name}</td>
-                            <td>${member.member_role}</td>
-                        </tr>
-                    `);
-
-                    $teamBody.append(newRow);
-                });
-            } else {
-                showFlashMessage("No team members found for this request.", "warning");
-            }
-
-            // ======== 4. Populate Tasks ========
-            const $taskBody = $("#activityBreakdownInputs");
+            const $taskBody = $("#kpiDetails");
             $taskBody.empty();
 
-            if (response.tasks && response.tasks.length > 0) {
+            if (response.kpi_details && response.kpi_details.length > 0) {
 
-                let totalCreditPointsBalance = 0;
-                let totalCreditPointsRequested = 0;
+                let totalCreditPoints = 0;
 
-                let earliest = null;
-                let latest = null;
+                response.kpi_details.forEach((kpi_detail, index) => {
 
-                response.tasks.forEach((task, index) => {
-                    // Calculate days for this row
-                    const diffDays = daysBetween(task.start_date, task.end_date);
-
-                    const creditPointsBalance = Number(task.credit_points_balance || 0);
-                    const creditPointsRequested = Number(task.credit_points || 0);
-
-                    totalCreditPointsBalance += creditPointsBalance;
-                    totalCreditPointsRequested += creditPointsRequested;
-
-                    const start = new Date(task.start_date);
-                    const end = new Date(task.end_date);
-
-                    if (!earliest || start < earliest) earliest = start;
-                    if (!latest || end > latest) latest = end;
+                    const creditPoints = parseFloat(kpi_detail.credit_points) || 0;
+                    totalCreditPoints += creditPoints;
 
                     const newRow = $(`
                         <tr>
                             <td class="text-end">${index + 1}</td>
-                            <td>${task.task}</td>
-                            <td>${task.process_name}</td>
-                            <td style="text-align: right;">${Number(task.credit_points_balance || 0).toLocaleString('en-US')}</td>
-                            <td style="text-align: right;">${Number(task.credit_points || 0).toLocaleString('en-US')}</td>
-                            <td class="start-date">${task.start_date}</td>
-                            <td class="end-date">${task.end_date}</td>
-                            <td class="text-center days-between">${diffDays}</td>
+                            <td>${kpi_detail.process_name}</td>
+                            <td style="text-align: right;">${creditPoints.toLocaleString()}</td>
+                            <td>${kpi_detail.creation_date}</td>
                         </tr>
                     `);
+
                     $taskBody.append(newRow);
                 });
 
-                const totalPeriodDays =
-                    earliest && latest
-                        ? daysBetween(earliest, latest) + 1
-                        : 0;
-
-                // Footer totals row
-                $taskBody.append(`
-                    <tr class="table-light">
-                        <td colspan="3" class="text-end"><strong>Totals</strong></td>
-                        <td style="text-align: right;"><strong>${totalCreditPointsBalance.toLocaleString('en-US')}</strong></td>
-                        <td style="text-align: right;"><strong>${totalCreditPointsRequested.toLocaleString('en-US')}</strong></td>
-                        <td colspan="2" class="text-end"><strong>Total No. of Days</strong></td>
-                        <td class="text-center"><strong>${totalPeriodDays - 1}</strong></td>
+                const totalRow = $(`
+                    <tr class="fw-bold table-secondary">
+                        <td colspan="2" class="text-end">
+                            <strong>Total Credit Points</strong>
+                        </td>
+                        <td style="text-align: right;">
+                            <strong>${totalCreditPoints.toLocaleString()}</strong>
+                        </td>
+                        <td></td>
                     </tr>
                 `);
 
+                $taskBody.append(totalRow);
+
             } else {
-                showFlashMessage("No tasks found for this request.", "warning");
-            }
-
-            // ======== 5. Populate Attachments ========
-            const $attachmentBody = $("#attachmentsInputs");
-            $attachmentBody.empty();
-
-            if (response.attachments && response.attachments.length > 0) {
-                response.attachments.forEach((attachment, index) => {
-
-                    const newRow = $(`
-                        <tr>
-                            <td class="text-end">${index + 1}</td>
-                            <td class="wrap-text">${attachment.file}</td>
-                            <td class="wrap-text">${attachment.description}</td>
-                            <td class="text-center">
-                                <button type="button" class="btn btn-sm btn-secondary download-btn" data-filename="${attachment.file}">
-                                    <i class="fa fa-download"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `);
-                    $attachmentBody.append(newRow);
-                });
-            } else {
-                showFlashMessage("No attachment(s) found for this request.", "warning");
+                showFlashMessage("No KPI details found for this request.", "warning");
             }
         })
         .fail(function(error) {
             console.error("Error loading workflow:", error);
         });
     }
-
-    function daysBetween(start, end) {
-        const s = new Date(start).setHours(0, 0, 0, 0);
-        const e = new Date(end).setHours(0, 0, 0, 0);
-        return ((e - s) / (1000 * 60 * 60 * 24)) + 1; // inclusive
-    }
-
-    function calculateTotalDays() {
-        let earliest = null;
-        let latest = null;
-
-        // Use your table ID (#activityBreakdownInputs)
-        $("#activityBreakdownInputs tr").each(function() {
-            const startText = $(this).find(".start-date").text().trim();
-            const endText = $(this).find(".end-date").text().trim();
-
-            if (startText && endText) {
-                const start = new Date(startText);
-                const end = new Date(endText);
-
-                if (!earliest || start < earliest) earliest = start;
-                if (!latest || end > latest) latest = end;
-            }
-        });
-
-        // Remove any existing total row to avoid duplicates
-        $("#activityBreakdownInputs tr.total-row").remove();
-
-        // Append the new total row
-        if (earliest && latest) {
-            const diff = daysBetween(earliest, latest);
-            const totalRow = $(`
-                <tr class="fw-bold">
-                    <td></td>
-                    <td colspan="4" class="text-end">Total No. of Days (All Tasks):</td>
-                    <td class="text-center total-days">${diff >= 0 ? diff : 0}</td>
-                </tr>
-            `);
-            $("#activityBreakdownInputs").append(totalRow);
-        } else {
-            const totalRow = $(`
-                <tr class="fw-bold">
-                    <td></td>
-                    <td colspan="4" class="text-end">Total No. of Days (All Tasks):</td>
-                    <td class="text-center total-days">0</td>
-                </tr>
-            `);
-            $("#activityBreakdownInputs").append(totalRow);
-        }
-    }
-
-    // Handler for download button
-    $(document).off("click", ".download-btn").on("click", ".download-btn", function() {
-        const fileName = $(this).data("filename");
-
-        if (!fileName) {
-            showFlashMessage("File not available for download.", "warning");
-            return;
-        }
-
-        const fileUrl = `/download/${encodeURIComponent(fileName)}`;
-        const ext = fileName.split('.').pop().toLowerCase();
-
-        if (["pdf", "png", "jpg", "jpeg"].includes(ext)) {
-            // Open inline for viewable files
-            window.open(fileUrl, "_blank");
-        } else {
-            // Force download for other types
-            const a = document.createElement("a");
-            a.href = fileUrl;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
-    });
 
     function printPage() {
         const modal = document.querySelector('#viewRequestModal .modal-content');
@@ -774,5 +552,4 @@
     .modal-header .btn {
         margin-left: 6px;
     }
-
 </style>

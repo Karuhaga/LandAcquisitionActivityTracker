@@ -475,6 +475,1152 @@ class UserSummary:
             conn.close()
 
 
+class ProjectKPI:
+    def __init__(self, id=None, username=None, name=None, email_address=None, email=None,
+                 organisation_unit_tier_name=None, organisation_unit_name=None, status=None, fname=None, mname=None,
+                 sname=None, password=None, is_active=None, requester=None, project_kpi_setup_id=None,
+                 project_code=None, project_name=None, creation_date=None, approve_as=None, process_name=None):
+        self.id = id
+        self.username = username
+        self.name = name
+        self.email_address = email_address
+        self.email = email
+        self.organisation_unit_tier_name = organisation_unit_tier_name
+        self.organisation_unit_name = organisation_unit_name
+        self.status = status
+        self.fname = fname
+        self.mname = mname
+        self.sname = sname
+        self.password = password
+        self.is_active = is_active
+        self.requester = requester
+        self.project_kpi_setup_id = project_kpi_setup_id
+        self.project_code = project_code
+        self.project_name = project_name
+        self.creation_date = creation_date
+        self.approve_as = approve_as
+        self.process_name = process_name
+
+    @staticmethod
+    def get_available_credit_points_by_project_id_and_key_process_id(
+            project_id,
+            key_process_id,
+            activity_id
+    ):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        DECLARE @project_id INT = ?;
+                        DECLARE @key_process_id INT = ?;
+                        DECLARE @activity_id INT = ?;
+                        
+                        SELECT
+                            ISNULL(SUM(kpsd.credit_points), 0)
+                            -
+                            ISNULL(
+                                (
+                                    SELECT SUM(a.credit_points)
+                                    FROM trn_activity_breakdown a
+                                    INNER JOIN trn_activity_request b
+                                        ON a.activity_id = b.id
+                                    WHERE b.project_id = @project_id
+                                      AND a.key_process_id = @key_process_id
+                                ),
+                                0
+                            )
+                            +
+                            ISNULL(
+                                (
+                                    SELECT SUM(a.credit_points)
+                                    FROM trn_activity_breakdown a
+                                    INNER JOIN trn_activity_request b
+                                        ON a.activity_id = b.id
+                                    WHERE b.id = @activity_id
+                                      AND a.key_process_id = @key_process_id
+                                ),
+                                0
+                            ) AS available_credit_points
+                        FROM trn_project_kpi_setup_details kpsd
+                        INNER JOIN trn_project_kpi_setup kps
+                            ON kpsd.project_kpi_setup_id = kps.id
+                        WHERE kps.project_id = @project_id
+                          AND kpsd.key_process_id = @key_process_id;
+            """
+
+            cursor.execute(query, (project_id, key_process_id, activity_id))
+
+            row = cursor.fetchone()
+
+            return row.available_credit_points if row else 0
+
+        except Exception as e:
+            print(f"Database error: {e}")
+            return None
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_key_processes_by_project_id(project_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            # Fetch tasks associated with the Key Process
+            query = """
+                        SELECT
+                            kp.id,
+                            kp.name AS process_name
+                        FROM mst_key_process AS kp
+                        INNER JOIN trn_project_kpi_setup_details AS kpsd
+                            ON kp.id = kpsd.key_process_id
+                        INNER JOIN trn_project_kpi_setup AS kps
+                            ON kpsd.project_kpi_setup_id = kps.id
+                        INNER JOIN mst_project AS p
+                            ON kps.project_id = p.id
+                        WHERE p.id = ?
+                        ORDER BY kp.name ASC;
+            """
+            cursor.execute(query, (project_id,))
+            result = cursor.fetchall()
+
+            key_processes = [
+                ProjectKPI(id=row.id, process_name=row.process_name)
+                for row in result
+            ]
+            return key_processes
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_saved_project_kpi_request_details_3(kpi_request_setup_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT
+                            a.id,
+                            c.project_code,
+                            c.project_name
+                        FROM trn_project_kpi_setup_approvals AS a
+                        LEFT JOIN trn_project_kpi_setup AS b
+                            ON a.project_kpi_setup_id = b.id
+                        LEFT JOIN mst_project AS c
+                            ON b.project_id = c.id
+                        WHERE a.project_kpi_setup_id = ?;
+                    """
+            cursor.execute(query, (kpi_request_setup_id,))
+            result = cursor.fetchall()
+
+            activity_request_details = [
+                ProjectKPI(id=row.id, project_code=row.project_code, project_name=row.project_name)
+                for row in result
+            ]
+            return activity_request_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_status_of_project_kpi_request(kpi_request_setup_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            # Check if a record with the given bank_account, year, and month exists
+            cursor.execute(
+                "SELECT status FROM trn_project_kpi_setup WHERE id = ?", kpi_request_setup_id
+            )
+            result = cursor.fetchone()[0]
+            return result
+        except Exception as e:
+            print("Database error:", e)
+            return None  # Return None to indicate an error occurred
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_project_kpi_request_initiator_user_id(kpi_request_setup_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            # check if User has a request pending submission
+            cursor.execute("SELECT created_by FROM trn_project_kpi_setup WHERE id = ?", kpi_request_setup_id)
+
+            id_of_initiator = cursor.fetchone()[0]  # Fetch last batch_id
+
+            return id_of_initiator
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_latest_project_kpi_request_approval_level(kpi_request_setup_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("SELECT TOP 1 COALESCE(level, 0) FROM trn_project_kpi_setup_approvals "
+                           "WHERE project_kpi_setup_id = ? ORDER BY date_time DESC;", kpi_request_setup_id)
+
+            latest_approval_level = cursor.fetchone()[0]
+            return latest_approval_level
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_project_kpi_setup_details(kpi_request_setup_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        try:
+            query = """
+                        SELECT
+                            a.id,
+                            b.name AS process_name,
+                            a.credit_points,
+                            CONVERT(varchar, a.creation_date, 23) AS creation_date
+                        FROM trn_project_kpi_setup_details a
+                        LEFT OUTER JOIN mst_key_process b
+                            ON a.key_process_id = b.id
+                        WHERE a.project_kpi_setup_id = ?
+                        ORDER BY a.id;
+            """
+            cursor.execute(query, (kpi_request_setup_id,))
+            columns = [col[0] for col in cursor.description]
+            result = cursor.fetchall()
+            return [dict(zip(columns, row)) for row in result]
+
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_workflow_breakdown_for_kpi_setup_approval(workflow_id, is_workflow_level):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            # Get workflow breakdown
+            query = """
+                        SELECT
+                            wb.id,
+                            wb.workflow_id,
+                            wb.level,
+                            wb.name,
+                            wb.is_responsibility_global,
+                            wb.menu_item_id,
+                            r.name AS role_name
+                        FROM workflow_breakdown wb
+                        JOIN role_workflow_breakdown rwb
+                            ON wb.id = rwb.workflow_breakdown_id
+                        JOIN role r
+                            ON rwb.role_id = r.id
+                        WHERE wb.workflow_id = ?
+                          AND wb.is_workflow_level = ?
+                        ORDER BY wb.level ASC;
+                    """
+            cursor.execute(query, (workflow_id, is_workflow_level))
+            result = cursor.fetchall()
+
+            # Convert query result into list of Reconciliation objects
+            workflows = [WorkflowBreakdown(row[0], row[1], row[2], row[3], row[4], row[5], row[6]) for row in result]
+
+            return workflows
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_project_kpi_setup_request_approval_levels(kpi_request_setup_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT
+                            tpksa.level,
+                            CASE tpksa.decision
+                                WHEN 1 THEN 'Submitted'
+                                WHEN 2 THEN 'Approved'
+                                WHEN 3 THEN 'Rejected'
+                                ELSE 'Pending'
+                            END AS decision,
+                            LTRIM(RTRIM(CONCAT(
+                                ISNULL(u.Fname, ''),
+                                ' ',
+                                ISNULL(u.Mname, ''),
+                                ' ',
+                                ISNULL(u.Sname, '')
+                            ))) AS approver,
+                            tpksa.date_time,
+                            ISNULL(tpksa.comment, '') AS comment
+                        FROM trn_project_kpi_setup_approvals tpksa
+                        LEFT JOIN users u
+                            ON tpksa.approver_id = u.ID
+                        WHERE tpksa.project_kpi_setup_id = ?
+                        ORDER BY tpksa.date_time ASC;
+                   """
+            cursor.execute(query, (kpi_request_setup_id,))  # Pass the parameter twice
+            result = cursor.fetchall()  # Fetch results properly
+
+            return result if result else []
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_project_kpi_requests_pending_approval(user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+
+            query = """
+                       DECLARE @logged_in_user_id INT = ?; -- Set logged-in user's ID
+
+                        ;WITH GlobalFiles AS (
+                            -- Get files where responsibility is global
+                            SELECT 
+                                tpksa.project_kpi_setup_id,
+                                LTRIM(RTRIM(COALESCE(u.Fname + ' ' + u.Mname + ' ' + u.Sname, ''))) AS name,
+                                pro.project_code, 
+                                pro.project_name,
+                                tpks.creation_date,
+                                (
+                                    SELECT TOP 1 r.name 
+                                    FROM role r 
+                                    LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
+                                    LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
+                                    LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                    WHERE 
+                                        wb.is_workflow_level = 1 
+                                        AND wb.level = tpks.status + 1
+                                        AND ur.user_id = @logged_in_user_id
+                                ) AS approve_as,
+                                ROW_NUMBER() OVER (PARTITION BY tpks.id ORDER BY tpks.creation_date DESC) AS row_num
+                            FROM trn_project_kpi_setup tpks
+                            JOIN trn_project_kpi_setup_approvals tpksa ON tpks.id = tpksa.project_kpi_setup_id
+                            JOIN mst_project pro ON tpks.project_id = pro.id
+                            JOIN users u ON tpks.created_by = u.ID
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE 
+                                ur.start_datetime <= GETDATE() 
+                                AND ur.expiry_datetime >= GETDATE()
+                                AND tpksa.approver_id IN (
+                                    SELECT DISTINCT a.ID
+                                    FROM users a
+                                    JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
+                                    WHERE b.parent_org_unit_tier_id IN (
+                                        SELECT d.organisation_unit_tier_id 
+                                        FROM users d 
+                                        WHERE d.ID = @logged_in_user_id
+                                    )
+                                )
+                                AND tpks.status != 0 
+                                AND tpks.status + 1 IN (
+                                    SELECT DISTINCT a.level
+                                    FROM workflow_breakdown a
+                                    JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                    JOIN role c ON b.role_id = c.id
+                                    JOIN user_role d ON c.id = d.role_id
+                                    JOIN users e ON d.user_id = e.ID
+                                    WHERE 
+                                        a.is_responsibility_global = 1
+                                        AND e.ID = @logged_in_user_id
+                                )
+                        ),
+                        OrgBasedFiles AS (
+                            -- Get files where responsibility is restricted to specific organizational units
+                            SELECT 
+                                tpksa.project_kpi_setup_id,
+                                LTRIM(RTRIM(COALESCE(u.Fname + ' ' + u.Mname + ' ' + u.Sname, ''))) AS name,
+                                pro.project_code, 
+                                pro.project_name, 
+                                tpks.creation_date,
+                                (
+                                    SELECT TOP 1 r.name 
+                                    FROM role r 
+                                    LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
+                                    LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
+                                    LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                    WHERE 
+                                        wb.is_workflow_level = 1 
+                                        AND wb.level = tpks.status + 1
+                                        AND ur.user_id = @logged_in_user_id
+                                ) AS approve_as,
+                                ROW_NUMBER() OVER (PARTITION BY tpks.id ORDER BY tpks.creation_date DESC) AS row_num
+                            FROM trn_project_kpi_setup tpks
+                            JOIN trn_project_kpi_setup_approvals tpksa ON tpks.id = tpksa.project_kpi_setup_id
+                            JOIN mst_project pro ON tpks.project_id = pro.id
+                            JOIN users u ON tpks.created_by = u.ID
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE 
+                                ur.start_datetime <= GETDATE() 
+                                AND ur.expiry_datetime >= GETDATE()
+                                AND tpksa.approver_id IN (
+                                    SELECT DISTINCT a.ID
+                                    FROM users a
+                                    JOIN organisation_unit b ON a.organisation_unit_id = b.id
+                                    WHERE b.parent_org_unit_id IN (
+                                        SELECT d.organisation_unit_id 
+                                        FROM users d 
+                                        WHERE d.ID = @logged_in_user_id
+                                    )
+                                )
+                                AND tpks.status != 0 
+                                AND tpks.status + 1 IN (
+                                    SELECT DISTINCT a.level
+                                    FROM workflow_breakdown a
+                                    JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                    JOIN role c ON b.role_id = c.id
+                                    JOIN user_role d ON c.id = d.role_id
+                                    JOIN users e ON d.user_id = e.ID
+                                    WHERE 
+                                        a.is_responsibility_global = 0
+                                        AND e.ID = @logged_in_user_id
+                                )
+                        )
+                        -- name, project_kpi_setup_id, project_code, project_name, creation_date, approve_as
+                        SELECT 
+                            name, project_kpi_setup_id, project_code, project_name, creation_date, approve_as
+                        FROM (
+                            SELECT * FROM GlobalFiles WHERE row_num = 1
+                            UNION
+                            SELECT * FROM OrgBasedFiles WHERE row_num = 1
+                        ) AS UniqueResults
+                        WHERE approve_as IS NOT NULL
+                        ORDER BY project_code, creation_date ASC;
+            """
+            cursor.execute(query, (user_id,))
+            result = cursor.fetchall()
+
+            activity_requests = [
+                ProjectKPI(requester=row.name, project_kpi_setup_id=row.project_kpi_setup_id,
+                           project_code=row.project_code, project_name=row.project_name,
+                           creation_date=row.creation_date, approve_as=row.approve_as)
+                for row in result
+            ]
+            return activity_requests
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_current_project_kpi_setup_id(user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            # check if User has a request pending submission
+            cursor.execute("SELECT COALESCE(MAX(id), 0) FROM trn_project_kpi_setup WHERE status = 0 "
+                           "AND created_by = ? ", user_id)
+
+            project_kpi_setup_id = cursor.fetchone()[0]  # Fetch last project_kpi_setup_id
+            return project_kpi_setup_id
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_current_project_kpi_setup_detail_id(current_project_kpi_setup_id, key_process_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            # check if User has a request pending submission
+            cursor.execute("SELECT id FROM trn_project_kpi_setup_details "
+                           "WHERE project_kpi_setup_id = ? AND key_process_id = ? ",
+                           current_project_kpi_setup_id, key_process_id,)
+
+            project_kpi_setup_id = cursor.fetchone()[0]  # Fetch last project_kpi_setup_id
+            return project_kpi_setup_id
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_saved_project_kpi_setup_details(project_kpi_setup_id):
+
+        if not project_kpi_setup_id:
+            return []
+
+        conn = get_db_connection()
+
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT
+                            kpi.id,
+                            detail.id AS kpi_detail_id,
+                            kpi.project_id,
+                            project.project_code,
+                            project.project_name,
+                            process.name AS key_process_name,
+                            detail.credit_points,
+                            'Pending Submission' AS status
+                        FROM trn_project_kpi_setup AS kpi
+                        INNER JOIN trn_project_kpi_setup_details AS detail
+                            ON kpi.id = detail.project_kpi_setup_id
+                        LEFT JOIN mst_project AS project
+                            ON kpi.project_id = project.id
+                        LEFT JOIN mst_key_process AS process
+                            ON detail.key_process_id = process.id
+                        WHERE kpi.id = ?
+                        ORDER BY process.name;
+            """
+
+            cursor.execute(query, (project_kpi_setup_id,))
+            return cursor.fetchall()
+
+        except Exception as e:
+            print(f"Database error while retrieving KPI setup details: {e}")
+            return []
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_saved_project_kpi_setup_details_2(kpi_detail_id):
+
+        conn = get_db_connection()
+
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                SELECT
+                    a.id,
+                    a.project_kpi_setup_id,
+                    b.project_id,
+                    a.key_process_id,
+                    a.credit_points
+                FROM trn_project_kpi_setup_details a
+                INNER JOIN trn_project_kpi_setup b ON a.project_kpi_setup_id = b.id
+                WHERE a.id = ?
+            """
+
+            cursor.execute(query, (kpi_detail_id,))
+
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            return {
+                "id": row.id,
+                "project_kpi_setup_id": row.project_kpi_setup_id,
+                "project_id": row.project_id,
+                "key_process_id": row.key_process_id,
+                "credit_points": row.credit_points
+            }
+
+        except Exception as e:
+            print(f"Database error: {e}")
+            return None
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def project_kpi_setup_pending_approval_count(user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return 0  # Return 0 if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                       DECLARE @logged_in_user_id INT = ?; -- Set logged-in user's ID
+                        
+                        ;WITH GlobalFiles AS (
+                            -- Get files where responsibility is global
+                            SELECT 
+                                LTRIM(RTRIM(COALESCE(u.Fname + ' ' + u.Mname + ' ' + u.Sname, ''))) AS name,
+                                pro.project_code, 
+                                pro.project_name,
+                                (
+                                    SELECT TOP 1 r.name 
+                                    FROM role r 
+                                    LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
+                                    LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
+                                    LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                    WHERE 
+                                        wb.is_workflow_level = 1 
+                                        AND wb.level = tpks.status + 1
+                                        AND ur.user_id = @logged_in_user_id
+                                ) AS approve_as,
+                                ROW_NUMBER() OVER (PARTITION BY tpks.id ORDER BY tpks.creation_date DESC) AS row_num
+                            FROM trn_project_kpi_setup tpks
+                            JOIN trn_project_kpi_setup_approvals tpksa ON tpks.id = tpksa.project_kpi_setup_id
+                            JOIN mst_project pro ON tpks.project_id = pro.id
+                            JOIN users u ON tpks.created_by = u.ID
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE 
+                                ur.start_datetime <= GETDATE() 
+                                AND ur.expiry_datetime >= GETDATE()
+                                AND tpksa.approver_id IN (
+                                    SELECT DISTINCT a.ID
+                                    FROM users a
+                                    JOIN organisation_unit_tier b ON a.organisation_unit_tier_id = b.id
+                                    WHERE b.parent_org_unit_tier_id IN (
+                                        SELECT d.organisation_unit_tier_id 
+                                        FROM users d 
+                                        WHERE d.ID = @logged_in_user_id
+                                    )
+                                )
+                                AND tpks.status != 0 
+                                AND tpks.status + 1 IN (
+                                    SELECT DISTINCT a.level
+                                    FROM workflow_breakdown a
+                                    JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                    JOIN role c ON b.role_id = c.id
+                                    JOIN user_role d ON c.id = d.role_id
+                                    JOIN users e ON d.user_id = e.ID
+                                    WHERE 
+                                        a.is_responsibility_global = 1
+                                        AND e.ID = @logged_in_user_id
+                                )
+                        ),
+                        OrgBasedFiles AS (
+                            -- Get files where responsibility is restricted to specific organizational units
+                            SELECT 
+                                LTRIM(RTRIM(COALESCE(u.Fname + ' ' + u.Mname + ' ' + u.Sname, ''))) AS name,
+                                pro.project_code, 
+                                pro.project_name, 
+                                (
+                                    SELECT TOP 1 r.name 
+                                    FROM role r 
+                                    LEFT OUTER JOIN user_role ur ON r.id = ur.role_id
+                                    LEFT OUTER JOIN role_workflow_breakdown rwb ON ur.role_id = rwb.role_id
+                                    LEFT OUTER JOIN workflow_breakdown wb ON rwb.workflow_breakdown_id = wb.id
+                                    WHERE 
+                                        wb.is_workflow_level = 1 
+                                        AND wb.level = tpks.status + 1
+                                        AND ur.user_id = @logged_in_user_id
+                                ) AS approve_as,
+                                ROW_NUMBER() OVER (PARTITION BY tpks.id ORDER BY tpks.creation_date DESC) AS row_num
+                            FROM trn_project_kpi_setup tpks
+                            JOIN trn_project_kpi_setup_approvals tpksa ON tpks.id = tpksa.project_kpi_setup_id
+                            JOIN mst_project pro ON tpks.project_id = pro.id
+                            JOIN users u ON tpks.created_by = u.ID
+                            JOIN user_role ur ON u.ID = ur.user_id
+                            JOIN role r ON ur.role_id = r.id
+                            WHERE 
+                                ur.start_datetime <= GETDATE() 
+                                AND ur.expiry_datetime >= GETDATE()
+                                AND tpksa.approver_id IN (
+                                    SELECT DISTINCT a.ID
+                                    FROM users a
+                                    JOIN organisation_unit b ON a.organisation_unit_id = b.id
+                                    WHERE b.parent_org_unit_id IN (
+                                        SELECT d.organisation_unit_id 
+                                        FROM users d 
+                                        WHERE d.ID = @logged_in_user_id
+                                    )
+                                )
+                                AND tpks.status != 0 
+                                AND tpks.status + 1 IN (
+                                    SELECT DISTINCT a.level
+                                    FROM workflow_breakdown a
+                                    JOIN role_workflow_breakdown b ON a.id = b.workflow_breakdown_id
+                                    JOIN role c ON b.role_id = c.id
+                                    JOIN user_role d ON c.id = d.role_id
+                                    JOIN users e ON d.user_id = e.ID
+                                    WHERE 
+                                        a.is_responsibility_global = 0
+                                        AND e.ID = @logged_in_user_id
+                                )
+                        )
+
+                        SELECT 
+                            COUNT(*) AS TotalPendingApprovals
+                        FROM (
+                            SELECT * FROM GlobalFiles WHERE row_num = 1
+                            UNION
+                            SELECT * FROM OrgBasedFiles WHERE row_num = 1
+                        ) AS UniqueResults
+                        WHERE approve_as IS NOT NULL;
+            """
+            cursor.execute(query, [user_id])
+            pending_approvals_count = cursor.fetchone()[0]
+            return pending_approvals_count if pending_approvals_count is not None else 0
+        except Exception as e:
+            print("Database error:", e)
+            return 0
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_pending_project_kpi_submissions_count(status, user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return 0  # Return 0 if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT 
+                            COUNT(*)
+                        FROM 
+                            trn_project_kpi_setup a
+                        INNER JOIN 
+                            trn_project_kpi_setup_details b ON a.id = b.project_kpi_setup_id
+                        WHERE a.status = ? AND a.created_by = ?
+            """
+            cursor.execute(query, [status, user_id])
+            pending_submissions_count = cursor.fetchone()[0]
+            return pending_submissions_count if pending_submissions_count is not None else 0
+        except Exception as e:
+            print("Database error:", e)
+            return 0
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def update_project_kpi_setup_details(current_project_kpi_setup_detail_id, credit_points):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                UPDATE 
+                    trn_project_kpi_setup_details
+                SET 
+                    credit_points = ?,
+                    creation_date = GETDATE()
+                WHERE 
+                    id = ?;
+            """
+            cursor.execute(query, (credit_points, current_project_kpi_setup_detail_id,))
+            conn.commit()
+
+            return current_project_kpi_setup_detail_id
+        except Exception as e:
+            print(f"Error updating batch submission status: {e}")
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def update_project_kpi_setup(project_id, current_project_kpi_setup_detail_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                UPDATE 
+                    trn_project_kpi_setup
+                SET 
+                    project_id = ?                    
+                WHERE 
+                    id = ?;
+            """
+            cursor.execute(query, (project_id, current_project_kpi_setup_detail_id,))
+            conn.commit()
+
+            return current_project_kpi_setup_detail_id
+        except Exception as e:
+            print(f"Error updating batch submission status: {e}")
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def update_project_kpi_request_approval_status(kpi_request_setup_id, action, workflow_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            if action == "reject":
+                query = """
+                    UPDATE trn_project_kpi_setup
+                    SET status = 0
+                    WHERE id = ?;
+                """
+                cursor.execute(query, (kpi_request_setup_id,))
+
+            else:
+                query = """                    
+                    UPDATE trn_project_kpi_setup
+                    SET 
+                        status = status + 1
+                    WHERE id = ?;
+                """
+                cursor.execute(query, (kpi_request_setup_id,))
+
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating approval status of trn_project_kpi_setup record: {e}")
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def update_project_kpi_setup_status(focused_project_kpi_id):
+        conn = get_db_connection()
+
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                UPDATE trn_project_kpi_setup
+                SET status = 1
+                WHERE id = ?;
+            """
+
+            cursor.execute(query, (focused_project_kpi_id,))
+            conn.commit()
+
+            return cursor.rowcount > 0
+
+        except Exception as e:
+            print(f"Error updating status in trn_project_kpi_setup: {e}")
+            return False
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def has_ongoing_project_kpi_setup(user_id):
+        conn = get_db_connection()
+        if conn is None:
+            return False  # Assume doesn't exist if DB is unreachable
+
+        cursor = conn.cursor()
+
+        try:
+            query = "SELECT COUNT(*) FROM trn_project_kpi_setup WHERE status = 0 AND created_by = ?"
+            cursor.execute(query, (user_id,))
+            count = cursor.fetchone()[0]
+            return count > 0
+        except Exception as e:
+            print("Database error; failed to check for existing ongoing project kpi setup: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def has_ongoing_project_kpi_setup_detail(project_kpi_setup_id, key_process_id):
+        conn = get_db_connection()
+        if conn is None:
+            return False  # Assume doesn't exist if DB is unreachable
+
+        cursor = conn.cursor()
+
+        try:
+            query = ("SELECT COUNT(*) FROM trn_project_kpi_setup_details WHERE project_kpi_setup_id = ? "
+                     "AND key_process_id = ?")
+            cursor.execute(query, (project_kpi_setup_id, key_process_id,))
+            count = cursor.fetchone()[0]
+            return count > 0
+        except Exception as e:
+            print("Database error; failed to check for existing ongoing project kpi setup: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def insert_new_project_kpi_setup(
+            project_id,
+            user_id):
+
+        conn = get_db_connection()
+
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+
+        try:
+
+            query = """
+                INSERT INTO trn_project_kpi_setup
+                (
+                    project_id,
+                    created_by,
+                    creation_date
+                )
+                VALUES
+                (
+                    ?, ?, GETDATE()
+                )
+            """
+
+            cursor.execute(
+                query,
+                (
+                    project_id,
+                    user_id
+                )
+            )
+
+            conn.commit()
+
+            return True
+
+        except Exception as e:
+            print(f"Database error: {e}")
+            return False
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def update_project_kpi_request_approval_status_following_a_rejected_approval(kpi_request_setup_id):
+
+        conn = get_db_connection()
+        if conn is None:
+            return None  # Handle database connection failure
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                UPDATE 
+                    trn_project_kpi_setup
+                SET 
+                    status = 0
+                WHERE 
+                    id = ?
+            """
+            file_upload_id = cursor.execute(query, kpi_request_setup_id)
+            conn.commit()
+            return kpi_request_setup_id
+        except Exception as e:
+            print(f"Error updating status of trn_project_kpi_setup following a rejected request: {e}")
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def insert_new_project_kpi_setup_details(
+            project_kpi_setup_id,
+            key_process_id,
+            credit_points):
+
+        conn = get_db_connection()
+
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+
+        try:
+
+            query = """
+                INSERT INTO trn_project_kpi_setup_details
+                (
+                    project_kpi_setup_id,
+                    key_process_id,
+                    credit_points,
+                    creation_date
+                )
+                VALUES
+                (
+                    ?, ?, ?, GETDATE()
+                )
+            """
+
+            cursor.execute(
+                query,
+                (
+                    project_kpi_setup_id,
+                    key_process_id,
+                    credit_points
+                )
+            )
+
+            conn.commit()
+
+            return True
+
+        except Exception as e:
+            print(f"Database error: {e}")
+            return False
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def insert_into_trn_project_kpi_setup_approvals(
+            focused_project_kpi_id,
+            decision,
+            user_id,
+            level,
+            comment):
+
+        conn = get_db_connection()
+
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                """
+                INSERT INTO trn_project_kpi_setup_approvals
+                    (project_kpi_setup_id, decision, approver_id, level, comment, date_time)
+                VALUES
+                    (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    focused_project_kpi_id,
+                    decision,
+                    user_id,
+                    level,
+                    comment,
+                    datetime.now()
+                )
+            )
+
+            conn.commit()
+            return True
+
+        except pyodbc.Error as e:
+            print(f"Database insert error: {e}")
+            conn.rollback()
+            return False
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def delete_kpi_detail(kpi_id):
+        conn = get_db_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                DELETE 
+                FROM 
+                    trn_project_kpi_setup_details                
+                WHERE id = ?
+            """
+            cursor.execute(query, kpi_id)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to delete from trn_project_kpi_setup_details: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+
 class EmailHelper(UserMixin):
     def __init__(self):
         self.id = id
@@ -2018,171 +3164,6 @@ class BankAccount:
         except Exception as e:
             print("Database error:", e)
             return []
-        finally:
-            cursor.close()
-            conn.close()
-
-    @staticmethod
-    def get_bank_account_name_by_id(bank_account):
-        conn = get_db_connection()
-        if conn is None:
-            return None  # Handle database connection failure
-
-        cursor = conn.cursor()
-
-        try:
-            # check if User has a request pending submission
-            cursor.execute("SELECT name FROM bank_account WHERE id = ? ", bank_account)
-
-            bank_account_name = cursor.fetchone()[0]  # Fetch last batch_id
-            return bank_account_name
-        except Exception as e:
-            print("Database error:", e)
-            return []
-        finally:
-            cursor.close()
-            conn.close()
-
-    @staticmethod
-    def get_all_bank_account_details():
-        conn = get_db_connection()
-        if conn is None:
-            return []  # Return empty list if the database connection fails
-
-        cursor = conn.cursor()
-
-        try:
-            # Fetch submitted reconciliations
-            query = """
-                        SELECT ba.id, ba.name as account, b.name as bank, c.name as currency, ou.name as unit, 
-                        CONVERT(date, ba.creation_date) AS creation_date
-                        FROM bank_account ba 
-                        LEFT OUTER JOIN bank b ON ba.bank_id = b.id
-                        LEFT OUTER JOIN currency c ON ba.currency_id = c.id
-                        LEFT OUTER JOIN organisation_unit ou ON ba.strategic_business_unit_id = ou.id
-                        ORDER BY ba.name;
-                    """
-            cursor.execute(query, )
-            result = cursor.fetchall()
-
-            # Convert query result into list of Reconciliation objects
-            bank_details = [
-                BankAccount(id=row.id, account=row.account, bank=row.bank, currency=row.currency, unit=row.unit,
-                            creation_date=row.creation_date)
-                for row in result
-            ]
-            return bank_details
-        except Exception as e:
-            print("Database error:", e)
-            return []
-        finally:
-            cursor.close()
-            conn.close()
-
-    @staticmethod
-    def bank_account_name_exists(bank_account_name):
-        conn = get_db_connection()
-        if conn is None:
-            return False  # Assume doesn't exist if DB is unreachable
-
-        cursor = conn.cursor()
-
-        try:
-            query = "SELECT COUNT(*) FROM bank_account WHERE name = ?"
-            cursor.execute(query, (bank_account_name,))
-            count = cursor.fetchone()[0]
-            return count > 0
-        except Exception as e:
-            print("Database error; failed to check bank account existence: ", e)
-            return False
-        finally:
-            cursor.close()
-            conn.close()
-
-    @staticmethod
-    def insert_new_bank_account(bankAccountName, bank_id, currency_id, org_unit_id):
-        conn = get_db_connection()
-        if conn is None:
-            return []  # Return empty list if the database connection fails
-
-        cursor = conn.cursor()
-
-        try:
-
-            query = """
-                        INSERT INTO bank_account (name, bank_id, currency_id, strategic_business_unit_id, creation_date)
-                        VALUES (?, ?, ?, ?, GETDATE())
-                    """
-            cursor.execute(query, (bankAccountName, bank_id, currency_id, org_unit_id))
-            conn.commit()
-            return True
-        except Exception as e:
-            print("Database error; failed to insert a new bank: ", e)
-            return False
-        finally:
-            cursor.close()
-            conn.close()
-
-    @staticmethod
-    def get_bank_account_details(bank_account_name):
-        conn = get_db_connection()
-        if conn is None:
-            return []  # Return empty list if the database connection fails
-
-        cursor = conn.cursor()
-        try:
-            query = """
-                SELECT ba.id, ba.name AS bank_account_name, b.id AS bank_id,
-                       c.id AS currency_id, ou.id AS org_unit_id, ba.creation_date
-                FROM bank_account ba
-                LEFT OUTER JOIN bank b ON ba.bank_id = b.id
-                LEFT OUTER JOIN currency c ON ba.currency_id = c.id
-                LEFT OUTER JOIN organisation_unit ou ON ba.strategic_business_unit_id = ou.id
-                WHERE ba.name = ?
-            """
-            cursor.execute(query, (bank_account_name,))
-            result = cursor.fetchall()
-
-            bank_account_details = [
-                {
-                    "id": row.id,
-                    "bankaccountname": row.bank_account_name,
-                    "bank": row.bank_id,
-                    "currency": row.currency_id,
-                    "org_unit": row.org_unit_id,
-                    "creation_date": row.creation_date
-                }
-                for row in result
-            ]
-
-            return bank_account_details
-        except Exception as e:
-            print("Database error:", e)
-            return []
-        finally:
-            cursor.close()
-            conn.close()
-
-    @staticmethod
-    def update_bank_account(bank_acc_id, bank_id, currency_id, org_unit_id, creation_date):
-        conn = get_db_connection()
-        if conn is None:
-            return []  # Return empty list if the database connection fails
-
-        cursor = conn.cursor()
-
-        try:
-            query = """
-                UPDATE bank_account
-                SET bank_id = ?, currency_id = ?, strategic_business_unit_id = ?, creation_date = ? 
-                WHERE id = ?
-            """
-            cursor.execute(query, (bank_id, currency_id, org_unit_id, creation_date, bank_acc_id,))
-            conn.commit()
-            return True
-        except Exception as e:
-            print("Database error; failed to update bank account: ", e)
-            return False
         finally:
             cursor.close()
             conn.close()
@@ -4109,7 +5090,7 @@ class ActivityRequest:
                  subject=None, objectives=None, scope=None, stakeholders=None, deliverables=None, assumptions=None,
                  current_request_id=None, activity_id=None, member_id=None, role_id=None, team_member_no=None,
                  task_no=None, task=None, key_process_id=None, start_date=None, end_date=None, project_code=None,
-                 project_name=None, max_end_date=None, approve_as=None):
+                 project_name=None, max_end_date=None, approve_as=None, credit_points_balance=None):
         self.id = id
         self.name = name
         self.user_id = user_id
@@ -4136,6 +5117,7 @@ class ActivityRequest:
         self.project_name = project_name
         self.max_end_date = max_end_date
         self.approve_as = approve_as
+        self.credit_points_balance = credit_points_balance
 
     @staticmethod
     def get_activity_requests_pending_approval(user_id):
@@ -5586,7 +6568,7 @@ class ActivityRequest:
             conn.close()
 
     @staticmethod
-    def insert_into_trn_activity_breakdown(task_no, activity_id, task, key_process_id, start_date, end_date):
+    def insert_into_trn_activity_breakdown(task_no, activity_id, task, key_process_id, credit_points, start_date, end_date):
         conn = get_db_connection()
         if conn is None:
             return None
@@ -5597,10 +6579,10 @@ class ActivityRequest:
             cursor.execute(
                 """
                     INSERT INTO trn_activity_breakdown 
-                    (id, activity_id, task, key_process_id, start_date, end_date)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    (id, activity_id, task, key_process_id, credit_points, start_date, end_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (task_no, activity_id, task, key_process_id, start_date, end_date),
+                (task_no, activity_id, task, key_process_id, credit_points, start_date, end_date),
             )
             conn.commit()
             return task_no
@@ -6423,21 +7405,101 @@ class ActivityRequest:
         cursor = conn.cursor()
 
         try:
-            # Fetch tasks associated with the Key Process
             query = """
-                SELECT id, task FROM trn_activity_breakdown WHERE key_process_id = ? and activity_id = ? ORDER BY task
+                        SELECT
+                            a.id,
+                            a.task,
+                            ISNULL(
+                                (
+                                    SELECT SUM(tab.credit_points)
+                                    FROM trn_activity_breakdown tab
+                                    INNER JOIN trn_activity_request tar
+                                        ON tab.activity_id = tar.id
+                                    WHERE tab.key_process_id = a.key_process_id
+                                      AND tar.project_id = b.project_id
+                                ), 0
+                            )
+                            -
+                            ISNULL(
+                                (
+                                    SELECT SUM(talab.credit_points)
+                                    FROM trn_activity_log_activity_breakdown talab
+                                    INNER JOIN trn_activity_log_overview talo
+                                        ON talab.trn_activity_log_id = talo.id
+                                    INNER JOIN trn_activity_request tar
+                                        ON talo.activity_id = tar.id
+                                    WHERE tar.project_id = b.project_id
+                                      AND EXISTS
+                                      (
+                                          SELECT 1
+                                          FROM trn_activity_breakdown tab
+                                          WHERE tab.activity_id = tar.id
+                                            AND tab.key_process_id = a.key_process_id
+                                      )
+                                ), 0
+                            ) AS credit_points_balance
+                        FROM trn_activity_breakdown a
+                        LEFT JOIN trn_activity_request b
+                            ON a.activity_id = b.id
+                        WHERE a.key_process_id = ?
+                          AND a.activity_id = ?
+                        ORDER BY a.task;
             """
             cursor.execute(query, (key_process_id, activity_id,))
             result = cursor.fetchall()
 
             activity_tasks = [
-                ActivityRequest(id=row.id, task=row.task)
+                ActivityRequest(id=row.id, task=row.task, credit_points_balance=row.credit_points_balance)
                 for row in result
             ]
             return activity_tasks
         except Exception as e:
             print("Database error:", e)
             return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_credit_points_balance_by_task_id(task_id, key_process_id, activity_id):
+        conn = get_db_connection()
+        if conn is None:
+            return 0
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                SELECT
+                    a.credit_points -
+                    ISNULL(
+                        (
+                            SELECT SUM(talab.credit_points)
+                            FROM trn_activity_log_activity_breakdown talab
+                            INNER JOIN trn_activity_log_overview talo
+                                ON talab.trn_activity_log_id = talo.id
+                            WHERE talo.activity_id = a.activity_id
+                              AND talo.key_process_id = a.key_process_id
+                              AND talo.task_id = a.id
+                        ),
+                        0
+                    ) AS credit_points_balance
+                FROM trn_activity_breakdown a
+                WHERE a.id = ?
+                  AND a.activity_id = ?
+                  AND a.key_process_id = ?;
+            """
+
+            cursor.execute(query, (task_id, activity_id, key_process_id))
+
+            row = cursor.fetchone()
+
+            return row.credit_points_balance if row else 0
+
+        except Exception as e:
+            print("Database error:", e)
+            return 0
+
         finally:
             cursor.close()
             conn.close()
@@ -6537,12 +7599,44 @@ class ActivityRequest:
         cursor = conn.cursor()
         try:
             query = """
-                SELECT a.id, a.activity_id, a.task, a.key_process_id,
-                       CONVERT(varchar, a.start_date, 120) AS start_date,
-                       CONVERT(varchar, a.end_date, 120) AS end_date
-                FROM trn_activity_breakdown a
-                WHERE a.activity_id = ?
-                ORDER BY a.id
+                        SELECT
+                            a.id,
+                            a.activity_id,
+                            a.task,
+                            a.key_process_id,
+                        
+                            ISNULL(kpi.total_credit_points, 0)
+                            - ISNULL(used.used_credit_points, 0)
+                            + ISNULL(a.credit_points, 0) AS available_credit_points,
+                        
+                            a.credit_points,
+                            CONVERT(varchar, a.start_date, 120) AS start_date,
+                            CONVERT(varchar, a.end_date, 120) AS end_date
+                        
+                        FROM trn_activity_breakdown a
+                        INNER JOIN trn_activity_request b
+                            ON a.activity_id = b.id
+                        
+                        OUTER APPLY (
+                            SELECT SUM(kpsd.credit_points) AS total_credit_points
+                            FROM trn_project_kpi_setup_details kpsd
+                            INNER JOIN trn_project_kpi_setup kps
+                                ON kpsd.project_kpi_setup_id = kps.id
+                            WHERE kps.project_id = b.project_id
+                              AND kpsd.key_process_id = a.key_process_id
+                        ) kpi
+                        
+                        OUTER APPLY (
+                            SELECT SUM(tab.credit_points) AS used_credit_points
+                            FROM trn_activity_breakdown tab
+                            INNER JOIN trn_activity_request tar
+                                ON tab.activity_id = tar.id
+                            WHERE tar.project_id = b.project_id
+                              AND tab.key_process_id = a.key_process_id
+                        ) used
+                        
+                        WHERE a.activity_id = ?
+                        ORDER BY a.id;
             """
             cursor.execute(query, (activity_request_id,))
             columns = [col[0] for col in cursor.description]
@@ -6565,13 +7659,50 @@ class ActivityRequest:
         cursor = conn.cursor()
         try:
             query = """
-                        SELECT a.id, a.activity_id, a.task, a.key_process_id, b.name as process_name, 
-                            CONVERT(varchar, a.start_date, 23) AS start_date,  -- YYYY-MM-DD
-                            CONVERT(varchar, a.end_date, 23) AS end_date      
+                        SELECT
+                            a.id,
+                            a.activity_id,
+                            a.task,
+                            a.key_process_id,
+                            b.name AS process_name,
+                            a.credit_points,
+                        
+                            ISNULL(
+                                (
+                                    SELECT SUM(tpksd.credit_points)
+                                    FROM trn_project_kpi_setup_details tpksd
+                                    INNER JOIN trn_project_kpi_setup tpkpis
+                                        ON tpksd.project_kpi_setup_id = tpkpis.id
+                                    WHERE tpkpis.project_id = c.project_id
+                                      AND tpksd.key_process_id = a.key_process_id
+                                ),
+                                0
+                            )
+                            -
+                            ISNULL(
+                                (
+                                    SELECT SUM(tab.credit_points)
+                                    FROM trn_activity_breakdown tab
+                                    INNER JOIN trn_activity_request tar
+                                        ON tab.activity_id = tar.id
+                                    WHERE tar.project_id = c.project_id
+                                      AND tab.key_process_id = a.key_process_id
+                                ),
+                                0
+                            ) AS credit_points_balance,
+                        
+                            CONVERT(varchar, a.start_date, 23) AS start_date,
+                            CONVERT(varchar, a.end_date, 23) AS end_date
+                        
                         FROM trn_activity_breakdown a
-                        LEFT OUTER JOIN mst_key_process b on a.key_process_id = b.id
+                        INNER JOIN mst_key_process b
+                            ON a.key_process_id = b.id
+                        INNER JOIN trn_activity_request c
+                            ON a.activity_id = c.id
+                        INNER JOIN mst_project d
+                            ON c.project_id = d.id
                         WHERE a.activity_id = ?
-                        ORDER BY a.id
+                        ORDER BY a.id;
             """
             cursor.execute(query, (activity_request_id,))
             columns = [col[0] for col in cursor.description]
@@ -8345,7 +9476,7 @@ class ActivityRequestLog:
             conn.close()
 
     @staticmethod
-    def insert_into_trn_activity_log_activity_breakdown(activity_breakdown_count, trn_activity_log_id, start_date, end_Date, activity_breakdown_detail):
+    def insert_into_trn_activity_log_activity_breakdown(activity_breakdown_count, trn_activity_log_id, start_date, end_Date, activity_breakdown_detail, credit_points_requested):
         conn = get_db_connection()
         if conn is None:
             return None
@@ -8355,10 +9486,10 @@ class ActivityRequestLog:
         try:
             cursor.execute(
                 """
-                    INSERT INTO trn_activity_log_activity_breakdown (activity_breakdown_details_count, trn_activity_log_id, start_date, end_date, detail)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO trn_activity_log_activity_breakdown (activity_breakdown_details_count, trn_activity_log_id, start_date, end_date, detail, credit_points)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (activity_breakdown_count, trn_activity_log_id, start_date, end_Date, activity_breakdown_detail),
+                (activity_breakdown_count, trn_activity_log_id, start_date, end_Date, activity_breakdown_detail, credit_points_requested),
             )
             conn.commit()
             return activity_breakdown_count

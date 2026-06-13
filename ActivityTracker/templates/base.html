@@ -18,8 +18,6 @@
       <script src="/static/bs/js/jquery-3.7.1.js"></script>
       <script src="/static/bs/js/dataTables.min.js"></script>
       <script src="/static/bs/js/dataTables.bootstrap5.min.js"></script>
-      <script src="/static/bs/js/popper.min.js"></script>
-      <script src="/static/bs/js/bootstrap.js"></script>
       <script src="/static/bs/js/bootstrap.bundle.min.js"></script>
       <!-- DataTables CSS -->
       <link rel="stylesheet" href="/static/bs/css/jquery.dataTables.min.css">
@@ -32,6 +30,8 @@
       <script src="/static/bs/js/buttons.html5.min.js"></script>
       <script src="/static/bs/js/buttons.print.min.js"></script>
 	  <script src="/static/bs/js/logoBase64.js"></script>
+      <script src="/static/bs/js/watermarkLogoBase64.js"></script>
+      <script src="/static/bs/js/footerSkirtingBase64.js"></script>
       <!-- Add Chart.js library -->
       <script src="/static/bs/js/chart.min.js"></script>
 	  <!-- Date picker -->
@@ -257,44 +257,44 @@
                         {{ " ".join([current_user.fname, current_user.mname, current_user.sname] | select("string") | list) }}
                     </a>
 
-  <div class="dropdown-menu dropdown-menu-right shadow user-dropdown-enhanced" aria-labelledby="userDropdown">
+                    <div class="dropdown-menu dropdown-menu-right shadow user-dropdown-enhanced" aria-labelledby="userDropdown">
 
-      <!-- User Info Header -->
-      <div class="dropdown-header text-center">
-          <div class="user-name">
-              {{ current_user.fname }} {{ current_user.mname }} {{ current_user.sname }}
-          </div>
+                        <!-- User Info Header -->
+                        <div class="dropdown-header text-center">
+                            <div class="user-name">
+                                {{ current_user.fname }} {{ current_user.mname }} {{ current_user.sname }}
+                            </div>
 
-          <!-- Organisation Unit -->
-          {% if user_org_unit %}
-          <div class="user-org-unit mt-1">
-              <i class="fa-solid fa-sitemap mr-1"></i>
-              {{ user_org_unit }}
-          </div>
-          {% endif %}
+                            <!-- Organisation Unit -->
+                            {% if user_org_unit %}
+                            <div class="user-org-unit mt-1">
+                                <i class="fa-solid fa-sitemap mr-1"></i>
+                                {{ user_org_unit }}
+                            </div>
+                            {% endif %}
 
-          <!-- Roles -->
-          <div class="user-roles mt-2">
-              {% if user_roles %}
-                  {% for role in user_roles %}
-                      <span class="badge badge-pill badge-role">
-                          <i class="fa-solid fa-user-tag mr-1"></i>
-                          {{ role }}
-                      </span>
-                  {% endfor %}
-              {% else %}
-                  <span class="text-muted small">No active roles</span>
-              {% endif %}
-          </div>
-      </div>
+                            <!-- Roles -->
+                            <div class="user-roles mt-2">
+                                {% if user_roles %}
+                                    {% for role in user_roles %}
+                                        <span class="badge badge-pill badge-role">
+                                            <i class="fa-solid fa-user-tag mr-1"></i>
+                                            {{ role }}
+                                        </span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted small">No active roles</span>
+                                {% endif %}
+                            </div>
+                        </div>
 
-      <div class="dropdown-divider"></div>
+                        <div class="dropdown-divider"></div>
 
-      <a class="dropdown-item text-danger" href="{{ url_for('logout_page') }}">
-          <i class="fa-solid fa-right-from-bracket mr-2"></i> Logout
-      </a>
-  </div>
-</li>
+                        <a class="dropdown-item text-danger" href="{{ url_for('logout_page') }}">
+                            <i class="fa-solid fa-right-from-bracket mr-2"></i> Logout
+                        </a>
+                    </div>
+                  </li>
                 {% endif %}
             </ul>
             {% endif %}
@@ -351,7 +351,7 @@
                         class="menu-collapse-heading d-flex align-items-center">
                      <i class="fa-sharp fa-solid fa-list-check"></i>
                      <span>Actions</span>
-                        {% set total_pending = pending_approvals_count + pending_submissions_count + completed_wip_activity_requests_pending_approvals_count + completed_wip_activity_requests_pending_submission_count%}
+                        {% set total_pending = kpi_setup_pending_approval_count + pending_approvals_count + pending_project_kpi_submission_count + pending_submissions_count + completed_wip_activity_requests_pending_approvals_count + completed_wip_activity_requests_pending_submission_count%}
                         {% if total_pending > 0 %}
                         <span class="badge badge-danger rounded-pill ml-1">{{ total_pending }}</span>
                         {% endif %}
@@ -359,6 +359,28 @@
                      </a>
                   </div>
                   <div id="collapse2" class="panel-collapse collapse" data-parent="#accordion">
+                     {% if 'Submit Project KPI' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('project_kpi_setup_page') %} active {% endif %}"
+                           href="{{ url_for('project_kpi_setup_page') }}">
+                           <i class="fa-solid fa-bullseye"></i>
+                           <span>Project KPI Setup</span>
+                              {% if pending_project_kpi_submission_count > 0 %}
+                                 <span class="badge badge-danger rounded-pill ml-1">{{ pending_project_kpi_submission_count }}</span>
+                              {% endif %}
+                        </a>
+                     {% endif %}
+
+                     {% if 'Approve Project KPI' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('approve_activity_requests_page') %} active {% endif %}"
+                           href="{{ url_for('approve_project_kpi_requests_page') }}">
+                        <i class="fa-solid fa-file-signature"></i>
+                        <span>Approve Project KPI Requests</span>
+                           {% if kpi_setup_pending_approval_count > 0 %}
+                              <span class="badge badge-danger rounded-pill ml-1">{{ kpi_setup_pending_approval_count }}</span>
+                           {% endif %}
+                        </a>
+                     {% endif %}
+
                      {% if 'Submit Activity Requests' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('activity_request_page') %} active {% endif %}"
                            href="{{ url_for('activity_request_page') }}">
@@ -696,6 +718,7 @@
             {% include 'includes/work_in_progress_add_log_modal.html' %}
             {% include 'includes/work_in_progress_list_logs_modal.html' %}
             {% include 'includes/work_in_progress_view_edit_log_modal.html' %}
+            {% include 'includes/project_kpi_setup_details_modal.html' %}
          </div>
       </main>
    </body>

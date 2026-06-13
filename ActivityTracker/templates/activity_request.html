@@ -42,13 +42,6 @@
     {% endfor %}
 {% endset %}
 
-{% set key_process_options %}
-    <option value="">Select Key Process</option>
-    {% for key_process_detail in key_process_details %}
-        <option value="{{ key_process_detail.id }}">{{ key_process_detail.name }}</option>
-    {% endfor %}
-{% endset %}
-
 <div class="card">
     <form id="activityForm" method="post">
 
@@ -173,15 +166,17 @@
             <div id="collapseBreakdown" class="collapse" aria-labelledby="headingBreakdown" data-parent="#activityAccordion">
                 <div class="card-body">
                     <table class="table table-sm table-striped table-bordered table-hover align-middle">
-                        <thead class="table-light">
+                        <thead class="table-light" id="taskHeadsInputs">
                             <tr>
-                                <th class="text-end" style="width: 5%;">#</th>
-                                <th style="width: 25%;">Task</th>
-                                <th style="width: 20%;">Key Process</th>
-                                <th style="width: 15%;">Start Date</th>
-                                <th style="width: 15%;">End Date</th>
-                                <th style="width: 10%;">No. of Days</th>
-                                <th class="text-center" style="width: 10%;">Action</th>
+                                <th class="text-end" style="width: 4%;">#</th>
+                                <th style="width: 23%;">Task</th>
+                                <th style="width: 15%;">Key Process</th>
+                                <th style="width: 10%;">Available Credit Points</th>
+                                <th style="width: 10%;">Set Credit Points</th>
+                                <th style="width: 12%;">Start Date</th>
+                                <th style="width: 12%;">End Date</th>
+                                <th style="width: 6%;">No. of Days</th>
+                                <th class="text-center" style="width: 7%;">Action</th>
                             </tr>
                         </thead>
 
@@ -192,9 +187,32 @@
                                     <textarea class="form-control" name="task[]" rows="2" placeholder="Enter task name" maxlength="150"></textarea>
                                 </td>
                                 <td>
-                                    <select class="form-control" name="key_process_names">
-                                        {{ key_process_options | safe }}
+                                    <select class="form-control key-process-dropdown" name="key_process_names">
+                                        <option value="">Select a Key Process</option>
                                     </select>
+                                </td>
+                                <td>
+                                    <input type="text"
+                                       class="form-control available-credit-points"
+                                       name="available_credit_points[]"
+                                       value="0"
+                                       data-original="100"
+                                       style="text-align: right;"
+                                       inputmode="numeric"
+                                       pattern="[0-9,]+"
+                                       oninput="formatCreditPoints(this)"
+                                       required disabled>
+                                </td>
+                                <td>
+                                    <input type="text"
+                                       class="form-control set-credit-points"
+                                       name="set_credit_points"
+                                       value="0"
+                                       style="text-align: right;"
+                                       inputmode="numeric"
+                                       pattern="[0-9,]+"
+                                       oninput="formatCreditPoints(this)"
+                                       required>
                                 </td>
                                 <td>
                                     <input type="text" class="form-control start-date" name="start_date[]" placeholder="Start Date" autocomplete="off">
@@ -214,7 +232,7 @@
                         <tfoot>
                             <tr>
                                 <td></td>
-                                <td colspan="4" class="text-end fw-bold">Total No. of Days:</td>
+                                <td colspan="6" class="text-end fw-bold">Total No. of Days:</td>
                                 <td class="total-days text-center">1</td>
                                 <td></td>
                             </tr>
@@ -241,7 +259,6 @@
                     Attachments
                     </button>
                 </h6>
-
 
                 <div id="collapseAttachments" class="collapse" aria-labelledby="headingAttachments" data-parent="#activityAccordion">
                     <div class="card-body">
@@ -392,6 +409,73 @@
         showConfirmationActivityRequest(actionType);
     }
 
+    function formatCreditPoints(input) {
+
+        const value = input.value
+            .replace(/,/g, "")
+            .replace(/[^0-9]/g, "");
+
+        input.value = value === ""
+            ? "0"
+            : parseInt(value, 10).toLocaleString("en-US");
+
+        // Only run for Set Credit Points field
+        if ($(input).hasClass("set-credit-points")) {
+
+            const $row = $(input).closest("tr");
+
+            const $availableInput = $row.find(".available-credit-points");
+
+            const originalAvailable = parseFloat($availableInput.attr("data-original")) || 0;
+
+            const setPoints =  parseFloat(input.value.replace(/,/g, "")) || 0;
+
+            // Remove existing validation message
+            $(input).next(".credit-points-error").remove();
+
+            // Validation
+            if (setPoints > originalAvailable) {
+
+                $(input).addClass("is-invalid");
+
+                $(input).next(".credit-points-error").remove();
+
+                $(input).after(`
+                    <small class="text-danger credit-points-error d-block mt-1">
+                        Credit points requested cannot exceed available credit points (${originalAvailable.toLocaleString("en-US")}).
+                    </small>
+                `);
+
+                return;
+            }
+
+            $(input).removeClass("is-invalid");
+            $(input).next(".credit-points-error").remove();
+
+            const balance = originalAvailable - setPoints;
+
+            $availableInput.val(
+                balance.toLocaleString("en-US")
+            );
+        }
+    }
+
+    $(document).off("change", ".key-process-dropdown").on("change", ".key-process-dropdown", function() {
+
+            const projectId = $("#project_id").val();
+            const keyProcessId = $(this).val();
+
+            const $row = $(this).closest("tr");
+
+            loadAvailableCreditPoints(
+                projectId,
+                keyProcessId,
+                currentActivityRequestId,
+                $row
+            );
+        }
+    );
+
     function validateFormActivityRequest() {
         let isValid = true;
 
@@ -428,6 +512,7 @@
         }
 
         const subjectVal = $("#subject").val()?.trim() || "";
+
         if (subjectVal === "") {
             isValid = false;
             $("#subject").after('<div class="text-danger validation-error small">Subject is required.</div>');
@@ -470,38 +555,90 @@
             invalidSections.add("#collapseTeam");
         }
 
-        // --- Check Task Rows ---
-        let taskRows = $("#taskInputs tr").filter(function() {
-            // Only include rows that have a task textarea (ignore empty template rows)
-            return $(this).find("textarea[name='task[]']").length > 0;
-        });
-        let hasValidTask = false;
+// --- Check Task Rows ---
+let taskRows = $("#taskInputs tr").filter(function() {
+    return $(this).find("textarea[name='task[]']").length > 0;
+});
 
-        taskRows.each(function() {
-            const $row = $(this);
-            const taskName = $row.find("textarea[name='task[]']").val()?.trim() || "";
-            const keyProcess = $row.find("select[name='key_process_names']").val() || "";
-            const startDate = $row.find("input.start-date").val()?.trim() || "";
-            const endDate = $row.find("input.end-date").val()?.trim() || "";
+let hasValidTask = false;
 
-            $row.find(".text-danger.validation-error").remove();
+taskRows.each(function() {
 
-            if (!taskName || !keyProcess || !startDate || !endDate) {
-                isValid = false;
-                $row.find("td:last").append('<div class="text-danger validation-error small">Fill all fields in this row.</div>');
-                invalidSections.add("#collapseBreakdown");
-            } else {
-                hasValidTask = true;
-            }
-        });
+    const $row = $(this);
 
-        if (!hasValidTask) {
-            isValid = false;
-            if (!$("#taskInputs").find(".text-danger.validation-error").length) {
-                $("#taskInputs").after('<div class="text-danger validation-error small">At least one task row must be fully filled.</div>');
-            }
-            invalidSections.add("#collapseBreakdown");
-        }
+    const taskName = $row.find("textarea[name='task[]']").val()?.trim() || "";
+    const keyProcess = $row.find("select[name='key_process_names']").val() || "";
+    const startDate = $row.find("input.start-date").val()?.trim() || "";
+    const endDate = $row.find("input.end-date").val()?.trim() || "";
+
+    const $setCreditPoints = $row.find(".set-credit-points");
+    const $availableCreditPoints = $row.find(".available-credit-points");
+
+    const setPoints =
+        parseFloat($setCreditPoints.val()?.replace(/,/g, "")) || 0;
+
+    const originalAvailable =
+        parseFloat($availableCreditPoints.attr("data-original")) || 0;
+
+    $row.find(".text-danger.validation-error").remove();
+    $setCreditPoints.removeClass("is-invalid");
+
+    // Standard validation
+    if (!taskName || !keyProcess || !startDate || !endDate) {
+
+        isValid = false;
+
+        $row.find("td:last").append(
+            '<div class="text-danger validation-error small">Fill all fields in this row.</div>'
+        );
+
+        invalidSections.add("#collapseBreakdown");
+    }
+
+    // Credit points cannot be zero
+    if (setPoints <= 0) {
+
+        isValid = false;
+
+        $setCreditPoints.addClass("is-invalid");
+
+        $setCreditPoints.after(`
+            <div class="text-danger validation-error small">
+                Credit points requested must be greater than zero.
+            </div>
+        `);
+
+        invalidSections.add("#collapseBreakdown");
+    }
+
+    // Credit points cannot exceed available balance
+    if (setPoints > originalAvailable) {
+
+        isValid = false;
+
+        $setCreditPoints.addClass("is-invalid");
+
+        $setCreditPoints.after(`
+            <div class="text-danger validation-error small">
+                Credit points requested cannot exceed available credit points (${originalAvailable.toLocaleString("en-US")}).
+            </div>
+        `);
+
+        invalidSections.add("#collapseBreakdown");
+    }
+
+    // Row is valid only if all validations pass
+    if (
+        taskName &&
+        keyProcess &&
+        startDate &&
+        endDate &&
+        setPoints > 0 &&
+        setPoints <= originalAvailable
+    ) {
+        hasValidTask = true;
+    }
+});
 
         // --- Expand invalid accordions ---
         invalidSections.forEach(id => $(id).collapse("show"));
@@ -587,6 +724,7 @@
     }
 
     function addTask() {
+
         const $tbody = $("#taskInputs");
         const newRowIndex = $tbody.find("tr").length + 1; // count existing rows + 1
 
@@ -598,10 +736,32 @@
                             placeholder="Enter task name" maxlength="150"></textarea>
               </td>
               <td>
-                  <select class="form-control" name="key_process_names">
-                      {{ key_process_options | safe }}
-                  </select>
+                <select class="form-control key-process-dropdown" name="key_process_names">
+                    <option value="">Select a Key Process</option>
+                </select>
               </td>
+                <td>
+                    <input type="text"
+                       class="form-control available-credit-points"
+                       name="available_credit_points[]"
+                       value="0"
+                       style="text-align: right;"
+                       inputmode="numeric"
+                       pattern="[0-9,]+"
+                       oninput="formatCreditPoints(this)"
+                       required disabled>
+                </td>
+                <td>
+                    <input type="text"
+                       class="form-control set-credit-points"
+                       name="set_credit_points"
+                       value="0"
+                       style="text-align: right;"
+                       inputmode="numeric"
+                       pattern="[0-9,]+"
+                       oninput="formatCreditPoints(this)"
+                       required>
+                </td>
               <td>
                   <input type="text" class="form-control start-date"
                          name="start_date[]" placeholder="Start Date" autocomplete="off">
@@ -626,6 +786,13 @@
 
         // recalc totals
         calculateTotalDaysFunctionActivityRequest();
+
+        const projectId = $("#project_id").val();
+        const $newDropdown = newRow.find(".key-process-dropdown");
+
+        if (projectId && $newDropdown.length) {
+            loadKeyProcessesForDropdown(projectId, $newDropdown);
+        }
     }
 
     function removeFieldActivityRequest(button) {
@@ -915,6 +1082,10 @@
         $("#taskInputs tr").each(function() {
             const task = $(this).find("textarea[name='task[]']").val();
             const keyProcess = $(this).find("select[name='key_process_names']").val();
+
+            const creditPointsVal = $(this).find(".set-credit-points").val()?.trim() || "0";
+            const creditPoints = parseInt(creditPointsVal.replace(/,/g, ""), 10) || 0;
+
             const startDate = $(this).find("input.start-date").val();
             const endDate = $(this).find("input.end-date").val();
             const days = $(this).find(".days-diff").text();
@@ -923,6 +1094,7 @@
                 tasks.push({
                     task,
                     key_process: keyProcess,
+                    credit_points: creditPoints,
                     start_date: startDate,
                     end_date: endDate,
                     days: parseInt(days)
@@ -1024,6 +1196,110 @@
 
     }
 
+    function loadKeyProcessesForDropdown(projectId, $dropdown, selectedKeyProcessId = null, activityId = null) {
+
+        if (!projectId)
+            return;
+
+        $.ajax({
+            url: `/get-key-processes-by-project-id/${projectId}`,
+            type: "GET",
+
+            success: function(key_processes) {
+
+                $dropdown.empty()
+                    .append(
+                        '<option value="">Select a Key Process</option>'
+                    );
+
+                key_processes.forEach(function(keyProcess) {
+
+                    const selected =
+                        String(keyProcess.id) ===
+                        String(selectedKeyProcessId)
+                            ? "selected"
+                            : "";
+
+                    $dropdown.append(`
+                        <option value="${keyProcess.id}" ${selected}>
+                            ${keyProcess.process_name}
+                        </option>
+                    `);
+                });
+
+                if (selectedKeyProcessId) {
+
+                    const $row =
+                        $dropdown.closest("tr");
+
+                    loadAvailableCreditPoints(
+                        projectId,
+                        selectedKeyProcessId,
+                        activityId,
+                        $row
+                    );
+                }
+            }
+        });
+    }
+
+    function loadKeyProcesses(projectId) {
+
+        if (!projectId) {
+            return;
+        }
+
+        $.ajax({
+            url: `/get-key-processes-by-project-id/${projectId}`,
+            type: "GET",
+            success: function(key_processes) {
+
+                $(".key-process-dropdown").each(function() {
+
+                    const $dropdown = $(this);
+
+                    $dropdown.empty()
+                        .append('<option value="">Select a Key Process</option>');
+
+                    key_processes.forEach(function(key_process) {
+                        $dropdown.append(
+                            `<option value="${key_process.id}">
+                                ${key_process.process_name}
+                             </option>`
+                        );
+                    });
+                });
+            },
+            error: function() {
+                showFlashMessage(
+                    "Failed to load key processes for the selected project.",
+                    "danger"
+                );
+            }
+        });
+    }
+
+    function loadAvailableCreditPoints(projectId, keyProcessId, activityId, $row) {
+
+        console.log(activityId);
+
+        if (!projectId || !keyProcessId)
+            return;
+
+        $.ajax({
+            url: `/get-available-credit-points-by-project-id-and-key-process-id/${projectId}/${keyProcessId}/${activityId}`,
+            type: "GET",
+            success: function (response) {
+
+                const available = Number(response.available_credit_points || 0);
+
+                $row.find(".available-credit-points")
+                    .val(available.toLocaleString("en-US"))
+                    .attr("data-original", available);
+            }
+        });
+    }
+
     $(document).ready(function() {
 
         // --- Reset global tracker ---
@@ -1034,6 +1310,10 @@
 
         // --- Reset all form inputs, selects, and textareas ---
         $("#activityForm")[0].reset();
+
+        $("#project_id").off("change").on("change", function () {
+            loadKeyProcesses($(this).val());
+        });
 
         initDatePickersActivityRequest($('#taskInputs'));
 
@@ -1190,11 +1470,11 @@
     // Populate saved activity request
     $(document).off("click", ".edit-saved-activity-request-btn").on("click", ".edit-saved-activity-request-btn", function() {
 
-        console.log("Edit button clicked");
         const activityId = $(this).attr("saved-activity-request-id");
-        console.log("Loaded activity_request_id:", activityId);
 
         currentActivityRequestId = activityId;
+
+        let projectId = null;
 
         $.ajax({
             url: "/get-saved-activity-request-details",
@@ -1203,6 +1483,8 @@
                 activity_request_id: activityId
             },
             success: function(data) {
+                // assign the variable: projectId
+                projectId = data.project_code;
                 // Populate modal fields
                 $("#project_id").val(data.project_code);
                 $("#subject").val(data.subject);
@@ -1291,9 +1573,31 @@
                                         placeholder="Enter task name" maxlength="150">${task.task || ''}</textarea>
                                 </td>
                                 <td>
-                                    <select class="form-control" name="key_process_names">
-                                        {{ key_process_options | safe }}
+                                    <select class="form-control key-process-dropdown" name="key_process_names">
+                                        <option value="">Select a Key Process</option>
                                     </select>
+                                </td>
+                                <td>
+                                    <input type="text"
+                                       class="form-control available-credit-points"
+                                       name="available_credit_points[]"
+                                       value=${task.available_credit_points || 0}
+                                       style="text-align: right;"
+                                       inputmode="numeric"
+                                       pattern="[0-9,]+"
+                                       oninput="formatCreditPoints(this)"
+                                       required disabled>
+                                </td>
+                                <td>
+                                    <input type="text"
+                                       class="form-control set-credit-points"
+                                       name="set_credit_points"
+                                       value=${task.credit_points || 0}
+                                       style="text-align: right;"
+                                       inputmode="numeric"
+                                       pattern="[0-9,]+"
+                                       oninput="formatCreditPoints(this)"
+                                       required>
                                 </td>
                                 <td>
                                     <input type="text" class="form-control start-date" name="start_date[]"
@@ -1316,6 +1620,15 @@
                         newRow.find("select[name='key_process_names']").val(task.key_process_id);
 
                         $tbody.append(newRow);
+
+                        const $dropdown = newRow.find(".key-process-dropdown");
+
+                        loadKeyProcessesForDropdown(
+                            projectId,
+                            $dropdown,
+                            task.key_process_id,
+                            activityId
+                        );
                     });
 
                     // Reinitialize datepickers on loaded rows
@@ -1459,8 +1772,8 @@
                             <textarea class="form-control" name="task[]" rows="2" placeholder="Enter task name" maxlength="150"></textarea>
                         </td>
                         <td>
-                            <select class="form-control" name="key_process_names">
-                                {{ key_process_options | safe }}
+                            <select class="form-control key-process-dropdown" name="key_process_names">
+                                <option value="">Select a Key Process</option>
                             </select>
                         </td>
                         <td>
@@ -1579,5 +1892,23 @@
     #confirmationModal { z-index: 1060; }
     #roleModal { z-index: 1050; }
     .modal-backdrop.confirmation-backdrop { z-index: 1055; }
+
+    #taskInputs,
+    #taskInputs .form-control,
+    #taskInputs textarea,
+    #taskInputs select,
+    #taskInputs input {
+        font-size: 0.8rem;
+    }
+
+    #taskInputs .form-control {
+        padding: 0.25rem 0.5rem;
+    }
+
+    #taskHeadsInputs th {
+        font-size: 0.8rem !important;
+        padding: 0.25rem 0.35rem;
+        font-weight: 600;
+    }
 </style>
 {% endblock %}

@@ -128,6 +128,26 @@ def inject_menu_items():
 
 
 @app.context_processor
+def inject_pending_project_kpi_submissions_count():
+    if current_user.is_authenticated:
+        from ActivityTracker.models import ProjectKPI  # Moved inside the function
+        count = ProjectKPI.get_pending_project_kpi_submissions_count(0, current_user.id)
+    else:
+        count = 0
+    return dict(pending_project_kpi_submission_count=count)
+
+
+@app.context_processor
+def inject_project_kpi_setup_pending_approval_count():
+    if current_user.is_authenticated:
+        from ActivityTracker.models import ProjectKPI  # Moved inside the function
+        count = ProjectKPI.project_kpi_setup_pending_approval_count(current_user.id)
+    else:
+        count = 0
+    return dict(kpi_setup_pending_approval_count=count)
+
+
+@app.context_processor
 def inject_pending_approvals_count():
     if current_user.is_authenticated:
         from ActivityTracker.models import ActivityRequest  # Import here to avoid circular imports
@@ -147,7 +167,6 @@ def inject_completed_wip_requests_pending_approvals_count():
     return {'completed_wip_activity_requests_pending_approvals_count': count}
 
 
-# Count of pending submissions displayed on menu badge
 @app.context_processor
 def inject_pending_submissions_count():
     if current_user.is_authenticated:

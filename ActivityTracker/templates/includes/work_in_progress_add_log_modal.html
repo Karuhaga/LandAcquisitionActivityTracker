@@ -53,18 +53,20 @@
                 <div id="activityBreakdownContainer">
                     <h5>Activity Breakdown</h5>
                         <table class="table table-sm table-striped table-bordered table-hover align-middle">
-                            <thead class="table-light">
+                            <thead class="table-light" id="activityTaskInputsAddLogHeader">
                                 <tr>
                                     <th class="text-end" style="width: 5%;">#</th>
                                     <th style="width: 15%;">Start Date</th>
                                     <th style="width: 15%;">End Date</th>
-                                    <th style="width: 10%;">No. of Days</th>
-                                    <th style="width: 35%;">Details</th>
-                                    <th class="text-center" style="width: 10%;">Action</th>
+                                    <th style="width: 12%;">Credit Points Balance</th>
+                                    <th style="width: 12%;">Credit Points Requested</th>
+                                    <th style="width: 7%;">No. of Days</th>
+                                    <th style="width: 26%;">Details</th>
+                                    <th class="text-center" style="width: 8%;">Action</th>
                                 </tr>
                             </thead>
 
-                            <tbody id="activityTaskInputs">
+                            <tbody id="activityTaskInputsAddLog">
                                 <tr>
                                     <td class="text-end">1</td>
                                     <td>
@@ -73,6 +75,29 @@
                                     <td>
                                         <input type="text" class="form-control end-date-add-log" name="end_date[]" placeholder="End Date" autocomplete="off">
                                     </td>
+                                <td>
+                                    <input type="text"
+                                       class="form-control available-credit-points"
+                                       name="available_credit_points[]"
+                                       value="0"
+                                       data-original="100"
+                                       style="text-align: right;"
+                                       inputmode="numeric"
+                                       pattern="[0-9,]+"
+                                       oninput="formatCreditPoints(this)"
+                                       required disabled>
+                                </td>
+                                <td>
+                                    <input type="text"
+                                       class="form-control set-credit-points"
+                                       name="set_credit_points"
+                                       value="0"
+                                       style="text-align: right;"
+                                       inputmode="numeric"
+                                       pattern="[0-9,]+"
+                                       oninput="formatCreditPoints(this)"
+                                       required>
+                                </td>
                                     <td class="days-diff text-center">1</td>
                                     <td>
                                         <textarea class="form-control" name="activityBreakdownDetails[]" rows="2" placeholder="Enter activity details" maxlength="150"></textarea>
@@ -89,6 +114,7 @@
                                 <tr>
                                     <td colspan="5" class="text-end fw-bold">Total No. of Days:</td>
                                     <td class="total-days text-center">1</td>
+                                    <td colspan="2"></td>
                                 </tr>
                                 <tr>
                                     <td colspan="6" class="text-end">
@@ -99,7 +125,6 @@
                                 </tr>
                             </tfoot>
                         </table>
-
                 </div>
 
                 <!-- Attachments -->
@@ -163,6 +188,100 @@
 
 <script>
 
+function formatCreditPoints(input) {
+
+    const value = input.value
+        .replace(/,/g, "")
+        .replace(/[^0-9]/g, "");
+
+    input.value = value === ""
+        ? "0"
+        : parseInt(value, 10).toLocaleString("en-US");
+
+    // Only run for Set Credit Points field
+    if ($(input).hasClass("set-credit-points")) {
+
+        const $row = $(input).closest("tr");
+
+        const $availableInput = $row.find(".available-credit-points");
+
+        const currentBalance =
+            parseFloat(
+                $availableInput.val().replace(/,/g, "")
+            ) || 0;
+
+        const setPoints =
+            parseFloat(
+                input.value.replace(/,/g, "")
+            ) || 0;
+
+        // Remove existing validation message
+        $(input).next(".credit-points-error").remove();
+
+        const rowBalance =
+            parseFloat(
+                $availableInput.val().replace(/,/g, "")
+            ) || 0;
+
+        // Validation
+        if (setPoints > rowBalance) {
+
+            $(input).addClass("is-invalid");
+
+            $(input).next(".credit-points-error").remove();
+
+            $(input).after(`
+                <small class="text-danger credit-points-error d-block mt-1">
+                    Credit points requested cannot exceed available credit points (${rowBalance.toLocaleString("en-US")}).
+                </small>
+            `);
+
+            return;
+        }
+
+        $(input).removeClass("is-invalid");
+        $(input).next(".credit-points-error").remove();
+
+        recalculateCreditPointBalances();
+    }
+}
+
+function recalculateCreditPointBalances() {
+
+    const $rows = $("#activityTaskInputsAddLog tr");
+
+    const originalBalance =
+        parseFloat(
+            $rows.first()
+                 .find(".available-credit-points")
+                 .attr("data-original")
+        ) || 0;
+
+    let runningRequested = 0;
+
+    $rows.each(function () {
+
+        const rowBalance = originalBalance - runningRequested;
+
+        $(this)
+            .find(".available-credit-points")
+            .val(
+                Math.max(0, rowBalance)
+                    .toLocaleString("en-US")
+            );
+
+        const requested =
+            parseFloat(
+                $(this)
+                    .find(".set-credit-points")
+                    .val()
+                    .replace(/,/g, "")
+            ) || 0;
+
+        runningRequested += requested;
+    });
+}
+
     function removeRowaddlog(button) {
         const $row = $(button).closest("tr");
         const $tbody = $row.closest("tbody");
@@ -177,9 +296,11 @@
         });
 
         // Recalculate task totals if applicable
-        if ($tbody.attr("id") === "activityTaskInputs") {
+        if ($tbody.attr("id") === "activityTaskInputsAddLog") {
             calculateTotalDaysAddLog();
         }
+
+        recalculateCreditPointBalances();
     }
 
     // --- Date validation helpers ---
@@ -218,7 +339,7 @@
         let earliest = null;
         let latest = null;
 
-        $("#activityTaskInputs tr").each(function() {
+        $("#activityTaskInputsAddLog tr").each(function() {
             const startPicker = $(this).find('.start-date-add-log')[0]?._flatpickr;
             const endPicker = $(this).find('.end-date-add-log')[0]?._flatpickr;
 
@@ -302,8 +423,9 @@
     }
 
     function addTaskActivityAddLog() {
-        const $tbody = $("#activityTaskInputs");
+        const $tbody = $("#activityTaskInputsAddLog");
         const newRowIndex = $tbody.find("tr").length + 1; // count existing rows + 1
+        const currentBalance = $(".available-credit-points:first").attr("data-original") || 0;
 
         const newRow = $(`
             <tr>
@@ -313,6 +435,29 @@
                 </td>
                 <td>
                     <input type="text" class="form-control end-date-add-log" name="end_date[]" placeholder="End Date" autocomplete="off">
+                </td>
+                <td>
+                    <input type="text"
+                       class="form-control available-credit-points"
+                       name="available_credit_points[]"
+                       value="${Number(currentBalance).toLocaleString('en-US')}"
+                       data-original="${currentBalance}"
+                       style="text-align: right;"
+                       inputmode="numeric"
+                       pattern="[0-9,]+"
+                       oninput="formatCreditPoints(this)"
+                       required disabled>
+                </td>
+                <td>
+                    <input type="text"
+                       class="form-control set-credit-points"
+                       name="set_credit_points"
+                       value="0"
+                       style="text-align: right;"
+                       inputmode="numeric"
+                       pattern="[0-9,]+"
+                       oninput="formatCreditPoints(this)"
+                       required>
                 </td>
                 <td class="days-diff text-center">1</td>
                 <td>
@@ -328,6 +473,8 @@
 
         $tbody.append(newRow);
 
+        recalculateCreditPointBalances();
+
         // re-init datepickers for new row
         initDatePickersAddLog(newRow);
 
@@ -336,7 +483,7 @@
     }
     
     $(document).ready(function() {
-        initDatePickersAddLog($('#activityTaskInputs'));
+        initDatePickersAddLog($('#activityTaskInputsAddLog'));
 
         $("#key_process_drop_down_WIP").off("change").on("change", function () {
             const keyProcessId = $(this).val();
@@ -381,6 +528,50 @@
         });
     });
 
+$(document).on("change", "#activity_task_WIP", function () {
+
+    const taskId = $(this).val();
+
+    if (!taskId) {
+        $(".available-credit-points")
+            .val("0")
+            .attr("data-original", "0");
+        return;
+    }
+
+    loadCreditPointsBalance(taskId);
+});
+
+function loadCreditPointsBalance(taskId) {
+
+    const keyProcessId = $("#key_process_drop_down_WIP").val();
+    const activityId = $("#activityTaskId").val();
+
+    $.ajax({
+        url: `/get-credit-points-balance-by-task-id/${taskId}/${keyProcessId}/${activityId}`,
+        type: "GET",
+        success: function (response) {
+
+            const balance =
+                parseFloat(response.credit_points_balance) || 0;
+
+            $(".available-credit-points").each(function () {
+                $(this)
+                    .val(balance.toLocaleString("en-US"))
+                    .attr("data-original", balance);
+            });
+
+            // Reset requested points
+            $(".set-credit-points").val("0");
+
+            recalculateCreditPointBalances();
+        },
+        error: function () {
+            alert("Failed to load credit points balance.");
+        }
+    });
+}
+
     function handleActionAddWIPActivityLog(actionType, buttonElem = null) {
 
         if (actionType === "save activity log") {
@@ -424,28 +615,72 @@
            ===================================== */
         let hasValidRow = false;
 
-        $("#activityTaskInputs tr").each(function () {
-            const $row = $(this);
+$("#activityTaskInputsAddLog tr").each(function () {
 
-            const startDate = $row.find(".start-date-add-log").val()?.trim();
-            const endDate   = $row.find(".end-date-add-log").val()?.trim();
-            const details   = $row.find("textarea[name='activityBreakdownDetails[]']").val()?.trim();
+    const $row = $(this);
 
-            // Remove old row-level errors
-            $row.find(".validation-error").remove();
+    const startDate = $row.find(".start-date-add-log").val()?.trim();
+    const endDate   = $row.find(".end-date-add-log").val()?.trim();
+    const details   = $row.find("textarea[name='activityBreakdownDetails[]']").val()?.trim();
 
-            // If ANY field is filled, require ALL fields
-            if (startDate || endDate || details) {
-                if (!startDate || !endDate || !details) {
-                    isValid = false;
-                    $row.find("td:last").append(
-                        '<div class="text-danger validation-error small">Complete all fields in this row.</div>'
-                    );
-                } else {
-                    hasValidRow = true;
-                }
-            }
-        });
+    const availableBalance =
+        parseFloat(
+            $row.find(".available-credit-points")
+                .val()
+                .replace(/,/g, "")
+        ) || 0;
+
+    const requestedPoints =
+        parseFloat(
+            $row.find(".set-credit-points")
+                .val()
+                .replace(/,/g, "")
+        ) || 0;
+
+    $row.find(".validation-error").remove();
+
+    // Credit Points must be greater than 0
+    if (requestedPoints <= 0) {
+
+        isValid = false;
+
+        $row.find("td:last").append(
+            `<div class="text-danger validation-error small">
+                Credit Points Requested must be greater than 0.
+            </div>`
+        );
+    }
+
+    // Credit Points Validation
+    if (requestedPoints > availableBalance) {
+
+        isValid = false;
+
+        $row.find("td:last").append(
+            `<div class="text-danger validation-error small">
+                Credit Points Requested (${requestedPoints.toLocaleString("en-US")})
+                cannot exceed Credit Points Balance (${availableBalance.toLocaleString("en-US")}).
+            </div>`
+        );
+    }
+
+    // Existing row completeness validation
+    if (startDate || endDate || details) {
+
+        if (!startDate || !endDate || !details) {
+
+            isValid = false;
+
+            $row.find("td:last").append(
+                '<div class="text-danger validation-error small">Complete all fields in this row.</div>'
+            );
+
+        } else {
+
+            hasValidRow = true;
+        }
+    }
+});
 
         if (!hasValidRow) {
             isValid = false;
@@ -506,16 +741,18 @@
 
         // --- Activity Breakdown ---
         const activityBreakdown = [];
-        $("#activityTaskInputs tr").each(function() {
+        $("#activityTaskInputsAddLog tr").each(function() {
             const startDate = $(this).find("input.start-date-add-log").val();
             const endDate = $(this).find("input.end-date-add-log").val();
             const activityBreakdownDetail = $(this).find("textarea[name='activityBreakdownDetails[]']").val();
+            const creditPointsRequested = parseFloat($(this).find(".set-credit-points").val().replace(/,/g, "")) || 0;
 
             if (activityBreakdownDetail && startDate && endDate) {
                 activityBreakdown.push({
                     activityBreakdownDetail,
                     start_date: startDate,
-                    end_date: endDate
+                    end_date: endDate,
+                    credit_points_requested: creditPointsRequested
                 });
             }
         });
@@ -657,4 +894,21 @@
         z-index: 1055;
     }
 
+    #activityTaskInputsAddLog,
+    #activityTaskInputsAddLog .form-control,
+    #activityTaskInputsAddLog textarea,
+    #activityTaskInputsAddLog select,
+    #activityTaskInputsAddLog input {
+        font-size: 0.8rem;
+    }
+    
+    #activityTaskInputsAddLog .form-control {
+        padding: 0.25rem 0.5rem;
+    }
+
+    #activityTaskInputsAddLogHeader th {
+        font-size: 0.8rem !important;
+        padding: 0.25rem 0.35rem;
+        font-weight: 600;
+    }
 </style>

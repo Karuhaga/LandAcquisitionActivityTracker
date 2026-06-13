@@ -3,7 +3,8 @@ from ActivityTracker.models import (User, FileUploadBatch, FileUpload, FileDelet
                                     ReconciliationApprovals, WorkflowBreakdown, EmailHelper, Audit, UserSummary,
                                     Role, UserRole, Currency, BankAccountResponsibleUser, OrganisationUnitTier,
                                     OrganisationUnit, Workflow, Project, MenuItem, ActivityRequest,
-                                    ActivityRequestApprovals, ActivityRequestLog, TeamMemberRole, KeyProcess)
+                                    ActivityRequestApprovals, ActivityRequestLog, TeamMemberRole, KeyProcess,
+                                    ProjectKPI)
 from ActivityTracker.forms import LoginForm
 from flask import render_template, redirect, url_for, flash, request, jsonify, session, send_from_directory, abort
 import re
@@ -104,6 +105,258 @@ def dashboard_page():
         }
 
     return render_template('dashboard.html')
+
+
+@app.route('/project-kpi-set-up-page', methods=['GET', 'POST'])
+@login_required
+@role_required(75)
+def project_kpi_setup_page():
+
+    project_details = Project.get_projects_details()
+    key_process_details = ActivityRequest.get_key_process_details()
+
+    current_project_kpi_setup_id = (
+        ProjectKPI.get_current_project_kpi_setup_id(current_user.id)
+    )
+
+    saved_project_kpi_setup_details = (
+        ProjectKPI.get_saved_project_kpi_setup_details(
+            current_project_kpi_setup_id
+        )
+    )
+
+    current_project_id = None
+    focused_project_kpi_id = 0
+
+    if saved_project_kpi_setup_details:
+        current_project_id = saved_project_kpi_setup_details[0].project_id
+        focused_project_kpi_id = saved_project_kpi_setup_details[0].id
+
+    total_credit_points = sum(
+        (row.credit_points or 0)
+        for row in saved_project_kpi_setup_details
+    )
+
+    return render_template(
+        'project_kpi_setup.html',
+        project_details=project_details,
+        key_process_details=key_process_details,
+        saved_project_kpi_setup_details=saved_project_kpi_setup_details,
+        total_credit_points=total_credit_points,
+        current_project_id=current_project_id,
+        focused_project_kpi_id=focused_project_kpi_id
+    )
+
+
+@app.route('/save-kpi', methods=['POST'])
+@login_required
+def save_kpi():
+
+    try:
+
+        data = request.get_json()
+
+        project_id = data.get("project_id")
+        key_process_id = data.get("key_process_id")
+        credit_points = data.get("credit_points")
+
+        # Create KPI setup only if one does not already exist
+        if not ProjectKPI.has_ongoing_project_kpi_setup(current_user.id):
+
+            project_kpi_setup_id = ProjectKPI.insert_new_project_kpi_setup(
+                project_id,
+                current_user.id
+            )
+
+            if not project_kpi_setup_id:
+                return jsonify({
+                    "error": "Failed to create KPI setup."
+                }), 400
+        else:
+            # Fetch id of project_kpi_setup_id
+            current_project_kpi_setup_id = ProjectKPI.get_current_project_kpi_setup_id(current_user.id)
+
+            if current_project_kpi_setup_id is None:
+                return jsonify({"error": "Database error while fetching current_project_kpi_setup_id"}), 500
+
+            success = ProjectKPI.update_project_kpi_setup(
+                project_id, current_project_kpi_setup_id
+            )
+
+        # Fetch id of project_kpi_setup_id
+        current_project_kpi_setup_id = ProjectKPI.get_current_project_kpi_setup_id(current_user.id)
+
+        if current_project_kpi_setup_id is None:
+            return jsonify({"error": "Database error while fetching current_project_kpi_setup_id"}), 500
+
+        # Update existing KPI detail if it already exists
+        if ProjectKPI.has_ongoing_project_kpi_setup_detail(
+                current_project_kpi_setup_id,
+                key_process_id):
+
+            detail_id = ProjectKPI.get_current_project_kpi_setup_detail_id(
+                current_project_kpi_setup_id,
+                key_process_id
+            )
+
+            if not detail_id:
+                return jsonify({
+                    "error": "Failed to retrieve KPI detail record."
+                }), 500
+
+            success = ProjectKPI.update_project_kpi_setup_details(
+                detail_id,
+                credit_points
+            )
+
+        else:
+            # Insert new KPI detail
+            success = ProjectKPI.insert_new_project_kpi_setup_details(
+                current_project_kpi_setup_id,
+                key_process_id,
+                credit_points
+            )
+
+        if not success:
+            return jsonify({
+                "error": "Failed to save KPI details."
+            }), 400
+
+        return jsonify({
+            "message": "Project KPI saved successfully."
+        }), 200
+
+    except Exception as e:
+
+        current_app.logger.exception("Error saving KPI")
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route("/delete-kpi-detail", methods=["POST"])
+@login_required
+def delete_kpi_detail():
+    kpi_id = request.form.get("kpi_id")
+
+    if not kpi_id:
+        return jsonify({"message": "Invalid KPI ID."}), 400
+
+    # Delete related records
+    ProjectKPI.delete_kpi_detail(kpi_id)
+
+    return jsonify({"message": "KPI record deleted successfully."}), 200
+
+
+@app.route("/get-saved-kpi-details", methods=["GET"])
+@login_required
+def get_saved_kpi_details():
+
+    kpi_detail_id = request.args.get("kpi_detail_id", type=int)
+
+    saved_kpi_detail = ProjectKPI.get_saved_project_kpi_setup_details_2(
+        kpi_detail_id
+    )
+
+    if not saved_kpi_detail:
+        return jsonify({
+            "error": "KPI record not found."
+        }), 404
+
+    return jsonify(saved_kpi_detail)
+
+
+@app.route('/submit-kpi-setup-request', methods=['POST'])
+@login_required
+@role_required(1, 25)
+def submit_kpi_setup_request():
+    try:
+        data = json.loads(request.form.get("data", "{}"))
+        focused_project_kpi_id = data.get("focusedProjectKpiId")
+
+        if not focused_project_kpi_id:
+            return jsonify({
+                "error": "Missing focused_project_kpi_id",
+                "type": "danger"
+            }), 400
+
+        approval_id = ProjectKPI.insert_into_trn_project_kpi_setup_approvals(
+            focused_project_kpi_id=focused_project_kpi_id,
+            decision=1,
+            user_id=current_user.id,
+            level=1,
+            comment=""
+        )
+
+        if approval_id is None:
+            return jsonify({
+                "error": "Database error while saving project KPI approval request",
+                "type": "danger"
+            }), 500
+
+        if not ProjectKPI.update_project_kpi_setup_status(
+            focused_project_kpi_id
+        ):
+            return jsonify({
+                "error": "Database error while updating KPI status",
+                "type": "danger"
+            }), 500
+
+        Audit.log_audit_trail(
+            user_id=current_user.id,
+            action="Insert into trn_project_kpi_setup_approvals",
+            details=(
+                f"Project KPI ID: '{focused_project_kpi_id}', "
+                f"Approval ID: '{approval_id}'"
+            ),
+            ip_address=request.remote_addr
+        )
+
+        return jsonify({
+            "message": "Project KPIs submitted successfully",
+            "type": "success"
+        }), 200
+
+    except Exception:
+        app.logger.exception("Error submitting KPI setup request")
+
+        return jsonify({
+            "error": "An unexpected error occurred while submitting the KPI request.",
+            "type": "danger"
+        }), 500
+
+
+@app.route('/get-key-processes-by-project-id/<int:project_id>', methods=['GET'])
+@login_required
+def get_key_processes_by_project_id(project_id):
+    key_processes = ProjectKPI.get_key_processes_by_project_id(project_id)
+    return jsonify([
+        {'id': key_process.id, 'process_name': key_process.process_name}
+        for key_process in key_processes
+    ])
+
+
+@app.route('/get-available-credit-points-by-project-id-and-key-process-id/<int:project_id>/<int:key_process_id>/<int:activity_id>', methods=['GET'])
+@login_required
+def get_available_credit_points_by_project_id_and_key_process_id(project_id, key_process_id, activity_id):
+    print(activity_id)
+    available_credit_points = (
+        ProjectKPI.get_available_credit_points_by_project_id_and_key_process_id(
+            project_id,
+            key_process_id,
+            activity_id
+        )
+    )
+
+    if available_credit_points is None:
+        return jsonify({
+            "error": "Failed to retrieve available credit points"
+        }), 500
+
+    return jsonify({
+        "available_credit_points": available_credit_points
+    }), 200
 
 
 @app.route('/activity-request', methods=['GET', 'POST'])
@@ -527,6 +780,7 @@ def save_activity_request():
                 activity_id=current_request_id,
                 task=task.get("task"),
                 key_process_id=task.get("key_process"),
+                credit_points=task.get("credit_points"),
                 start_date=task.get("start_date"),
                 end_date=task.get("end_date"),
             )
@@ -662,13 +916,15 @@ def save_activity_request_log():
             start_date = breakdown.get("start_date")
             end_date = breakdown.get("end_date")
             activity_breakdown_detail = breakdown.get("activityBreakdownDetail")
+            credit_points_requested = breakdown.get("credit_points_requested")
 
             activity_breakdown_saved = ActivityRequestLog.insert_into_trn_activity_log_activity_breakdown(
                 activity_breakdown_count=activity_breakdown_count,
                 trn_activity_log_id=trn_activity_log_id,
                 start_date=start_date,
                 end_Date=end_date,
-                activity_breakdown_detail=activity_breakdown_detail
+                activity_breakdown_detail=activity_breakdown_detail,
+                credit_points_requested=credit_points_requested
             )
 
             Audit.log_audit_trail(
@@ -1039,6 +1295,7 @@ def update_activity_request():
                 activity_id=activity_request_id,
                 task=task.get("task"),
                 key_process_id=task.get("key_process"),
+                credit_points=task.get("credit_points"),
                 start_date=task.get("start_date"),
                 end_date=task.get("end_date")
             )
@@ -1261,6 +1518,233 @@ def approve_activity_requests_page():
     activity_requests = ActivityRequestApprovals.get_activity_requests_pending_approval(current_user.id)
     return render_template(
         'approve_activity_requests.html', activity_requests=activity_requests)
+
+
+@app.route('/approve-project-kpi-requests', methods=['GET', 'POST'])
+@login_required
+@role_required(76, 77, 78)
+def approve_project_kpi_requests_page():
+    project_kpi_requests = ProjectKPI.get_project_kpi_requests_pending_approval(current_user.id)
+    return render_template(
+        'approve_project_kpi_requests.html', project_kpi_requests=project_kpi_requests)
+
+
+@app.route('/approve-project-kpis-requests-update', methods=['POST'])
+@login_required
+@role_required(76, 77, 78)
+def approve_project_kpis_requests_update():
+    try:
+        data = request.get_json()
+
+        action = data.get("action")
+        comment = data.get("comment", "").strip()
+        files = data.get("files", [])
+
+        if not files:
+            return jsonify({"error": "No requests provided"}), 400
+
+        if action not in ["approve", "reject"]:
+            return jsonify({"error": "Invalid action selected"}), 400
+
+        decision = 2 if action == "approve" else 3
+        action_for_email = "approved" if action == "approve" else "rejected"
+
+        max_approval_level = ActivityRequestApprovals.get_max_approval_level(4)
+
+        if max_approval_level is None:
+            return jsonify({
+                "error": "Could not determine maximum approval level",
+                "type": "danger"
+            }), 500
+
+        user_id = current_user.id
+        user_fname = current_user.fname
+
+        initiator_id = None
+        project_kpi_request_status = None
+
+        # ==================================================
+        # Process KPI Requests
+        # ==================================================
+        for file in files:
+            kpi_request_setup_id = file.get("kpi_request_setup_id")
+
+            if not kpi_request_setup_id:
+                continue
+
+            latest_approval_level = (
+                ProjectKPI.get_latest_project_kpi_request_approval_level(
+                    kpi_request_setup_id
+                )
+            )
+
+            if latest_approval_level is None:
+                return jsonify({
+                    "error": "Could not determine current approval level"
+                }), 500
+
+            next_level = latest_approval_level + 1
+
+            approval_id = (
+                ProjectKPI.insert_into_trn_project_kpi_setup_approvals(
+                    kpi_request_setup_id,
+                    decision,
+                    user_id,
+                    next_level,
+                    comment
+                )
+            )
+
+            if approval_id is None:
+                return jsonify({
+                    "error": "Database error while saving approval record"
+                }), 500
+
+            updated = (
+                ProjectKPI.update_project_kpi_request_approval_status(
+                    kpi_request_setup_id,
+                    action,
+                    1
+                )
+            )
+
+            if not updated:
+                return jsonify({
+                    "error": "Database error while updating KPI request status"
+                }), 500
+
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: trn_project_kpi_setup",
+                details=f"Project KPI Request {action.title()}, ID: '{kpi_request_setup_id}'",
+                ip_address=request.remote_addr
+            )
+
+            # Additional rejection handling
+            if decision == 3:
+                rejected = (
+                    ProjectKPI.update_project_kpi_request_approval_status_following_a_rejected_approval(
+                        kpi_request_setup_id
+                    )
+                )
+
+                if rejected is None:
+                    return jsonify({
+                        "error": "Database error while processing rejection"
+                    }), 500
+
+            initiator_id = (
+                ProjectKPI.get_project_kpi_request_initiator_user_id(
+                    kpi_request_setup_id
+                )
+            )
+
+            project_kpi_request_status = (
+                ProjectKPI.get_status_of_project_kpi_request(
+                    kpi_request_setup_id
+                )
+            )
+
+        # ==================================================
+        # Enrich Files for Email Notifications
+        # ==================================================
+        for file in files:
+            details = ProjectKPI.get_saved_project_kpi_request_details_3(
+                file["kpi_request_setup_id"]
+            )
+
+            if details:
+                detail = details[0]
+
+                file["project_code"] = detail.project_code
+                file["project_name"] = detail.project_name
+
+        # ==================================================
+        # Notify Initiator
+        # ==================================================
+        initiators = (
+            ActivityRequestApprovals.get_activity_request_initiator_email_and_fname(
+                initiator_id
+            )
+        )
+
+        if initiators:
+
+            def send_initiator_emails():
+                try:
+                    with app.app_context():
+                        for initiator in initiators:
+                            EmailHelper.send_approval_summary_emails(
+                                user_fname,
+                                initiator["Email"],
+                                initiator["Fname"],
+                                files,
+                                action_for_email
+                            )
+                except Exception as e:
+                    app.logger.error(
+                        f"Error sending initiator email: {e}"
+                    )
+
+            threading.Thread(
+                target=send_initiator_emails,
+                daemon=True
+            ).start()
+
+        # ==================================================
+        # Notify Next Approver
+        # ==================================================
+        if (
+            action == "approve"
+            and project_kpi_request_status is not None
+            and project_kpi_request_status <= max_approval_level
+        ):
+
+            next_approvers = (
+                ActivityRequestApprovals.get_next_approver_fname_email(
+                    user_id,
+                    project_kpi_request_status
+                )
+            )
+
+            if next_approvers:
+
+                def send_next_approver_emails():
+                    try:
+                        with app.app_context():
+                            for approver in next_approvers:
+                                EmailHelper.send_email_notification_to_next_approver(
+                                    user_fname,
+                                    approver["Email"],
+                                    approver["Fname"],
+                                    files
+                                )
+                    except Exception as e:
+                        app.logger.error(
+                            f"Error sending next approver email: {e}"
+                        )
+
+                threading.Thread(
+                    target=send_next_approver_emails,
+                    daemon=True
+                ).start()
+
+        message = (
+            "Project KPIs approved successfully"
+            if action == "approve"
+            else "Project KPIs rejected successfully"
+        )
+
+        return jsonify({
+            "message": message,
+            "type": "success"
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "type": "danger"
+        }), 500
 
 
 @app.route('/approve-completed-wip-activity-requests', methods=['GET', 'POST'])
@@ -1696,6 +2180,55 @@ def get_reconciliation_workflow():
     })
 
 
+@app.route("/get-project-kpi-setup-approval-workflow", methods=["GET"])
+def get_project_kpi_setup_approval_workflow():
+    kpi_request_setup_id = request.args.get("kpi_request_setup_id")
+    workflow_id = request.args.get("workflow_ID")
+
+    # Get the latest approval level of given activity request
+    if int(workflow_id) == 1:
+        approvals = ActivityRequestApprovals.get_activity_request_approval_levels(kpi_request_setup_id)
+    elif int(workflow_id) == 3:
+        approvals = ActivityRequestLog.get_completed_wip_activity_request_approval_levels(kpi_request_setup_id)
+    elif int(workflow_id) == 4:
+        approvals = ProjectKPI.get_project_kpi_setup_request_approval_levels(kpi_request_setup_id)
+    else:
+        approvals = []
+
+    if approvals is None:
+        return jsonify({"error": "Database error while picking latest approval level of given activity request",
+                        "type": "danger"}), 500
+
+    approval_dict = {a[0]: {"decision": a[1], "approver": a[2], "date": a[3], "comment": a[4]} for a in approvals}
+
+    # Get workflow breakdown for "Project KPI Approval Request"
+    workflow_steps = ProjectKPI.get_workflow_breakdown_for_kpi_setup_approval(workflow_id, 1)
+    if workflow_steps is None:
+        return jsonify({"error": "Database error while picking workflow breakdown for Project KPI Approval Request"
+                                 " workflow",
+                        "type": "danger"}), 500
+
+    workflow_list = []
+    for step in workflow_steps:
+        approval = approval_dict.get(step.level, None)
+        workflow_list.append({
+            "level": step.level,
+            "name": step.name,
+            "role": step.role_name,
+            "status": approval["decision"] if approval else "Pending",
+            "approver": approval["approver"] if approval else "N/A",
+            "date": approval["date"] if approval else "N/A",
+            "comment": approval["comment"] if approval else " "
+        })
+
+    kpi_details = ProjectKPI.get_project_kpi_setup_details(kpi_request_setup_id)
+
+    return jsonify({
+        "workflow_steps": workflow_list,
+        "kpi_details": kpi_details or []
+    })
+
+
 @app.route("/get-completed-wip-activity-approval-request-workflow", methods=["GET"])
 def get_completed_wip_activity_approval_request_workflow():
     activity_request_id = request.args.get("activity_Request_ID")
@@ -1934,6 +2467,21 @@ def get_tasks_by_key_process(key_process_id, activity_id):
         {'id': task.id, 'task': task.task}
         for task in tasks
     ])
+
+
+@app.route('/get-credit-points-balance-by-task-id/<int:task_id>/<int:key_process_id>/<int:activity_id>')
+@login_required
+def get_credit_points_balance_by_task_id(task_id, key_process_id, activity_id):
+
+    credit_point_balance = ActivityRequest.get_credit_points_balance_by_task_id(
+        task_id,
+        key_process_id,
+        activity_id
+    )
+
+    return jsonify({
+        "credit_points_balance": credit_point_balance
+    })
 
 
 @app.route('/get-process-by-activity-request-id/<int:activity_id>', methods=['GET'])
@@ -2176,7 +2724,7 @@ def admin_register_new_role():
             Audit.log_audit_trail(
                 user_id=user_id,
                 action="Insert into table: role",
-                details=f"Add Role, role_name: '{role_name}'",
+                details=f"Add Role, role_name: '{rolename}'",
                 ip_address=request.remote_addr
             )
             return jsonify({"message": "Role added successfully."}), 200
@@ -2184,7 +2732,7 @@ def admin_register_new_role():
             return jsonify({"error": "Failed to insert role.", "type": "danger"}), 500
 
     except Exception as e:
-        print("Error inserting new user:", e)
+        print("Error inserting new role:", e)
         return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
 
 
@@ -2559,337 +3107,12 @@ def admin_update_key_process():
         return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
 
 
-@app.route('/admin-bank-accounts', methods=['GET', 'POST'])
-@login_required
-@role_required(35)
-def admin_bank_accounts():
-    bank_account_details = BankAccount.get_all_bank_account_details()
-    banks = BankAccount.get_all_bank_details()
-    currencies = Currency.get_all_currency_details()
-    org_units = UserSummary.get_organisation_units()
-    return render_template('bank_accounts.html', bank_account_details=bank_account_details,
-                           banks=banks, currencies=currencies, org_units=org_units)
-
-
-@app.route('/check-bank-account-name/<string:bankaccountname>', methods=['GET'])
-@login_required
-def check_bank_account_name_exists(bankaccountname):
-    exists = BankAccount.bank_account_name_exists(bankaccountname)
-    return jsonify({"exists": exists})
-
-
-@app.route('/admin-register-new-bank-account', methods=['POST'])
-@login_required
-@role_required(35)
-def admin_register_new_bank_account():
-    data = request.get_json()
-
-    try:
-        # Extract fields
-        bankAccountName = data.get("bankAccountName", "").strip()
-        bank_id = data.get("bank_id", "").strip()
-        currency_id = data.get("currency_id", "").strip()
-        org_unit_id = data.get("org_unit_id", "").strip()
-
-        # Validate required fields
-        if not all([bankAccountName, bank_id, currency_id, org_unit_id]):
-            return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
-
-        # Insert user into DB (pseudo-function: implement in your model)
-        result = BankAccount.insert_new_bank_account(bankAccountName, bank_id, currency_id, org_unit_id)
-        if result:
-            # update audit trail
-            user_id = current_user.id
-            Audit.log_audit_trail(
-                user_id=user_id,
-                action="Insert into table: bank_account",
-                details=f"Add Bank Account, bankAccountName: '{bankAccountName}': bank_id: '{bank_id}'"
-                        f": currency_id: '{currency_id}': org_unit_id: '{org_unit_id}'",
-                ip_address=request.remote_addr
-            )
-            return jsonify({"message": "Bank Account added successfully."}), 200
-        else:
-            return jsonify({"error": "Failed to insert bank account.", "type": "danger"}), 500
-
-    except Exception as e:
-        print("Error inserting new user:", e)
-        return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
-
-
-@app.route("/get-bank-account-details", methods=["GET"])
-def get_bank_account_details():
-    bank_account_name = request.args.get("bank_account_name")
-    bank_account_details = BankAccount.get_bank_account_details(bank_account_name)
-
-    if not bank_account_details:
-        return jsonify({"error": "User not found"}), 404
-
-    bank_accounts = bank_account_details[0]
-    return jsonify(bank_accounts)
-
-
-@app.route('/admin-update-bank-account', methods=['POST'])
-@login_required
-@role_required(35)
-def admin_update_bank_account():
-    data = request.get_json()
-
-    try:
-        # Extract fields
-        bank_acc_id = data.get("bank_acc_id")
-        bank_id = data.get("bank_id")
-        currency_id = data.get("currency_id")
-        org_unit_id = data.get("org_unit_id")
-        creation_date = data.get("creation_date")
-
-        # Validate required fields
-        if not bank_acc_id or not bank_id or not currency_id or not org_unit_id or not creation_date:
-            return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
-
-        # Insert user into DB (pseudo-function: implement in your model)
-        result = BankAccount.update_bank_account(bank_acc_id, bank_id, currency_id, org_unit_id, creation_date)
-        if result:
-            # update audit trail
-            user_id = current_user.id
-            Audit.log_audit_trail(
-                user_id=user_id,
-                action="Update table: bank_account",
-                details=f"Update Bank Account, bank_acc_id: '{bank_acc_id}': bank_id: '{bank_id}'"
-                        f": currency_id: '{currency_id}': org_unit_id: '{org_unit_id}': creation_date: '{creation_date}'",
-                ip_address=request.remote_addr
-            )
-            return jsonify({"message": "Bank account updated successfully."}), 200
-        else:
-            return jsonify({"error": "Failed to update bank account.", "type": "danger"}), 500
-
-    except Exception as e:
-        print("Error inserting new bank:", e)
-        return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
-
-
 @app.route('/admin-key-processes', methods=['GET', 'POST'])
 @login_required
 @role_required(37)
 def admin_key_processes():
     key_processes = KeyProcess.get_all_key_processes()
     return render_template('key_processes.html', key_processes=key_processes)
-
-
-@app.route('/check-currency-name/<string:currencyName>', methods=['GET'])
-@login_required
-def check_currency_name_exists(currencyName):
-    exists = Currency.currency_name_exists(currencyName)
-    return jsonify({"exists": exists})
-
-
-@app.route('/admin-register-new-currency', methods=['POST'])
-@login_required
-@role_required(7, 8, 9, 10)
-def admin_register_new_currency():
-    data = request.get_json()
-
-    try:
-        # Extract fields
-        currencyname = data.get("currencyName", "").strip()
-        currencycode = data.get("codeName", "").strip()
-
-        # Validate required fields
-        if not all([currencyname]):
-            return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
-
-        # Insert user into DB (pseudo-function: implement in your model)
-        result = Currency.insert_new_currency(currency_name=currencyname, currency_code=currencycode)
-        if result:
-            # update audit trail
-            user_id = current_user.id
-            Audit.log_audit_trail(
-                user_id=user_id,
-                action="Insert into table: currency",
-                details=f"Add Currency, currency_name: '{currencyname}': currency_code: '{currencycode}'",
-                ip_address=request.remote_addr
-            )
-            return jsonify({"message": "Currency added successfully."}), 200
-        else:
-            return jsonify({"error": "Failed to insert currency.", "type": "danger"}), 500
-
-    except Exception as e:
-        print("Error inserting new user:", e)
-        return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
-
-
-@app.route("/get-currency-details", methods=["GET"])
-def get_currency_details():
-    currency_name = request.args.get("currency_name")
-    currency_details = Currency.get_currency_details(currency_name)
-
-    if not currency_details:
-        return jsonify({"error": "Role not found"}), 404
-
-    currency = currency_details[0]
-
-    # Serialize manually
-    currency_data = {
-        "id": currency.id,
-        "currency_name": currency.name,
-        "currency_code": currency.code
-    }
-
-    return jsonify(currency_data)
-
-
-@app.route('/admin-update-currency', methods=['POST'])
-@login_required
-@role_required(7, 8, 9, 10)
-def admin_update_currency():
-    data = request.get_json()
-
-    try:
-        # Extract fields
-        currency_id = data.get("currency_id")
-        currency_name = data.get("currency_name")
-        currency_code = data.get("currency_code")
-
-        # Validate required fields
-        if not currency_id or not currency_name or currency_name.strip() == "" or not currency_code or currency_code.strip() == "":
-            return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
-
-        # Insert user into DB (pseudo-function: implement in your model)
-        result = Currency.update_currency(currency_id, currency_name, currency_code)
-        if result:
-            # update audit trail
-            user_id = current_user.id
-            Audit.log_audit_trail(
-                user_id=user_id,
-                action="Update table: currency",
-                details=f"Update Currency, currency_id: '{currency_id}': currency_name: '{currency_name}': "
-                        f"currency_code: '{currency_code}'",
-                ip_address=request.remote_addr
-            )
-            return jsonify({"message": "Currency updated successfully."}), 200
-        else:
-            return jsonify({"error": "Failed to update currency.", "type": "danger"}), 500
-
-    except Exception as e:
-        print("Error inserting new user:", e)
-        return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
-
-
-@app.route('/admin-bank-account-responsible-user', methods=['GET', 'POST'])
-@login_required
-@role_required(35)
-def admin_bank_account_responsible_user():
-    bank_account_responsible_user_details = BankAccountResponsibleUser.get_all_bank_responsible_person_details()
-    bank_accounts = BankAccount.get_all_bank_account_details()
-    usernames = UserSummary.get_all_usernames()
-    return render_template('bank_account_responsible_user.html',
-                           bank_account_responsible_user_details=bank_account_responsible_user_details,
-                           bank_accounts=bank_accounts, usernames=usernames)
-
-
-@app.route('/check-bank-account-responsibility-role/<int:bankAccId>/<int:userId>', methods=['GET'])
-@login_required
-def check_bank_account_responsibility_role_exists(bankAccId, userId):
-    exists = BankAccountResponsibleUser.bank_account_responsibility_exists(bankAccId, userId)
-    return jsonify({"exists": exists})
-
-
-@app.route('/admin-register-new-bank-account-responsibility', methods=['POST'])
-@login_required
-@role_required(35)
-def admin_register_new_bank_account_responsibility():
-    data = request.get_json()
-
-    try:
-        # Extract fields
-        bank_acc_id = data.get("bankAccId")
-        user_id = data.get("userId")
-
-        # Validate required fields
-        if not all([bank_acc_id, user_id]):
-            return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
-
-        result = BankAccountResponsibleUser.insert_new_bank_account_responsibility(
-            bank_acc_id=bank_acc_id,
-            user_id=user_id
-        )
-        if result:
-            # update audit trail
-            user_id = current_user.id
-            Audit.log_audit_trail(
-                user_id=user_id,
-                action="Insert in table: bank_account_responsible_user",
-                details=f"Add Bank Account Responsible User, bank_acc_id: '{bank_acc_id}': user_id: '{user_id}'",
-                ip_address=request.remote_addr
-            )
-            return jsonify({"message": "Bank Account responsibility added successfully."}), 200
-        else:
-            return jsonify({"error": "Failed to insert Bank Account responsibility.", "type": "danger"}), 500
-
-    except Exception as e:
-        print("Error inserting new user:", e)
-        return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
-
-
-@app.route("/get-bank-account-responsibility-details", methods=["GET"])
-def get_bank_account_responsibility_details():
-    bank_account_name = request.args.get("bank_account_name")
-    username = request.args.get("username")
-    bank_acc_responsibility_details = BankAccountResponsibleUser.get_bank_account_responsibility_details(
-        bank_account_name, username)
-
-    if not bank_acc_responsibility_details:
-        return jsonify({"error": "Bank Account responsibility not found"}), 404
-
-    responsibility = bank_acc_responsibility_details[0]
-
-    # Serialize manually
-    responsibility_data = {
-        "id": responsibility.id,
-        "bank_account_id": responsibility.bank_account_id,
-        "user_id": responsibility.user_id,
-        "is_active": responsibility.is_active
-    }
-
-    return jsonify(responsibility_data)
-
-
-@app.route('/admin-update-bank-account-responsibility', methods=['POST'])
-@login_required
-@role_required(35)
-def admin_update_bank_account_responsibility():
-    data = request.get_json()
-
-    try:
-        # Extract fields
-        responsibility_id = data.get("responsibility_id")
-        bank_acc_id = data.get("bank_acc_id")
-        user_id = data.get("user_id")
-        is_active = int(data.get("is_active"))
-
-        # Validate required fields
-        if responsibility_id is None or bank_acc_id is None or user_id is None or is_active is None:
-            return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
-
-        # Insert user into DB (pseudo-function: implement in your model)
-        result = BankAccountResponsibleUser.update_bank_account_responsibility(responsibility_id, bank_acc_id, user_id,
-                                                                               is_active)
-        if result:
-            # update audit trail
-            user_id = current_user.id
-            Audit.log_audit_trail(
-                user_id=user_id,
-                action="Update table: bank_account_responsible_user",
-                details=f"Update Bank Account Responsible User, responsibility_id: '{responsibility_id}': "
-                        f"bank_acc_id: '{bank_acc_id}': user_id: '{user_id}': is_active: '{is_active}'",
-                ip_address=request.remote_addr
-            )
-            return jsonify({"message": "Bank Account Responsibility updated successfully."}), 200
-        else:
-            return jsonify({"error": "Failed to update Bank Account Responsibility.", "type": "danger"}), 500
-
-    except Exception as e:
-        print("Error updating bank account responsible person:", e)
-        return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
 
 
 @app.route('/admin-organisation-unit-tier', methods=['GET', 'POST'])
@@ -3106,7 +3329,7 @@ def check_workflow_name_exists(workflowName):
 
 @app.route('/admin-register-new-workflow', methods=['POST'])
 @login_required
-@role_required(7, 8, 9, 10)
+@role_required(36)
 def admin_register_new_workflow():
     data = request.get_json()
 
@@ -3126,7 +3349,7 @@ def admin_register_new_workflow():
             Audit.log_audit_trail(
                 user_id=user_id,
                 action="Insert into table: workflow",
-                details=f"Add Workflow, workflow_name: '{workflow_name}'",
+                details=f"Add Workflow, workflow_name: '{workflowName}'",
                 ip_address=request.remote_addr
             )
             return jsonify({"message": "Workflow added successfully."}), 200
@@ -3134,7 +3357,7 @@ def admin_register_new_workflow():
             return jsonify({"error": "Failed to insert workflow.", "type": "danger"}), 500
 
     except Exception as e:
-        print("Error inserting new user:", e)
+        print("Error inserting new workflow:", e)
         return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
 
 
@@ -3169,7 +3392,7 @@ def admin_update_workflows():
             return jsonify({"error": "Failed to update workflow.", "type": "danger"}), 500
 
     except Exception as e:
-        print("Error inserting new user:", e)
+        print("Error updating new workflow:", e)
         return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
 
 
