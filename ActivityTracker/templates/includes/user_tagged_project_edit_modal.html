@@ -1,0 +1,56 @@
+<!-- Approval Action Modal -->
+<div class="modal fade" id="editUserTaggedProjectsModal" tabindex="-1" aria-labelledby="approvalActionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="approvalActionModalLabel">Edit User Role</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+
+            <form id="userTaggedProjectEditForm" class="p-4 rounded shadow-sm bg-white">
+                <input type="hidden" id="editUserTaggedProjectId">
+
+                <div class="mb-3 row align-items-center">
+                    <label for="usernameEditUserTaggedProject" class="col-md-4 col-form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <input type="text" name="usernameEditUserTaggedProject" id="usernameEditUserTaggedProject" maxlength="25" class="form-control" required disabled>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="userEditUserTaggedProject" class="col-md-4 col-form-label fw-semibold">Role <span class="text-danger">*</span></label>
+                    <div class="col-md-8">
+                        <input type="text" name="userEditUserTaggedProject" id="userEditUserTaggedProject" maxlength="25" class="form-control" required disabled>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="startDateEditUserTaggedProject" class="col-md-4 col-form-label fw-semibold">
+                        Start Date <span class="text-danger">*</span>
+                    </label>
+                    <div class="col-md-8">
+                        <input type="date" id="startDateEditUserTaggedProject" name="startDateEditUserTaggedProject" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="mb-3 row align-items-center">
+                    <label for="endDateEditUserTaggedProject" class="col-md-4 col-form-label fw-semibold">
+                        End Date <span class="text-danger">*</span>
+                    </label>
+                    <div class="col-md-8">
+                        <input type="date" id="endDateEditUserTaggedProject" name="endDateEditUserTaggedProject" class="form-control" required>
+                    </div>
+                </div>
+            </form>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-outline-custom2" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-outline-custom" id="confirmUserTaggedProjectEditAction">Update</button>
+            </div>
+        </div>
+    </div>
+</div>

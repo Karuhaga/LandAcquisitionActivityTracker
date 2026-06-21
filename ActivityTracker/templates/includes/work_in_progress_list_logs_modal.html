@@ -268,6 +268,27 @@
                                        value="${endDate}"
                                        autocomplete="off">
                             </td>
+                            <td>
+                                <input type="text"
+                                   class="form-control available-credit-points-wip-log"
+                                   name="available_credit_points_wip_log[]"
+                                   value="${item.available_credit_points}"
+                                   data-original="${item.available_credit_points}"
+                                   style="text-align: right;"
+                                   inputmode="numeric"
+                                   pattern="[0-9,]+"
+                                   required disabled>
+                            </td>
+                            <td>
+                                <input type="text"
+                                   class="form-control set-credit-points-wip-log"
+                                   name="set_credit_points_wip_log"
+                                   value="${item.credit_points}"
+                                   style="text-align: right;"
+                                   inputmode="numeric"
+                                   pattern="[0-9,]+"
+                                   required>
+                            </td>
                             <td class="days-diff text-center">0</td>
                             <td>
                                 <textarea class="form-control"
@@ -285,6 +306,8 @@
                         </tr>
                     `);
 
+                    window.originalCreditPointBalance = Number(item.available_credit_points || 0);
+
                     $tbody.append(newRow);
                 });
 
@@ -298,6 +321,8 @@
 
                 // Recalculate total days
                 calculateTotalDays();
+
+                recalculateCreditPointBalancesViewEditLog();
 
                 // Call secondary modal
                 showWorkInProgressViewEditLogModal();

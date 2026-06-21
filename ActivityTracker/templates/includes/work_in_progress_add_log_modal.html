@@ -80,7 +80,7 @@
                                        class="form-control available-credit-points"
                                        name="available_credit_points[]"
                                        value="0"
-                                       data-original="100"
+                                       data-original="0"
                                        style="text-align: right;"
                                        inputmode="numeric"
                                        pattern="[0-9,]+"
@@ -188,99 +188,99 @@
 
 <script>
 
-function formatCreditPoints(input) {
+    function formatCreditPoints(input) {
 
-    const value = input.value
-        .replace(/,/g, "")
-        .replace(/[^0-9]/g, "");
+        const value = input.value
+            .replace(/,/g, "")
+            .replace(/[^0-9]/g, "");
 
-    input.value = value === ""
-        ? "0"
-        : parseInt(value, 10).toLocaleString("en-US");
+        input.value = value === ""
+            ? "0"
+            : parseInt(value, 10).toLocaleString("en-US");
 
-    // Only run for Set Credit Points field
-    if ($(input).hasClass("set-credit-points")) {
+        // Only run for Set Credit Points field
+        if ($(input).hasClass("set-credit-points")) {
 
-        const $row = $(input).closest("tr");
+            const $row = $(input).closest("tr");
 
-        const $availableInput = $row.find(".available-credit-points");
+            const $availableInput = $row.find(".available-credit-points");
 
-        const currentBalance =
-            parseFloat(
-                $availableInput.val().replace(/,/g, "")
-            ) || 0;
+            const currentBalance =
+                parseFloat(
+                    $availableInput.val().replace(/,/g, "")
+                ) || 0;
 
-        const setPoints =
-            parseFloat(
-                input.value.replace(/,/g, "")
-            ) || 0;
+            const setPoints =
+                parseFloat(
+                    input.value.replace(/,/g, "")
+                ) || 0;
 
-        // Remove existing validation message
-        $(input).next(".credit-points-error").remove();
-
-        const rowBalance =
-            parseFloat(
-                $availableInput.val().replace(/,/g, "")
-            ) || 0;
-
-        // Validation
-        if (setPoints > rowBalance) {
-
-            $(input).addClass("is-invalid");
-
+            // Remove existing validation message
             $(input).next(".credit-points-error").remove();
 
-            $(input).after(`
-                <small class="text-danger credit-points-error d-block mt-1">
-                    Credit points requested cannot exceed available credit points (${rowBalance.toLocaleString("en-US")}).
-                </small>
-            `);
+            const rowBalance =
+                parseFloat(
+                    $availableInput.val().replace(/,/g, "")
+                ) || 0;
 
-            return;
+            // Validation
+            if (setPoints > rowBalance) {
+
+                $(input).addClass("is-invalid");
+
+                $(input).next(".credit-points-error").remove();
+
+                $(input).after(`
+                    <small class="text-danger credit-points-error d-block mt-1">
+                        Credit points requested cannot exceed available credit points (${rowBalance.toLocaleString("en-US")}).
+                    </small>
+                `);
+
+                return;
+            }
+
+            $(input).removeClass("is-invalid");
+            $(input).next(".credit-points-error").remove();
+
+            recalculateCreditPointBalances();
         }
-
-        $(input).removeClass("is-invalid");
-        $(input).next(".credit-points-error").remove();
-
-        recalculateCreditPointBalances();
     }
-}
 
-function recalculateCreditPointBalances() {
+    function recalculateCreditPointBalances() {
 
-    const $rows = $("#activityTaskInputsAddLog tr");
+        const $rows = $("#activityTaskInputsAddLog tr");
 
-    const originalBalance =
-        parseFloat(
-            $rows.first()
-                 .find(".available-credit-points")
-                 .attr("data-original")
-        ) || 0;
-
-    let runningRequested = 0;
-
-    $rows.each(function () {
-
-        const rowBalance = originalBalance - runningRequested;
-
-        $(this)
-            .find(".available-credit-points")
-            .val(
-                Math.max(0, rowBalance)
-                    .toLocaleString("en-US")
-            );
-
-        const requested =
+        const originalBalance =
             parseFloat(
-                $(this)
-                    .find(".set-credit-points")
-                    .val()
-                    .replace(/,/g, "")
+                $rows.first()
+                     .find(".available-credit-points")
+                     .attr("data-original")
             ) || 0;
 
-        runningRequested += requested;
-    });
-}
+        let runningRequested = 0;
+
+        $rows.each(function () {
+
+            const rowBalance = originalBalance - runningRequested;
+
+            $(this)
+                .find(".available-credit-points")
+                .val(
+                    Math.max(0, rowBalance)
+                        .toLocaleString("en-US")
+                );
+
+            const requested =
+                parseFloat(
+                    $(this)
+                        .find(".set-credit-points")
+                        .val()
+                        .replace(/,/g, "")
+                ) || 0;
+
+            runningRequested += requested;
+        });
+    }
 
     function removeRowaddlog(button) {
         const $row = $(button).closest("tr");
@@ -528,7 +528,7 @@ function recalculateCreditPointBalances() {
         });
     });
 
-$(document).on("change", "#activity_task_WIP", function () {
+$(document).off("change", "#activity_task_WIP").on("change", "#activity_task_WIP", function () {
 
     const taskId = $(this).val();
 

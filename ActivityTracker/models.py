@@ -199,6 +199,45 @@ class UserSummary:
             conn.close()
 
     @staticmethod
+    def get_user_tagged_project_id(user_name, project_name):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            # Fetch submitted reconciliations
+            query = """
+                        SELECT TOP 1
+                            utp.id
+                        FROM user_tagged_project AS utp
+                            INNER JOIN users AS u
+                                ON utp.user_id = u.ID
+                            INNER JOIN mst_project AS mp
+                                ON utp.project_id = mp.id
+                        WHERE
+                            u.Username = ?
+                            AND mp.project_name = ?;
+                    """
+            cursor.execute(query, (user_name, project_name,))
+            result = cursor.fetchall()
+
+            user_role_id_details = [
+                {
+                    "id": row.id
+                }
+                for row in result
+            ]
+            return user_role_id_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
     def get_organisation_unit_tier():
         conn = get_db_connection()
         if conn is None:
@@ -283,6 +322,30 @@ class UserSummary:
             conn.close()
 
     @staticmethod
+    def insert_new_user_tagged_project(user_id, project_id, start_date, end_date):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+
+            query = """
+                INSERT INTO user_tagged_project (user_id, project_id, start_datetime, expiry_datetime)
+                VALUES (?, ?, ?, ?)
+            """
+            cursor.execute(query, (user_id, project_id, start_date, end_date))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to insert a new user-tagged-project: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
     def insert_new_user(username, email, fname, mname, sname, password, org_unit_tier_id, org_unit_id):
         conn = get_db_connection()
         if conn is None:
@@ -304,6 +367,28 @@ class UserSummary:
             return True
         except Exception as e:
             print("Database error; failed to insert a new user: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def update_user_tagged_project(user_tagged_project_id, start_date, expiry_date):
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                UPDATE user_tagged_project SET start_datetime = ?, expiry_datetime = ? WHERE id = ?
+            """
+            cursor.execute(query, (start_date, expiry_date, user_tagged_project_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Database error; failed to update user: ", e)
             return False
         finally:
             cursor.close()
@@ -4084,13 +4169,16 @@ class WorkflowBreakdown:
 
 class UserRole:
     def __init__(self, id=None, user_id=None, user_name=None, username=None, role_id=None, role_name=None,
-                 start_datetime=None, expiry_datetime=None):
+                 project_id=None, project_code=None, project_name=None, start_datetime=None, expiry_datetime=None):
         self.id = id
         self.user_id = user_id
         self.username = username
         self.user_name = user_name
         self.role_id = role_id
         self.role_name = role_name
+        self.project_id = project_id
+        self.project_code = project_code
+        self.project_name = project_name
         self.start_datetime = start_datetime
         self.expiry_datetime = expiry_datetime
 
@@ -4153,6 +4241,26 @@ class UserRole:
             conn.close()
 
     @staticmethod
+    def user_tagged_project_exists(user_id, project_id):
+        conn = get_db_connection()
+        if conn is None:
+            return False  # Assume doesn't exist if DB is unreachable
+
+        cursor = conn.cursor()
+
+        try:
+            query = "SELECT COUNT(*) FROM user_tagged_project WHERE user_id = ? AND project_id = ?"
+            cursor.execute(query, (user_id, project_id,))
+            count = cursor.fetchone()[0]
+            return count > 0
+        except Exception as e:
+            print("Database error; failed to check user-tagged-project existence: ", e)
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
     def insert_new_user_role(user_id, role_id, start_date, end_date):
         conn = get_db_connection()
         if conn is None:
@@ -4200,6 +4308,63 @@ class UserRole:
                 for row in result
             ]
             return user_role_id_details
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_all_user_tagged_project_details():
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+
+            query = """
+                        SELECT
+                            utp.id,
+                            utp.user_id,
+                            u.username,
+                            LTRIM(RTRIM(
+                                CONCAT(
+                                    ISNULL(u.Fname, ''),
+                                    ' ',
+                                    ISNULL(u.Mname, ''),
+                                    ' ',
+                                    ISNULL(u.Sname, '')
+                                )
+                            )) AS user_name,
+                            mp.id AS project_id,
+                            mp.project_code,
+                            mp.project_name,
+                            CAST(utp.start_datetime AS DATE) AS start_datetime,
+                            CAST(utp.expiry_datetime AS DATE) AS expiry_datetime
+                        FROM user_tagged_project utp
+                        LEFT JOIN users u
+                            ON utp.user_id = u.ID
+                        LEFT JOIN mst_project mp
+                            ON utp.project_id = mp.id
+                        ORDER BY
+                            u.Fname,
+                            u.Mname,
+                            u.Sname;
+                    """
+            cursor.execute(query, )
+            result = cursor.fetchall()
+
+            # Convert query result into list of Reconciliation objects
+            user_role_details = [
+                UserRole(id=row.id, user_id=row.user_id, username=row.username, user_name=row.user_name,
+                         project_id=row.project_id, project_code=row.project_code, project_name=row.project_name,
+                         start_datetime=row.start_datetime, expiry_datetime=row.expiry_datetime)
+                for row in result
+            ]
+            return user_role_details
         except Exception as e:
             print("Database error:", e)
             return []
@@ -5052,6 +5217,33 @@ class Project:
         self.project_start_date = project_start_date
         self.project_end_date = project_end_date
         self.project_status = project_status
+
+    @staticmethod
+    def get_all_projects():
+        conn = get_db_connection()
+        if conn is None:
+            return []  # Return empty list if the database connection fails
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                SELECT id, project_code, project_name FROM mst_project ORDER BY project_name
+            """
+            cursor.execute(query, )
+            result = cursor.fetchall()
+
+            projects = [
+                Project(id=row.id, project_code=row.project_code, project_name=row.project_name, )
+                for row in result
+            ]
+            return projects
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
 
     @staticmethod
     def get_projects_details():
@@ -7505,6 +7697,133 @@ class ActivityRequest:
             conn.close()
 
     @staticmethod
+    def get_credit_points_balance_view_edit_log_modal(log_id, key_process_id, task_id):
+        conn = get_db_connection()
+        if conn is None:
+            return 0
+
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                        SELECT
+                            ISNULL(
+                                (
+                                    SELECT SUM(tab.credit_points)
+                                    FROM trn_activity_breakdown tab
+                                    WHERE tab.activity_id = a.activity_id
+                                      AND tab.key_process_id = ?
+                                      AND tab.id = ?
+                                ),
+                                0
+                            )
+                            -
+                            ISNULL(
+                                (
+                                    SELECT SUM(talab.credit_points)
+                                    FROM trn_activity_log_activity_breakdown talab
+                                    INNER JOIN trn_activity_log_overview talo
+                                        ON talab.trn_activity_log_id = talo.id
+                                    WHERE talo.activity_id = a.activity_id
+                                      AND talo.key_process_id = ?
+                                      AND talo.task_id = ?
+                                ),
+                                0
+                            ) AS credit_points_balance
+                        FROM trn_activity_log_overview a
+                        WHERE a.id = ?;
+            """
+
+            cursor.execute(query, (key_process_id, task_id, key_process_id, task_id, log_id))
+
+            row = cursor.fetchone()
+
+            return row.credit_points_balance if row else 0
+
+        except Exception as e:
+            print("Database error:", e)
+            return 0
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_activity_breakdown_details_view_edit_log_modal(log_id, key_process_id, task_id):
+        conn = get_db_connection()
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        try:
+            query = """
+                        SELECT 
+                            a.start_date,
+                            a.end_date,
+                            a.detail,
+                            ISNULL(a.credit_points, 0) AS credit_points,
+
+                            (
+                                ISNULL(
+                                    (
+                                        SELECT SUM(tab.credit_points)
+                                        FROM trn_activity_breakdown tab
+                                        WHERE tab.activity_id = b.activity_id
+                                          AND tab.key_process_id = b.key_process_id
+                                          AND tab.id = b.task_id
+                                    ),
+                                    0
+                                )
+                                -
+                                ISNULL(
+                                    (
+                                        SELECT SUM(talab.credit_points)
+                                        FROM trn_activity_log_activity_breakdown talab
+                                        INNER JOIN trn_activity_log_overview talo
+                                            ON talab.trn_activity_log_id = talo.id
+                                        WHERE talo.activity_id = b.activity_id
+                                          AND talo.key_process_id = b.key_process_id
+                                          AND talo.task_id = b.task_id
+                                    ),
+                                    0
+                                )
+                                +
+                                ISNULL(
+                                    (
+                                        SELECT SUM(talab.credit_points)
+                                        FROM trn_activity_log_activity_breakdown talab
+                                        INNER JOIN trn_activity_log_overview talo
+                                            ON talab.trn_activity_log_id = talo.id
+                                        WHERE talo.id = b.id
+                                          AND talo.activity_id = b.activity_id
+                                          AND talo.key_process_id = b.key_process_id
+                                          AND talo.task_id = b.task_id
+                                    ),
+                                    0
+                                )
+                            ) AS available_credit_points
+
+                        FROM trn_activity_log_activity_breakdown a
+                        INNER JOIN trn_activity_log_overview b
+                            ON a.trn_activity_log_id = b.id
+                        WHERE b.id = ? 
+						and b.key_process_id = ?
+						and b.task_id = ?;					
+                    """
+            cursor.execute(query, (log_id, key_process_id, task_id,))
+            columns = [col[0] for col in cursor.description]
+            result = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            print(result)
+            return result
+
+        except Exception as e:
+            print("Database error:", e)
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
     def get_process_by_activity_request_id(activity_id):
         conn = get_db_connection()
         if conn is None:
@@ -8674,10 +8993,57 @@ class ActivityRequestLog:
         cursor = conn.cursor()
         try:
             query = """
-                        SELECT start_date, end_date, detail 
-                        FROM trn_activity_log_activity_breakdown 
-                        WHERE trn_activity_log_id = ?
-                        ORDER BY trn_activity_log_id
+                        SELECT 
+                            a.start_date,
+                            a.end_date,
+                            a.detail,
+                            ISNULL(a.credit_points, 0) AS credit_points,
+
+                            (
+                                ISNULL(
+                                    (
+                                        SELECT SUM(tab.credit_points)
+                                        FROM trn_activity_breakdown tab
+                                        WHERE tab.activity_id = b.activity_id
+                                          AND tab.key_process_id = b.key_process_id
+                                          AND tab.id = b.task_id
+                                    ),
+                                    0
+                                )
+                                -
+                                ISNULL(
+                                    (
+                                        SELECT SUM(talab.credit_points)
+                                        FROM trn_activity_log_activity_breakdown talab
+                                        INNER JOIN trn_activity_log_overview talo
+                                            ON talab.trn_activity_log_id = talo.id
+                                        WHERE talo.activity_id = b.activity_id
+                                          AND talo.key_process_id = b.key_process_id
+                                          AND talo.task_id = b.task_id
+                                    ),
+                                    0
+                                )
+                                +
+                                ISNULL(
+                                    (
+                                        SELECT SUM(talab.credit_points)
+                                        FROM trn_activity_log_activity_breakdown talab
+                                        INNER JOIN trn_activity_log_overview talo
+                                            ON talab.trn_activity_log_id = talo.id
+                                        WHERE talo.id = b.id
+                                          AND talo.activity_id = b.activity_id
+                                          AND talo.key_process_id = b.key_process_id
+                                          AND talo.task_id = b.task_id
+                                    ),
+                                    0
+                                )
+                            ) AS available_credit_points
+
+                        FROM trn_activity_log_activity_breakdown a
+                        INNER JOIN trn_activity_log_overview b
+                            ON a.trn_activity_log_id = b.id
+                        WHERE b.id = ?
+                        ORDER BY a.activity_breakdown_details_count;
                     """
             cursor.execute(query, (log_id,))
             columns = [col[0] for col in cursor.description]
@@ -9486,8 +9852,16 @@ class ActivityRequestLog:
         try:
             cursor.execute(
                 """
-                    INSERT INTO trn_activity_log_activity_breakdown (activity_breakdown_details_count, trn_activity_log_id, start_date, end_date, detail, credit_points)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO 
+                        trn_activity_log_activity_breakdown 
+                            (activity_breakdown_details_count, 
+                            trn_activity_log_id, 
+                            start_date, 
+                            end_date, 
+                            detail, 
+                            credit_points)
+                    VALUES 
+                        (?, ?, ?, ?, ?, ?)
                 """,
                 (activity_breakdown_count, trn_activity_log_id, start_date, end_Date, activity_breakdown_detail, credit_points_requested),
             )

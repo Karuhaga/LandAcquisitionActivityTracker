@@ -424,6 +424,7 @@
                 loadingKeyProcessesWIPLog = false;
                 return; // STOP duplicate execution
             }
+
             loadingKeyProcessesWIPLog = true;
 
             let rowWIPLog = $(this).closest("tr");
@@ -484,8 +485,6 @@
                 url: `/get-logs-list-by-activity-request-id/${wipActivityTaskId}`,
                 type: "GET",
                 success: function (logs) {
-
-                    console.log(logs);
 
                     initWipLogsTable();
 

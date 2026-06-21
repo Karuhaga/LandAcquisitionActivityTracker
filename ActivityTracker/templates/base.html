@@ -617,6 +617,14 @@
                         </a>
                      {% endif %}
 
+                     {% if 'Admin - Tag User to Project' in menu_items %}
+                        <a class="nav-link {% if request.path == url_for('admin_user_tagged_project_page') %} active {% endif %}"
+                           href="{{ url_for('admin_user_tagged_project_page') }}">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>Tag User to Project</span>
+                        </a>
+                     {% endif %}
+
                      {% if 'Admin - Team Member Roles' in menu_items %}
                         <a class="nav-link {% if request.path == url_for('team_member_role') %} active {% endif %}"
                            href="{{ url_for('team_member_role') }}">
@@ -719,6 +727,8 @@
             {% include 'includes/work_in_progress_list_logs_modal.html' %}
             {% include 'includes/work_in_progress_view_edit_log_modal.html' %}
             {% include 'includes/project_kpi_setup_details_modal.html' %}
+            {% include 'includes/user_tagged_project_add_modal.html' %}
+            {% include 'includes/user_tagged_project_edit_modal.html' %}
          </div>
       </main>
    </body>

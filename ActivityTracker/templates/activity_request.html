@@ -196,11 +196,10 @@
                                        class="form-control available-credit-points"
                                        name="available_credit_points[]"
                                        value="0"
-                                       data-original="100"
+                                       data-original="0"
                                        style="text-align: right;"
                                        inputmode="numeric"
                                        pattern="[0-9,]+"
-                                       oninput="formatCreditPoints(this)"
                                        required disabled>
                                 </td>
                                 <td>
@@ -211,7 +210,6 @@
                                        style="text-align: right;"
                                        inputmode="numeric"
                                        pattern="[0-9,]+"
-                                       oninput="formatCreditPoints(this)"
                                        required>
                                 </td>
                                 <td>
@@ -409,59 +407,178 @@
         showConfirmationActivityRequest(actionType);
     }
 
-    function formatCreditPoints(input) {
+function recalculateKeyProcessBalances() {
 
-        const value = input.value
-            .replace(/,/g, "")
-            .replace(/[^0-9]/g, "");
+    const processBalances = {};
 
-        input.value = value === ""
+    // Get original balance for each Key Process
+    $("#taskInputs tr").each(function () {
+
+        const $row = $(this);
+        const processId = $row.find(".key-process-dropdown").val();
+
+        if (!processId) return;
+
+        if (!(processId in processBalances)) {
+
+            processBalances[processId] =
+                parseFloat(
+                    $row.find(".available-credit-points")
+                        .attr("data-original")
+                ) || 0;
+        }
+    });
+
+    // Process rows top-to-bottom
+    $("#taskInputs tr").each(function () {
+
+        const $row = $(this);
+
+        const processId =
+            $row.find(".key-process-dropdown").val();
+
+        const $available =
+            $row.find(".available-credit-points");
+
+        const $setPoints =
+            $row.find(".set-credit-points");
+
+        if (!processId) {
+            $available.val("0");
+            return;
+        }
+
+        let runningBalance = processBalances[processId];
+
+        const setPoints =
+            parseFloat(
+                ($setPoints.val() || "0")
+                    .replace(/,/g, "")
+            ) || 0;
+
+        // Deduct this row's allocation
+        runningBalance -= setPoints;
+
+        // Show balance after this row
+        $available.val(
+            Math.max(runningBalance, 0)
+                .toLocaleString("en-US")
+        );
+
+        // Save for next row of same process
+        processBalances[processId] = runningBalance;
+    });
+}
+
+$(document).on(
+    "input",
+    ".set-credit-points",
+    function () {
+
+        formatActivityRequestCreditPoints(this);
+
+    }
+);
+
+function formatActivityRequestCreditPoints(input) {
+
+    const value = input.value
+        .replace(/,/g, "")
+        .replace(/[^0-9]/g, "");
+
+    input.value =
+        value === ""
             ? "0"
             : parseInt(value, 10).toLocaleString("en-US");
 
-        // Only run for Set Credit Points field
-        if ($(input).hasClass("set-credit-points")) {
+    const $row = $(input).closest("tr");
 
-            const $row = $(input).closest("tr");
+    // remove previous validation
+    $(input).removeClass("is-invalid");
+    $row.find(".credit-points-error").remove();
+    $row.find(".validation-error").remove();
 
-            const $availableInput = $row.find(".available-credit-points");
+        recalculateKeyProcessBalances();
 
-            const originalAvailable = parseFloat($availableInput.attr("data-original")) || 0;
+const processId =
+    $row.find(".key-process-dropdown").val();
 
-            const setPoints =  parseFloat(input.value.replace(/,/g, "")) || 0;
+const originalBalance =
+    parseFloat(
+        $row.find(".available-credit-points")
+            .attr("data-original")
+    ) || 0;
 
-            // Remove existing validation message
-            $(input).next(".credit-points-error").remove();
+if (!processId || originalBalance <= 0) {
+    return;
+}
 
-            // Validation
-            if (setPoints > originalAvailable) {
+    // validate against available balance before this row
+    const availableBeforeRow =
+        getAvailableBalanceBeforeRow($row);
 
-                $(input).addClass("is-invalid");
+    const requestedPoints =
+        parseFloat($(input).val().replace(/,/g, "")) || 0;
 
-                $(input).next(".credit-points-error").remove();
+        $row.find(".credit-points-error").remove();
+        $row.find(".validation-error").remove();
 
-                $(input).after(`
-                    <small class="text-danger credit-points-error d-block mt-1">
-                        Credit points requested cannot exceed available credit points (${originalAvailable.toLocaleString("en-US")}).
-                    </small>
-                `);
+    if (requestedPoints > availableBeforeRow) {
 
-                return;
-            }
+        $(input).addClass("is-invalid");
 
-            $(input).removeClass("is-invalid");
-            $(input).next(".credit-points-error").remove();
-
-            const balance = originalAvailable - setPoints;
-
-            $availableInput.val(
-                balance.toLocaleString("en-US")
-            );
-        }
+        $(input).after(`
+            <small class="text-danger credit-points-error d-block mt-1">
+                Credit points requested cannot exceed available credit points (${availableBeforeRow.toLocaleString("en-US")}).
+            </small>
+        `);
     }
 
-    $(document).off("change", ".key-process-dropdown").on("change", ".key-process-dropdown", function() {
+}
 
+function getAvailableBalanceBeforeRow($currentRow) {
+
+    const processId =
+        $currentRow.find(".key-process-dropdown").val();
+
+    if (!processId) {
+        return 0;
+    }
+
+    const originalBalance =
+        parseFloat(
+            $currentRow
+                .find(".available-credit-points")
+                .attr("data-original")
+        ) || 0;
+
+    let consumed = 0;
+
+    $("#taskInputs tr").each(function () {
+
+        if ($(this).is($currentRow)) {
+            return false; // stop loop
+        }
+
+        const rowProcessId =
+            $(this).find(".key-process-dropdown").val();
+
+        if (rowProcessId === processId) {
+
+            consumed +=
+                parseFloat(
+                    $(this)
+                        .find(".set-credit-points")
+                        .val()
+                        .replace(/,/g, "")
+                ) || 0;
+        }
+    });
+
+    return Math.max(originalBalance - consumed, 0);
+}
+
+    $(document).off("change", ".key-process-dropdown").on("change", ".key-process-dropdown", function() {
             const projectId = $("#project_id").val();
             const keyProcessId = $(this).val();
 
@@ -473,6 +590,15 @@
                 currentActivityRequestId,
                 $row
             );
+
+            const $setPoints =
+                $row.find(".set-credit-points");
+
+            formatActivityRequestCreditPoints(
+                $setPoints[0]
+            );
+
+            recalculateKeyProcessBalances();
         }
     );
 
@@ -577,8 +703,8 @@ taskRows.each(function() {
     const setPoints =
         parseFloat($setCreditPoints.val()?.replace(/,/g, "")) || 0;
 
-    const originalAvailable =
-        parseFloat($availableCreditPoints.attr("data-original")) || 0;
+    const availableBeforeRow =
+        getAvailableBalanceBeforeRow($row);
 
     $row.find(".text-danger.validation-error").remove();
     $setCreditPoints.removeClass("is-invalid");
@@ -612,7 +738,7 @@ taskRows.each(function() {
     }
 
     // Credit points cannot exceed available balance
-    if (setPoints > originalAvailable) {
+    if (setPoints > availableBeforeRow) {
 
         isValid = false;
 
@@ -620,7 +746,8 @@ taskRows.each(function() {
 
         $setCreditPoints.after(`
             <div class="text-danger validation-error small">
-                Credit points requested cannot exceed available credit points (${originalAvailable.toLocaleString("en-US")}).
+                Credit points requested cannot exceed available credit points
+                (${availableBeforeRow.toLocaleString("en-US")}).
             </div>
         `);
 
@@ -634,7 +761,7 @@ taskRows.each(function() {
         startDate &&
         endDate &&
         setPoints > 0 &&
-        setPoints <= originalAvailable
+        setPoints <= availableBeforeRow
     ) {
         hasValidTask = true;
     }
@@ -745,10 +872,11 @@ taskRows.each(function() {
                        class="form-control available-credit-points"
                        name="available_credit_points[]"
                        value="0"
+                       data-original="0"
                        style="text-align: right;"
                        inputmode="numeric"
                        pattern="[0-9,]+"
-                       oninput="formatCreditPoints(this)"
+                       oninput="formatActivityRequestCreditPoints(this)"
                        required disabled>
                 </td>
                 <td>
@@ -759,7 +887,7 @@ taskRows.each(function() {
                        style="text-align: right;"
                        inputmode="numeric"
                        pattern="[0-9,]+"
-                       oninput="formatCreditPoints(this)"
+                       oninput="formatActivityRequestCreditPoints(this)"
                        required>
                 </td>
               <td>
@@ -780,6 +908,17 @@ taskRows.each(function() {
       `);
 
         $tbody.append(newRow);
+
+        recalculateKeyProcessBalances();
+
+        $("#taskInputs .set-credit-points").each(function () {
+
+            $(this).removeClass("is-invalid");
+
+            const $row = $(this).closest("tr");
+
+            $row.find(".credit-points-error").remove();
+        });
 
         // re-init datepickers for new row
         initDatePickersActivityRequest(newRow);
@@ -812,6 +951,8 @@ taskRows.each(function() {
         if ($tbody.attr("id") === "taskInputs") {
             calculateTotalDaysFunctionActivityRequest();
         }
+
+        recalculateKeyProcessBalances();
     }
 
     // --- Date validation helpers ---
@@ -1221,7 +1362,8 @@ taskRows.each(function() {
                             : "";
 
                     $dropdown.append(`
-                        <option value="${keyProcess.id}" ${selected}>
+                        <option value="${keyProcess.id}" ${selected}
+                                data-credit-points="${keyProcess.credit_points_balance}">
                             ${keyProcess.process_name}
                         </option>
                     `);
@@ -1281,8 +1423,6 @@ taskRows.each(function() {
 
     function loadAvailableCreditPoints(projectId, keyProcessId, activityId, $row) {
 
-        console.log(activityId);
-
         if (!projectId || !keyProcessId)
             return;
 
@@ -1291,11 +1431,15 @@ taskRows.each(function() {
             type: "GET",
             success: function (response) {
 
-                const available = Number(response.available_credit_points || 0);
+                const available =
+                    Number(response.available_credit_points || 0);
 
                 $row.find(".available-credit-points")
                     .val(available.toLocaleString("en-US"))
                     .attr("data-original", available);
+
+                // Recalculate after balance has been loaded
+                recalculateKeyProcessBalances();
             }
         });
     }
@@ -1581,11 +1725,11 @@ taskRows.each(function() {
                                     <input type="text"
                                        class="form-control available-credit-points"
                                        name="available_credit_points[]"
-                                       value=${task.available_credit_points || 0}
+                                       value="${task.available_credit_points || 0}"
+                                       data-original="${task.available_credit_points || 0}"
                                        style="text-align: right;"
                                        inputmode="numeric"
                                        pattern="[0-9,]+"
-                                       oninput="formatCreditPoints(this)"
                                        required disabled>
                                 </td>
                                 <td>
@@ -1596,7 +1740,6 @@ taskRows.each(function() {
                                        style="text-align: right;"
                                        inputmode="numeric"
                                        pattern="[0-9,]+"
-                                       oninput="formatCreditPoints(this)"
                                        required>
                                 </td>
                                 <td>

@@ -340,7 +340,7 @@ def get_key_processes_by_project_id(project_id):
 @app.route('/get-available-credit-points-by-project-id-and-key-process-id/<int:project_id>/<int:key_process_id>/<int:activity_id>', methods=['GET'])
 @login_required
 def get_available_credit_points_by_project_id_and_key_process_id(project_id, key_process_id, activity_id):
-    print(activity_id)
+
     available_credit_points = (
         ProjectKPI.get_available_credit_points_by_project_id_and_key_process_id(
             project_id,
@@ -455,6 +455,7 @@ def get_activity_tasks_details():
 
 @app.route("/get-activity-breakdown-details", methods=["GET"])
 def get_activity_breakdown_details():
+
     log_id = request.args.get("log_id", type=int)
 
     if not log_id:
@@ -1069,16 +1070,22 @@ def edit_activity_request_log():
 
         for breakdown in activity_breakdown:
 
+            print("i reach here")
+
             start_date = breakdown.get("start_date")
             end_date = breakdown.get("end_date")
             detail = breakdown.get("activityBreakdownDetail")
+            credit_points_requested = breakdown.get("credit_points_requested")
+
+            print(credit_points_requested)
 
             saved = ActivityRequestLog.insert_into_trn_activity_log_activity_breakdown(
                 activity_breakdown_count=activity_breakdown_count,
                 trn_activity_log_id=trn_activity_log_id,
                 start_date=start_date,
                 end_Date=end_date,
-                activity_breakdown_detail=detail
+                activity_breakdown_detail=detail,
+                credit_points_requested=credit_points_requested
             )
 
             Audit.log_audit_trail(
@@ -2484,6 +2491,32 @@ def get_credit_points_balance_by_task_id(task_id, key_process_id, activity_id):
     })
 
 
+@app.route('/get-credit-points-balance-view-edit-log-modal/<int:log_id>/<int:key_process_id>/<int:task_id>')
+@login_required
+def get_credit_points_balance_view_edit_log_modal(log_id, key_process_id, task_id):
+
+    credit_point_balance = ActivityRequest.get_credit_points_balance_view_edit_log_modal(
+        log_id,
+        key_process_id,
+        task_id
+    )
+
+    return jsonify({
+        "credit_points_balance": credit_point_balance
+    })
+
+
+@app.route('/get-activity-breakdown-details-view-edit-log-modal/<int:log_id>/<int:key_process_id>/<int:task_id>')
+@login_required
+def get_activity_breakdown_details_view_edit_log_modal(log_id, key_process_id, task_id):
+
+    activity_breakdown_details = ActivityRequest.get_activity_breakdown_details_view_edit_log_modal(log_id, key_process_id, task_id)
+
+    return jsonify({
+        "activity_breakdown_details": activity_breakdown_details
+    })
+
+
 @app.route('/get-process-by-activity-request-id/<int:activity_id>', methods=['GET'])
 @login_required
 def get_process_by_activity_request_id(activity_id):
@@ -2811,10 +2844,35 @@ def admin_user_roles_page():
     )
 
 
+@app.route('/admin-user-tagged-projects', methods=['GET', 'POST'])
+@login_required
+@role_required(79)
+def admin_user_tagged_project_page():
+    user_tagged_project_details = UserRole.get_all_user_tagged_project_details()
+
+    usernames = UserSummary.get_all_usernames()
+
+    projects = Project.get_all_projects()
+
+    return render_template(
+        'user_tagged_projects.html',
+        user_tagged_project_details=user_tagged_project_details,
+        usernames=usernames,
+        projects=projects
+    )
+
+
 @app.route('/check-user-role/<int:user_id>/<int:role_id>', methods=['GET'])
 @login_required
 def check_user_role_exists(user_id, role_id):
     exists = UserRole.user_role_exists(user_id, role_id)
+    return jsonify({"exists": exists})
+
+
+@app.route('/check-user-tagged-projects/<int:user_id>/<int:project_id>', methods=['GET'])
+@login_required
+def check_user_tagged_projects_exists(user_id, project_id):
+    exists = UserRole.user_tagged_project_exists(user_id, project_id)
     return jsonify({"exists": exists})
 
 
@@ -2860,6 +2918,48 @@ def admin_register_new_user_role():
         return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
 
 
+@app.route('/admin-register-new-user-tagged-project', methods=['POST'])
+@login_required
+@role_required(43)
+def admin_register_new_user_tagged_project():
+    data = request.get_json()
+
+    try:
+        # Extract fields
+        user_id = data.get("user_id")
+        project_id = data.get("project_id")
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+
+        # Validate required fields
+        if not all([user_id, project_id, start_date, end_date]):
+            return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
+
+        result = UserSummary.insert_new_user_tagged_project(
+            user_id=user_id,
+            project_id=project_id,
+            start_date=start_date,
+            end_date=end_date
+        )
+        if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Insert into table: user_tagged_project",
+                details=f"Add User-Tagged-Project, user_id: '{user_id}': project_id: '{project_id}': start_date: '{start_date}': "
+                        f"end_date: '{end_date}'",
+                ip_address=request.remote_addr
+            )
+            return jsonify({"message": "User-tagged-project added successfully."}), 200
+        else:
+            return jsonify({"error": "Failed to insert user-tagged-project.", "type": "danger"}), 500
+
+    except Exception as e:
+        print("Error inserting new user-tagged-project:", e)
+        return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
+
+
 @app.route("/get-user-role-id", methods=["GET"])
 def get_user_role_id():
     user_name = request.args.get("username")
@@ -2871,6 +2971,20 @@ def get_user_role_id():
 
     user_role_id = user_role_id_details[0]["id"]
     return jsonify({"user_role_id": user_role_id})
+
+
+@app.route("/get-user-tagged-project-id", methods=["GET"])
+def get_user_tagged_project_id():
+    user_name = request.args.get("username")
+    project_name = request.args.get("project_name")
+
+    user_tagged_projects_id = UserSummary.get_user_tagged_project_id(user_name, project_name)
+
+    if not user_tagged_projects_id:
+        return jsonify({"error": "User-Role not found"}), 404
+
+    user_tagged_project_id = user_tagged_projects_id[0]["id"]
+    return jsonify({"user_tagged_project_id": user_tagged_project_id})
 
 
 @app.route('/admin-update-user-role', methods=['POST'])
@@ -2904,6 +3018,43 @@ def admin_update_user_role():
             return jsonify({"message": "User-Role updated successfully."}), 200
         else:
             return jsonify({"error": "Failed to update User-Role.", "type": "danger"}), 500
+
+    except Exception as e:
+        print("Error inserting new user:", e)
+        return jsonify({"error": "An error occurred while processing the request.", "type": "danger"}), 500
+
+
+@app.route('/admin-update-user-tagged-project', methods=['POST'])
+@login_required
+@role_required(79)
+def admin_update_user_tagged_project():
+    data = request.get_json()
+
+    try:
+        # Extract fields
+        user_tagged_project_id = data.get("user_tagged_project_id")
+        start_date = data.get("start_date")
+        expiry_date = data.get("end_date")
+
+        # Validate required fields
+        if not user_tagged_project_id or not start_date or expiry_date.strip() == "":
+            return jsonify({"error": "Missing required fields.", "type": "danger"}), 400
+
+        # Insert user into DB (pseudo-function: implement in your model)
+        result = UserSummary.update_user_tagged_project(user_tagged_project_id, start_date, expiry_date)
+        if result:
+            # update audit trail
+            user_id = current_user.id
+            Audit.log_audit_trail(
+                user_id=user_id,
+                action="Update table: user_tagged_project",
+                details=f"Update user_tagged_project, user_tagged_project_id: '{user_tagged_project_id}': start_date: '{start_date}': "
+                        f"expiry_date: '{expiry_date}'",
+                ip_address=request.remote_addr
+            )
+            return jsonify({"message": "User-tagged-project updated successfully."}), 200
+        else:
+            return jsonify({"error": "Failed to update User_tagged_project_id.", "type": "danger"}), 500
 
     except Exception as e:
         print("Error inserting new user:", e)
